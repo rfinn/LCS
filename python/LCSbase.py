@@ -60,7 +60,7 @@ class galaxies:
         self.gim2d=fits.getdata(lcspath+'tables/LCS_all.gim2d.tab1.fits')
         
         # dictionary to look up galaxies by NSAID
-        self.nsadict=dict((a,b) for a,b in zip(self.s.NSAID,arange(len(self.s.NSAID))))
+        self.nsadict=dict((a,b) for a,b in zip(self.s.NSAID,np.arange(len(self.s.NSAID))))
         
     def get_agn(self):
         self.AGNKAUFF=self.s['AGNKAUFF'] & (self.s.HAEW > 0.)
