@@ -111,7 +111,6 @@ class galaxies:
                 self.DA[i] = cosmo.angular_diameter_distance(self.s.ZDIST[i]).value*Mpcrad_kpcarcsec
         self.sizeflag=(self.s.SERSIC_TH50*self.DA > minsize_kpc) #& (self.s.SERSIC_TH50 < 20.)
 
-
     def select_sample(self):
         self.logstellarmass =  self.s.MSTAR_50 # self.logstellarmassTaylor # or
         self.massflag=self.s.MSTAR_50 > minmass
