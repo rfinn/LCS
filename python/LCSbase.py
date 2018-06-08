@@ -47,7 +47,7 @@ Mpcrad_kpcarcsec = 2. * pi/360./3600.*1000.
 minmass=9.
 
 class galaxies:
-    def __init__(self, infile):
+    def __init__(self, lcspath):
 
         self.jmass=fits.getdata(lcspath+'tables/LCS_Spirals_all_fsps_v2.4_miles_chab_charlot_sfhgrid01.fits')
         # use jmass.mstar_50 and jmass.mstar_err
