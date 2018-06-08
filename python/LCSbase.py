@@ -47,6 +47,10 @@ if not(os.path.exists(lcspath)):
 Mpcrad_kpcarcsec = 2. * np.pi/360./3600.*1000.
 minmass=9.
 
+mipspixelscale=2.45
+
+minsize_kpc=1.3 # one mips pixel at distance of hercules
+
 class galaxies:
     def __init__(self, lcspath):
 
@@ -66,13 +70,21 @@ class galaxies:
         self.AGNKAUFF=self.s['AGNKAUFF'] & (self.s.HAEW > 0.)
         self.AGNKEWLEY=self.s['AGNKEWLEY']& (self.s.HAEW > 0.)
         self.AGNSTASIN=self.s['AGNSTASIN']& (self.s.HAEW > 0.)
+        self.AGNKAUFF= ((log10(self.s.O3FLUX/self.s.HBFLUX) > (.61/(log10(self.s.N2FLUX/self.s.HAFLUX)-.05)+1.3)) | (log10(self.s.N2FLUX/self.s.HAFLUX) > 0.))
         # add calculations for selecting the sample
         self.wiseagn=(self.s.W1MAG_3 - self.s.W2MAG_3) > 0.8
         self.agnflag = self.AGNKAUFF | self.wiseagn
 
+    def get_gim2d_flag(self):
+        self.gim2dflag=self.s['matchflag'] & (self.gim2d.Rd == self.gim2d.Rd) # get rid of nan's in Rd
+
     def get_galfit_flag(self):
+        self.sb_obs=np.zeros(len(self.s.RA))
+        flag= (~self.s['fcnumerical_error_flag24'])
+        self.sb_obs[flag]=self.s.fcmag1[flag] + 2.5*np.log10(np.pi*((self.s.fcre1[flag]*mipspixelscale)**2)*self.s.fcaxisratio1[flag])
+
         self.nerrorflag=self.s['fcnumerical_error_flag24']
-        self.badfits=zeros(len(self.s.RA),'bool')
+        self.badfits=np.zeros(len(self.s.RA),'bool')
         #badfits=array([166134, 166185, 103789, 104181],'i')'
         nearbystar=[142655, 143485, 99840, 80878] # bad NSA fit; 24um is ok
         #nearbygalaxy=[103927,143485,146607, 166638,99877,103933,99056]#,140197] # either NSA or 24um fit is unreliable
@@ -81,9 +93,9 @@ class galaxies:
         #badNSA=[166185,142655,99644,103825,145998]
         #badNSA = [
         badfits= nearbygalaxy#+nearbystar+nearbygalaxy
-        badfits=array(badfits,'i')
+        badfits=np.array(badfits,'i')
         for gal in badfits:
-            self.badfits[where(self.s.NSAID == gal)]  = 1
+            self.badfits[np.where(self.s.NSAID == gal)]  = 1
 
         self.galfitflag = (self.s.fcmag1 > .1)  & ~self.nerrorflag & (self.sb_obs < 20.) & (self.s.fcre1/self.s.fcre1err > .5)#20.)
         #override the galfit flag for the following galaxies
@@ -102,8 +114,8 @@ class galaxies:
         self.galfitflag = self.galfitflag & ~self.badfits
 
     def get_size_flag(self):
-        self.DA=zeros(len(self.s.SERSIC_TH50))
-        self.DA[self.membflag] = cosmo.angular_diameter_distance(self.s.CLUSTER_REDSHIFT[self.membflag].value*Mpcrad_kpcarcsec)
+        self.DA=np.zeros(len(self.s.SERSIC_TH50))
+        #self.DA[self.membflag] = cosmo.angular_diameter_distance(self.s.CLUSTER_REDSHIFT[self.membflag]).value*Mpcrad_kpcarcsec)
         for i in range(len(self.DA)):
             if self.membflag[i]:
                 self.DA[i] = cosmo.angular_diameter_distance(self.s.CLUSTER_REDSHIFT[i]).value*Mpcrad_kpcarcsec
@@ -120,9 +132,9 @@ class galaxies:
  
         self.sbflag=self.sb_obs < 20.
 
-        self.sb_obs=zeros(len(self.s.RA))
+        self.sb_obs=np.zeros(len(self.s.RA))
         flag= (~self.s['fcnumerical_error_flag24'])
-        self.sb_obs[flag]=self.s.fcmag1[flag] + 2.5*log10(np.pi*((self.s.fcre1[flag]*mipspixelscale)**2)*self.s.fcaxisratio1[flag])
+        self.sb_obs[flag]=self.s.fcmag1[flag] + 2.5*np.log10(np.pi*((self.s.fcre1[flag]*mipspixelscale)**2)*self.s.fcaxisratio1[flag])
 
         
         self.gim2dflag=self.s['matchflag'] & (self.gim2d.Rd == self.gim2d.Rd) # get rid of nan's in Rd
@@ -133,7 +145,7 @@ class galaxies:
         self.dv = (self.s.ZDIST - self.s.CLUSTER_REDSHIFT)*3.e5/self.s.CLUSTER_SIGMA
         self.dvflag = abs(self.dv) < 3.
 
-        self.sampleflag = self.galfitflag    & self.lirflag   & self.sizeflag & ~self.agnflag & self.sbflag#& self.massflag#& self.gim2dflag#& self.blueflag2
+        self.sampleflag = self.galfitflag    & self.lirflag   & self.sizeflag & ~self.agnflag & self.sbflag & self.gim2dflag#& self.massflag#& self.gim2dflag#& self.blueflag2
 
     def calculate_sizeratio(self):
         self.SIZE_RATIO_DISK = np.zeros(len(self.gim2dflag))
@@ -165,3 +177,11 @@ class galaxies:
 
 if __name__ == '__main__':
     g = galaxies(lcspath)
+    g.get_agn()
+    g.get_gim2d_flag()
+    g.get_galfit_flag()
+    g.get_memb()
+    g.get_size_flag()
+    g.calculate_sizeratio()
+    g.select_sample()
+
