@@ -50,10 +50,10 @@ minmass=9.
 class galaxies:
     def __init__(self, lcspath):
 
-        self.jmass=fits.getdata(lcspath+'tables/LCS_Spirals_all_fsps_v2.4_miles_chab_charlot_sfhgrid01.fits')
+        #self.jmass=fits.getdata(lcspath+'tables/LCS_Spirals_all_fsps_v2.4_miles_chab_charlot_sfhgrid01.fits')
         # use jmass.mstar_50 and jmass.mstar_err
 
-        self.agc=fits.getdata(lcspath+'tables/LCS_Spirals_AGC.fits')
+        #self.agc=fits.getdata(lcspath+'tables/LCS_Spirals_AGC.fits')
 
         self.s=fits.getdata(lcspath+'tables/LCS_all_size.fits')
 
