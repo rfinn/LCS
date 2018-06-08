@@ -28,6 +28,7 @@ from astropy.io import fits
 import os
 import sys
 from astropy.cosmology import WMAP9 as cosmo
+import numpy as np
 
 # set environment variables to point to github repository
 # call it GITHUB_PATH
@@ -43,7 +44,7 @@ if not(os.path.exists(lcspath)):
     print 'could not find directory: ',lcspath
     sys.exit()
 
-Mpcrad_kpcarcsec = 2. * pi/360./3600.*1000.
+Mpcrad_kpcarcsec = 2. * np.pi/360./3600.*1000.
 minmass=9.
 
 class galaxies:
@@ -102,7 +103,7 @@ class galaxies:
 
     def get_size_flag(self):
         self.DA=zeros(len(self.s.SERSIC_TH50))
-        self.DA[self.membflag] = cosmo.angular_diameter_distance(self.s.CLUSTER_REDSHIFT[self.membflag].value*Mpcrad_kpcarcsec
+        self.DA[self.membflag] = cosmo.angular_diameter_distance(self.s.CLUSTER_REDSHIFT[self.membflag].value*Mpcrad_kpcarcsec)
         for i in range(len(self.DA)):
             if self.membflag[i]:
                 self.DA[i] = cosmo.angular_diameter_distance(self.s.CLUSTER_REDSHIFT[i]).value*Mpcrad_kpcarcsec
@@ -122,7 +123,7 @@ class galaxies:
 
         self.sb_obs=zeros(len(self.s.RA))
         flag= (~self.s['fcnumerical_error_flag24'])
-        self.sb_obs[flag]=self.s.fcmag1[flag] + 2.5*log10(pi*((self.s.fcre1[flag]*mipspixelscale)**2)*self.s.fcaxisratio1[flag])
+        self.sb_obs[flag]=self.s.fcmag1[flag] + 2.5*log10(np.pi*((self.s.fcre1[flag]*mipspixelscale)**2)*self.s.fcaxisratio1[flag])
 
         
         self.gim2dflag=self.s['matchflag'] & (self.gim2d.Rd == self.gim2d.Rd) # get rid of nan's in Rd
