@@ -70,14 +70,13 @@ class galaxies:
         self.AGNKAUFF=self.s['AGNKAUFF'] & (self.s.HAEW > 0.)
         self.AGNKEWLEY=self.s['AGNKEWLEY']& (self.s.HAEW > 0.)
         self.AGNSTASIN=self.s['AGNSTASIN']& (self.s.HAEW > 0.)
-        self.AGNKAUFF= ((log10(self.s.O3FLUX/self.s.HBFLUX) > (.61/(log10(self.s.N2FLUX/self.s.HAFLUX)-.05)+1.3)) | (log10(self.s.N2FLUX/self.s.HAFLUX) > 0.))
+        self.AGNKAUFF= ((np.log10(self.s.O3FLUX/self.s.HBFLUX) > (.61/(np.log10(self.s.N2FLUX/self.s.HAFLUX)-.05)+1.3)) | (np.log10(self.s.N2FLUX/self.s.HAFLUX) > 0.)) #& (self.s.HAEW > 0.)
         # add calculations for selecting the sample
         self.wiseagn=(self.s.W1MAG_3 - self.s.W2MAG_3) > 0.8
         self.agnflag = self.AGNKAUFF | self.wiseagn
 
     def get_gim2d_flag(self):
-        self.gim2dflag=self.s['matchflag'] & (self.gim2d.Rd == self.gim2d.Rd) # get rid of nan's in Rd
-
+        self.gim2dflag=self.gim2d.recno > 0. # get rid of nan's in Rd
     def get_galfit_flag(self):
         self.sb_obs=np.zeros(len(self.s.RA))
         flag= (~self.s['fcnumerical_error_flag24'])
@@ -137,7 +136,6 @@ class galaxies:
         self.sb_obs[flag]=self.s.fcmag1[flag] + 2.5*np.log10(np.pi*((self.s.fcre1[flag]*mipspixelscale)**2)*self.s.fcaxisratio1[flag])
 
         
-        self.gim2dflag=self.s['matchflag'] & (self.gim2d.Rd == self.gim2d.Rd) # get rid of nan's in Rd
 
         #self.agnkauff=self.s.AGNKAUFF > .1
         #self.agnkewley=self.s.AGNKEWLEY > .1
