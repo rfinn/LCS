@@ -138,19 +138,30 @@ class galaxies:
     def calculate_sizeratio(self):
         self.SIZE_RATIO_DISK = np.zeros(len(self.gim2dflag))
         print (len(self.s.fcre1),len(self.gim2dflag))
-        a =  self.s.fcre1[self.gim2dflag]*mipspixelscale
+        a =  self.s.fcre1[self.gim2dflag]*mipspixelscale # fcre1 = 24um half-light radius in mips pixels
         b = self.DA[self.gim2dflag]
-        c = self.gim2d.Rd[self.gim2dflag]
+        c = self.gim2d.Rd[self.gim2dflag] # gim2d half light radius for disk in kpc
+
+        # this is the size ratio we use in paper 1
         self.SIZE_RATIO_DISK[self.gim2dflag] =a*b/c
-        
         self.SIZE_RATIO_DISK_ERR = np.zeros(len(self.gim2dflag))
         self.SIZE_RATIO_DISK_ERR[self.gim2dflag] = self.s.fcre1err[self.gim2dflag]*mipspixelscale*self.DA[self.gim2dflag]/self.gim2d.Rd[self.gim2dflag]
+
+        # 24um size divided by the r-band half-light radius for entire galaxy (single component)
         self.SIZE_RATIO_gim2d = np.zeros(len(self.gim2dflag))
         self.SIZE_RATIO_gim2d[self.gim2dflag] = self.s.fcre1[self.gim2dflag]*mipspixelscale*self.DA[self.gim2dflag]/self.gim2d.Rhlr[self.gim2dflag]
         self.SIZE_RATIO_gim2d_ERR = np.zeros(len(self.gim2dflag))
         self.SIZE_RATIO_gim2d_ERR[self.gim2dflag] = self.s.fcre1err[self.gim2dflag]*mipspixelscale*self.DA[self.gim2dflag]/self.gim2d.Rhlr[self.gim2dflag]
+
+        # 24um size divided by NSA r-band half-light radius for single component sersic fit
         self.SIZE_RATIO_NSA = self.s.fcre1*mipspixelscale/self.s.SERSIC_TH50
         self.SIZE_RATIO_NSA_ERR=self.s.fcre1err*mipspixelscale/self.s.SERSIC_TH50
+
+    def get_memb(self):
+        self.dv = (self.s.ZDIST - self.s.CLUSTER_REDSHIFT)*3.e5/self.s.CLUSTER_SIGMA
+        self.dvflag = abs(self.dv) < 3.
+
+        self.membflag = abs(self.dv) < (-4./3.*self.s.DR_R200 + 2)
 
 if __name__ == '__main__':
     g = galaxies(lcspath)
