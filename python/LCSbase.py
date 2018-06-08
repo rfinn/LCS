@@ -41,7 +41,7 @@ homedir = os.environ['HOME']
 # and that LCS is a repository in github
 lcspath = homedir+'/github/LCS/'
 if not(os.path.exists(lcspath)):
-    print 'could not find directory: ',lcspath
+    print ('could not find directory: ',lcspath)
     sys.exit()
 
 Mpcrad_kpcarcsec = 2. * np.pi/360./3600.*1000.
@@ -94,7 +94,7 @@ class galaxies:
             except KeyError:
 
                 if self.prefix == 'no_coma':
-                    print 'ids not relevant for nc'
+                    print ('ids not relevant for nc')
                 else:
                     sys.exit()
         #self.galfitflag = self.galfitflag 
@@ -137,7 +137,7 @@ class galaxies:
 
     def calculate_sizeratio(self):
         self.SIZE_RATIO_DISK = np.zeros(len(self.gim2dflag))
-        print len(self.s.fcre1),len(self.gim2dflag)
+        print (len(self.s.fcre1),len(self.gim2dflag))
         a =  self.s.fcre1[self.gim2dflag]*mipspixelscale
         b = self.DA[self.gim2dflag]
         c = self.gim2d.Rd[self.gim2dflag]
@@ -153,6 +153,4 @@ class galaxies:
         self.SIZE_RATIO_NSA_ERR=self.s.fcre1err*mipspixelscale/self.s.SERSIC_TH50
 
 if __name__ == '__main__':
-
-
     g = galaxies(lcspath)
