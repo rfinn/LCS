@@ -16,7 +16,7 @@ import LCSbase as lb
 from matplotlib import pyplot as plt
 import numpy as np
 
-class galaxy(lb.galaxy):
+class galaxies(lb.galaxies):
     def plotsizedvdr(self,plotsingle=1,reonly=1,onlycoma=0,plotHI=0,plotbadfits=0,lowmass=0,himass=0,cluster=None,plothexbin=True,hexbinmax=40,scalepoint=0,clustername=None,blueflag=False,plotmembcut=True,colormin=.2,colormax=1,colorbydensity=False,plotoman=False,masscut=None,BTcut=None):
         # log10(chabrier) = log10(Salpeter) - .25 (SFR estimate)
         # log10(chabrier) = log10(diet Salpeter) - 0.1 (Stellar mass estimates)
@@ -167,7 +167,53 @@ class galaxy(lb.galaxy):
             savefig(figname+'.png')
             savefig(figname+'.eps')
             plt.savefig(figuredir+'fig4.pdf')
+    def plotsizehist(self, btcut = None,colorflag=False):
+        figure(figsize=(6,6))
+        plt.subplots_adjust(left=.15,bottom=.2,hspace=.1)
+        axes=[]
+        plt.subplot(2,1,1)
 
+        axes.append(plt.gca())
+
+        mybins=arange(0,2,.15)
+        if btcut == None:
+            flag = self.sampleflag
+        else:
+            flag = self.sampleflag & (self.gim2d.B_T_r < btcut)
+        if colorflag:
+            colors = ['r','b']
+        else:
+            colors = ['k','k']
+        flags = [flag & self.membflag & ~self.agnflag,flag & ~self.membflag & ~self.agnflag]
+        labels = ['$Core$','$External$']
+        for i in range(len(colors)):
+            plt.subplot(2,1,i+1)
+            print 'median ratio for ',labels[i],' = ',np.median(self.sizeratio[flags[i]])
+            hist(self.sizeratio[flags[i]],bins=mybins,histtype='stepfilled',color=colors[i],label=labels[i],lw=1.5,alpha=1)#,normed=True)
+            plt.legend(loc='upper right')
+            plt.axis([0,2,0,22])
+            if i < 1:
+                plt.xticks(([]))
+
+        
+        plt.text(-.2,1,'$N_{gal}$',transform=gca().transAxes,verticalalignment='center',rotation=90,fontsize=24)
+        print 'comparing cluster and exterior SF galaxies'
+        ks(self.sizeratio[flag & self.membflag & ~self.agnflag],self.sizeratio[flag & ~self.membflag & ~self.agnflag])
+        
+        plt.xlabel('$ R_{24}/R_d $')
+        if btcut == None:
+            #plt.ylim(0,20)
+            #plt.savefig(homedir+'research/LocalClusters/SamplePlots/sizehistblue.eps')
+            #plt.savefig(homedir+'research/LocalClusters/SamplePlots/sizehistblue.png')
+            plt.savefig(figuredir+'fig11a.eps')
+            
+        else:
+            #plt.ylim(0,15)
+            plt.subplot(2,1,1)
+            plt.title('$ B/T < %2.1f \ Galaxies $'%(btcut),fontsize=20)
+            #plt.savefig(homedir+'research/LocalClusters/SamplePlots/sizehistblueBTcut.eps')
+            #plt.savefig(homedir+'research/LocalClusters/SamplePlots/sizehistblueBTcut.png')
+            plt.savefig(figuredir+'fig11b.eps')
     def plotsize3panel(self,logyscale=False,use_median=True,equal_pop_bins=True):
         figure(figsize=(10,10))
         subplots_adjust(left=.12,bottom=.1,top=.9,wspace=.02,hspace=.4)
@@ -307,6 +353,7 @@ class galaxy(lb.galaxy):
         plt.savefig(homedir+'research/LocalClusters/SamplePlots/sizestellarmass.pdf')
         plt.savefig(homedir+'research/LocalClusters/SamplePlots/sizestellarmass.png')
         plt.savefig(figuredir+'fig13.pdf')
+        
     def plotsizeHIfrac(self,sbcutobs=20.5,isoflag=0,r90flag=0,color_BT=False):
         plt.figure(figsize=plotsize_single)
         plt.subplots_adjust(bottom=.2,left=.15)
