@@ -65,7 +65,12 @@ class galaxies:
         
         # dictionary to look up galaxies by NSAID
         self.nsadict=dict((a,b) for a,b in zip(self.s.NSAID,np.arange(len(self.s.NSAID))))
-        
+        self.NUVr=self.s.ABSMAG[:,1] - self.s.ABSMAG[:,4]
+        self.upperlimit=self.s['RE_UPPERLIMIT'] # converts this to proper boolean array
+
+
+        if __name__ != '__main__':
+            self.setup()
     def get_agn(self):
         self.AGNKAUFF=self.s['AGNKAUFF'] & (self.s.HAEW > 0.)
         self.AGNKEWLEY=self.s['AGNKEWLEY']& (self.s.HAEW > 0.)
@@ -144,7 +149,8 @@ class galaxies:
         self.dvflag = abs(self.dv) < 3.
 
         self.sampleflag = self.galfitflag    & self.lirflag   & self.sizeflag & ~self.agnflag & self.sbflag & self.gim2dflag#& self.massflag#& self.gim2dflag#& self.blueflag2
-
+        self.sfsampleflag = self.sizeflag & self.massflag & self.lirflag & ~self.badfits
+        self.HIflag = self.s.HIMASS > 0.
     def calculate_sizeratio(self):
         self.SIZE_RATIO_DISK = np.zeros(len(self.gim2dflag))
         print (len(self.s.fcre1),len(self.gim2dflag))
@@ -166,12 +172,24 @@ class galaxies:
         # 24um size divided by NSA r-band half-light radius for single component sersic fit
         self.SIZE_RATIO_NSA = self.s.fcre1*mipspixelscale/self.s.SERSIC_TH50
         self.SIZE_RATIO_NSA_ERR=self.s.fcre1err*mipspixelscale/self.s.SERSIC_TH50
-
+        self.sizeratio = self.SIZE_RATIO_DISK
+        self.sizeratioERR=self.SIZE_RATIO_DISK_ERR
+        # size ratio corrected for inclination 
+        self.size_ratio_corr=self.sizeratio*(self.s.faxisratio1/self.s.SERSIC_BA)
     def get_memb(self):
         self.dv = (self.s.ZDIST - self.s.CLUSTER_REDSHIFT)*3.e5/self.s.CLUSTER_SIGMA
         self.dvflag = abs(self.dv) < 3.
 
         self.membflag = abs(self.dv) < (-4./3.*self.s.DR_R200 + 2)
+
+    def setup(self):
+        self.get_agn()
+        self.get_gim2d_flag()
+        self.get_galfit_flag()
+        self.get_memb()
+        self.get_size_flag()
+        self.calculate_sizeratio()
+        self.select_sample()
 
 if __name__ == '__main__':
     g = galaxies(lcspath)
