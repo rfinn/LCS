@@ -15,7 +15,7 @@ SIZE RATIO
 - I set up self.size_ratio to be the size used in all plots.
 
 REQUIRED MODULES:
-- LCScommon
+
 
 **************************
 written by Rose A. Finn
