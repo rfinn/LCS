@@ -31,7 +31,7 @@ import argparse# here is min mass = 9.75
 
 parser = argparse.ArgumentParser(description ='Run sextractor, scamp, and swarp to determine WCS solution and make mosaics')
 parser.add_argument('--minmass', dest = 'minmass', default = 9., help = 'minimum stellar mass for sample.  default is log10(M*) > 7.9')
-parser.add_argument('--figdir', dest = 'figdir', default = '/Users/rfinn/Dropbox/Research/MyPapers/LCSpaper1/submit/resubmit4/', help = 'directory for saving figures.  default is /Users/rfinn/Dropbox/Research/MyPapers/LCSpaper1/submit/resubmit4/')
+parser.add_argument('--figdir', dest = 'figdir', default = './', help = 'directory for saving figures.  default is current directory')
 parser.add_argument('--diskonly', dest = 'diskonly', default = 1, help = 'True/False (enter 1 or 0). normalize by Simard+11 disk size rather than Re for single-component sersic fit.  Default is true.  ')
 
 args = parser.parse_args()
