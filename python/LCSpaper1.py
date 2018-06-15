@@ -77,7 +77,7 @@ params = {'backend': 'pdf',
           'figure.figsize': plotsize_single}
 plt.rcParams.update(params)
 figuredir = '/Users/rfinn/Dropbox/Research/MyPapers/LCSpaper1/submit/resubmit4/'
-
+figuredir = './'
 ###########################
 ##### START OF GALAXIES CLASS
 ###########################
