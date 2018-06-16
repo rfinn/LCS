@@ -89,7 +89,7 @@ figuredir = '/Users/grudnick/Work/Local_cluster_survey/Papers/Finn_MS/Plots/'
 
 class galaxies(lb.galaxies):
     def plotSFRStellarmassall(self):
-        figure(figsize=(10,8))
+        #figure(figsize=(10,8))
         ax=gca()
         ax.set_yscale('log')
         axis([8.8,12,1.e-3,40.])
@@ -108,8 +108,8 @@ class galaxies(lb.galaxies):
         bothax=[]
         limits=[8.1,12,1.e-3,40.]
         plt.subplot(2,3,1)
-        plt.plot(self.logstellarmass,self.s.SFR_ZDIST,'ro',markersize=2,label='Full Sample')
-        plt.plot(self.logstellarmass[~self.agnflag],self.s.SFR_ZDIST[~self.agnflag],'bo',markersize=2,label='No AGN')
+        plt.plot(self.logstellarmass,self.s.SFR_ZDIST,'ro',markersize=5,label='Full Sample')
+        plt.plot(self.logstellarmass[~self.agnflag],self.s.SFR_ZDIST[~self.agnflag],'bo',markersize=4,label='No AGN')
         plt.gca().set_yscale('log')
         plt.axis(limits)
         ax=plt.gca()
@@ -122,8 +122,8 @@ class galaxies(lb.galaxies):
 
 
         plt.subplot(2,3,2)
-        plt.plot(self.logstellarmass,self.s.SFR_ZDIST,'ro',markersize=2,label='Full Sample')
-        plt.plot(self.logstellarmass[self.galfitflag],self.s.SFR_ZDIST[self.galfitflag],'bo',markersize=2,label='galfitflag')
+        plt.plot(self.logstellarmass,self.s.SFR_ZDIST,'ro',markersize=5,label='Full Sample')
+        plt.plot(self.logstellarmass[self.galfitflag],self.s.SFR_ZDIST[self.galfitflag],'bo',markersize=4,label='galfitflag')
         plt.gca().set_yscale('log')
         plt.axis(limits)
         ax=plt.gca()
@@ -134,8 +134,8 @@ class galaxies(lb.galaxies):
         g.plotelbaz()
 
         plt.subplot(2,3,3)
-        plt.plot(self.logstellarmass,self.s.SFR_ZDIST,'ro',markersize=2,label='Full Sample')
-        plt.plot(self.logstellarmass[self.lirflag],self.s.SFR_ZDIST[self.lirflag],'bo',markersize=2,label='lirflag')
+        plt.plot(self.logstellarmass,self.s.SFR_ZDIST,'ro',markersize=5,label='Full Sample')
+        plt.plot(self.logstellarmass[self.lirflag],self.s.SFR_ZDIST[self.lirflag],'bo',markersize=4,label='lirflag')
         plt.gca().set_yscale('log')
         plt.axis(limits)
         ax=plt.gca()
@@ -146,8 +146,8 @@ class galaxies(lb.galaxies):
         g.plotelbaz()
 
         plt.subplot(2,3,4)
-        plt.plot(self.logstellarmass,self.s.SFR_ZDIST,'ro',markersize=2,label='Full Sample')
-        plt.plot(self.logstellarmass[self.sizeflag],self.s.SFR_ZDIST[self.sizeflag],'bo',markersize=2,label='sizeflag')
+        plt.plot(self.logstellarmass,self.s.SFR_ZDIST,'ro',markersize=5,label='Full Sample')
+        plt.plot(self.logstellarmass[self.sizeflag],self.s.SFR_ZDIST[self.sizeflag],'bo',markersize=4,label='sizeflag')
         plt.gca().set_yscale('log')
         plt.axis(limits)
         ax=plt.gca()
@@ -156,8 +156,8 @@ class galaxies(lb.galaxies):
         g.plotelbaz()
 
         plt.subplot(2,3,5)
-        plt.plot(self.logstellarmass,self.s.SFR_ZDIST,'ro',markersize=2,label='Full Sample')
-        plt.plot(self.logstellarmass[self.sbflag],self.s.SFR_ZDIST[self.sbflag],'bo',markersize=2,label='sbflag')
+        plt.plot(self.logstellarmass,self.s.SFR_ZDIST,'ro',markersize=5,label='Full Sample')
+        plt.plot(self.logstellarmass[self.sbflag],self.s.SFR_ZDIST[self.sbflag],'bo',markersize=4,label='sbflag')
         plt.gca().set_yscale('log')
         plt.axis(limits)
         ax=plt.gca()
@@ -168,8 +168,8 @@ class galaxies(lb.galaxies):
         g.plotelbaz()
 
         plt.subplot(2,3,6)
-        plt.plot(self.logstellarmass,self.s.SFR_ZDIST,'ro',markersize=2,label='Full Sample')
-        plt.plot(self.logstellarmass[self.gim2dflag],self.s.SFR_ZDIST[self.gim2dflag],'bo',markersize=2,label='gim2dflag')
+        plt.plot(self.logstellarmass,self.s.SFR_ZDIST,'ro',markersize=5,label='Full Sample')
+        plt.plot(self.logstellarmass[self.gim2dflag],self.s.SFR_ZDIST[self.gim2dflag],'bo',markersize=4,label='gim2dflag')
         plt.gca().set_yscale('log')
         plt.axis(limits)
         ax=plt.gca()
