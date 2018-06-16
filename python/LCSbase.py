@@ -75,7 +75,7 @@ class galaxies:
         self.AGNKAUFF=self.s['AGNKAUFF'] & (self.s.HAEW > 0.)
         self.AGNKEWLEY=self.s['AGNKEWLEY']& (self.s.HAEW > 0.)
         self.AGNSTASIN=self.s['AGNSTASIN']& (self.s.HAEW > 0.)
-        self.AGNKAUFF= ((np.log10(self.s.O3FLUX/self.s.HBFLUX) > (.61/(np.log10(self.s.N2FLUX/self.s.HAFLUX)-.05)+1.3)) | (np.log10(self.s.N2FLUX/self.s.HAFLUX) > 0.)) #& (self.s.HAEW > 0.)
+        self.AGNKAUFF= ((np.log10(self.s.O3FLUX/self.s.HBFLUX) > (.61/(np.log10(self.s.N2FLUX/self.s.HAFLUX)-.05)+1.3)) | (np.log10(self.s.N2FLUX/self.s.HAFLUX) > 0.)) & (self.s.HAEW > 0.)
         # add calculations for selecting the sample
         self.wiseagn=(self.s.W1MAG_3 - self.s.W2MAG_3) > 0.8
         self.agnflag = self.AGNKAUFF | self.wiseagn
