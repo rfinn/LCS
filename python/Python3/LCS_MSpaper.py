@@ -184,9 +184,12 @@ class galaxies(lb.galaxies):
         xe=arange(8.5,11.5,.1)
         xe=10.**xe
         ye=(.08e-9)*xe
+        plot(log10(xe),(ye),'w-',lw=3,label='$Elbaz+2011$')
         plot(log10(xe),(ye),'k-',lw=2,label='$Elbaz+2011$')
-        plot(log10(xe),(2*ye),'k:',lw=2,label='$2 \ SFR_{MS}$')
-        plot(log10(xe),(ye/5.),'k:',lw=2,label='$Elbaz+2011$')
+        plot(log10(xe),(2*ye),'w--',lw=4,label='$2 \ SFR_{MS}$')
+        plot(log10(xe),(2*ye),'k--',lw=2,label='$2 \ SFR_{MS}$')
+        plot(log10(xe),(ye/5.),'w--',lw=4,label='$Elbaz+2011$')
+        plot(log10(xe),(ye/5.),'k--',lw=2,label='$Elbaz+2011$')
 
 
         
