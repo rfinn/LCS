@@ -6,7 +6,7 @@ GOAL:
 
 
 REQUIRED MODULES
-- LCSbase_py3.py
+- LCSbase.py
 
 
 **************************
@@ -23,7 +23,7 @@ import LCSbase as lb
 from matplotlib import pyplot as plt
 import numpy as np
 import os
-from LCScommon_py3 import *
+from LCScommon import *
 from astropy.io import fits
 from astropy.cosmology import WMAP9 as cosmo
 
@@ -89,7 +89,7 @@ figuredir = '/Users/grudnick/Work/Local_cluster_survey/Papers/Finn_MS/Plots/'
 
 class galaxies(lb.galaxies):
     def plotSFRStellarmassall(self):
-        figure()
+        #figure(figsize=(10,8))
         ax=gca()
         ax.set_yscale('log')
         axis([8.8,12,1.e-3,40.])
@@ -99,14 +99,94 @@ class galaxies(lb.galaxies):
         axvline(x=9.5,c='k',ls='--')
         plt.xlabel(r'$ M_* \ (M_\odot/yr) $')
         plt.ylabel('$ SFR \ (M_\odot/yr) $')
- 
+
+    def plotSFRstellarmasssel(self):
+        #detrmine how the different selection flags remove galaxies in
+        #the SFR-Mstar space
+        figure(figsize=(10,8))
+        subplots_adjust(left=.12,bottom=.15,wspace=.02,hspace=.02)
+        bothax=[]
+        limits=[8.1,12,1.e-3,40.]
+        plt.subplot(2,3,1)
+        plt.plot(self.logstellarmass,self.s.SFR_ZDIST,'ro',markersize=5,label='Full Sample')
+        plt.plot(self.logstellarmass[~self.agnflag],self.s.SFR_ZDIST[~self.agnflag],'bo',markersize=4,label='No AGN')
+        plt.gca().set_yscale('log')
+        plt.axis(limits)
+        ax=plt.gca()
+        bothax.append(ax)
+        ax.set_xticklabels(([]))
+        text(0.1,0.9,'AGN',transform=ax.transAxes,horizontalalignment='left',fontsize=12)
+        #plt.legend(loc='upper left',numpoints=1,scatterpoints=1)
+        text(-0.25,-0,'$SFR \ (M_\odot/yr)$',transform=ax.transAxes,rotation=90,horizontalalignment='center',verticalalignment='center',fontsize=24)
+        g.plotelbaz()
+
+
+        plt.subplot(2,3,2)
+        plt.plot(self.logstellarmass,self.s.SFR_ZDIST,'ro',markersize=5,label='Full Sample')
+        plt.plot(self.logstellarmass[self.galfitflag],self.s.SFR_ZDIST[self.galfitflag],'bo',markersize=4,label='galfitflag')
+        plt.gca().set_yscale('log')
+        plt.axis(limits)
+        ax=plt.gca()
+        bothax.append(ax)
+        ax.set_yticklabels(([]))
+        ax.set_xticklabels(([]))
+        text(0.1,0.9,'galfitflag',transform=ax.transAxes,horizontalalignment='left',fontsize=12)
+        g.plotelbaz()
+
+        plt.subplot(2,3,3)
+        plt.plot(self.logstellarmass,self.s.SFR_ZDIST,'ro',markersize=5,label='Full Sample')
+        plt.plot(self.logstellarmass[self.lirflag],self.s.SFR_ZDIST[self.lirflag],'bo',markersize=4,label='lirflag')
+        plt.gca().set_yscale('log')
+        plt.axis(limits)
+        ax=plt.gca()
+        bothax.append(ax)
+        ax.set_yticklabels(([]))
+        ax.set_xticklabels(([]))
+        text(0.1,0.9,'lirflag',transform=ax.transAxes,horizontalalignment='left',fontsize=12)
+        g.plotelbaz()
+
+        plt.subplot(2,3,4)
+        plt.plot(self.logstellarmass,self.s.SFR_ZDIST,'ro',markersize=5,label='Full Sample')
+        plt.plot(self.logstellarmass[self.sizeflag],self.s.SFR_ZDIST[self.sizeflag],'bo',markersize=4,label='sizeflag')
+        plt.gca().set_yscale('log')
+        plt.axis(limits)
+        ax=plt.gca()
+        bothax.append(ax)
+        text(0.1,0.9,'size',transform=ax.transAxes,horizontalalignment='left',fontsize=12)
+        g.plotelbaz()
+
+        plt.subplot(2,3,5)
+        plt.plot(self.logstellarmass,self.s.SFR_ZDIST,'ro',markersize=5,label='Full Sample')
+        plt.plot(self.logstellarmass[self.sbflag],self.s.SFR_ZDIST[self.sbflag],'bo',markersize=4,label='sbflag')
+        plt.gca().set_yscale('log')
+        plt.axis(limits)
+        ax=plt.gca()
+        bothax.append(ax)
+        ax.set_yticklabels(([]))
+        text(0.1,0.9,'SB',transform=ax.transAxes,horizontalalignment='left',fontsize=12)
+        text(0.5,-.2,'$log_{10}(M_*/M_\odot)$',transform=ax.transAxes,horizontalalignment='center',fontsize=24)
+        g.plotelbaz()
+
+        plt.subplot(2,3,6)
+        plt.plot(self.logstellarmass,self.s.SFR_ZDIST,'ro',markersize=5,label='Full Sample')
+        plt.plot(self.logstellarmass[self.gim2dflag],self.s.SFR_ZDIST[self.gim2dflag],'bo',markersize=4,label='gim2dflag')
+        plt.gca().set_yscale('log')
+        plt.axis(limits)
+        ax=plt.gca()
+        bothax.append(ax)
+        ax.set_yticklabels(([]))
+        text(0.1,0.9,'GIM2D',transform=ax.transAxes,horizontalalignment='left',fontsize=12)
+        g.plotelbaz()
+
+
+
     def plotelbaz(self):
         xe=arange(8.5,11.5,.1)
         xe=10.**xe
         ye=(.08e-9)*xe
-        plot(log10(xe),(ye),'k-',lw=1,label='$Elbaz+2011$')
-        plot(log10(xe),(2*ye),'k:',lw=1,label='$2 \ SFR_{MS}$')
-        plot(log10(xe),(ye/5.),'k-',lw=1,label='$Elbaz+2011$')
+        plot(log10(xe),(ye),'k-',lw=2,label='$Elbaz+2011$')
+        plot(log10(xe),(2*ye),'k:',lw=2,label='$2 \ SFR_{MS}$')
+        plot(log10(xe),(ye/5.),'k:',lw=2,label='$Elbaz+2011$')
 
 
         
