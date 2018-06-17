@@ -182,6 +182,11 @@ class galaxies:
 
         self.membflag = abs(self.dv) < (-4./3.*self.s.DR_R200 + 2)
 
+    def make_SFR(self):
+        #use SF_ZCLUST for cluster members and SFR_ZDIST for others.
+        self.SFR_BEST = self.s.SFR_ZCLUST * np.array(self.membflag,'i') + np.array(~self.membflag,'i')*(self.s.SFR_ZDIST)
+
+        
     def setup(self):
         self.get_agn()
         self.get_gim2d_flag()
@@ -197,6 +202,7 @@ if __name__ == '__main__':
     g.get_gim2d_flag()
     g.get_galfit_flag()
     g.get_memb()
+    g.make_SFR()
     g.get_size_flag()
     g.calculate_sizeratio()
     g.select_sample()
