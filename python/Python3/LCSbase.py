@@ -184,6 +184,7 @@ class galaxies:
 
     def make_SFR(self):
         #use SF_ZCLUST for cluster members and SFR_ZDIST for others.
+        #assume that these are Chabrier
         self.SFR_BEST = self.s.SFR_ZCLUST * np.array(self.membflag,'i') + np.array(~self.membflag,'i')*(self.s.SFR_ZDIST)
 
         
