@@ -230,7 +230,7 @@ class galaxies(lb.galaxies):
         plt.text(-1.5,1,'$Cumulative \ Distribution$',fontsize=22,transform=plt.gca().transAxes,rotation=90,verticalalignment='center')
         #plt.savefig(homedir+'research/LocalClusters/SamplePlots/cluster_exterior.png')
         #plt.savefig(homedir+'research/LocalClusters/SamplePlots/cluster_exterior.eps')
-        plt.savefig(figuredir+'fig5.eps')
+        plt.savefig(figuredir+'fig5.pdf')
 
     def compare_single(self,var,baseflag=None,plotsingle=True,xlab=None,plotname=None):
         if baseflag == None:
@@ -755,7 +755,7 @@ def plotsizevsMclallwhisker(sbcutobs=20,masscut=None,drcut=1.,blueflag=False,use
         plt.xticks(np.arange(43,46),['43','44','45'])
         ax.tick_params(axis='both', which='major', labelsize=16)
 
-    plt.savefig(figuredir+'fig14.eps')
+    plt.savefig(figuredir+'fig14.pdf')
 
 def plotsigmaLx(bwflag=True):
     plt.figure(figsize=[7,6])
@@ -870,7 +870,7 @@ def plotpositionson24(plotsingle=0,plotcolorbar=1,plotnofit=0,useirsb=0):
 
     #plt.savefig(homedir+'/research/LocalClusters/SamplePlots/positionson24.eps')
     #plt.savefig(homedir+'/research/LocalClusters/SamplePlots/positionson24.png')
-    plt.savefig(figuredir+'fig3.eps')
+    plt.savefig(figuredir+'fig3.pdf')
 
 def plotRe24vsReall(sbcutobs=20,plotcolorbar=0,fixPA=False,logyflag=False,usedr=False):
 
