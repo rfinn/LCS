@@ -89,18 +89,21 @@ figuredir = '/Users/grudnick/Work/Local_cluster_survey/Papers/Finn_MS/Plots/'
 
 class galaxies(lb.galaxies):
     def plotSFRStellarmassall(self):
-        #figure(figsize=(10,8))
+        figure()
         ax=gca()
         ax.set_yscale('log')
-        axis([8.8,12,1.e-3,40.])
-        plt.plot(self.logstellarmass[~self.agnflag],self.s.SFR_ZDIST[~self.agnflag],'bo')
-        plt.plot(self.logstellarmass[self.sampleflag],self.s.SFR_ZDIST[self.sampleflag],'ro')
-        axhline(y=.086,c='k',ls='--')
-        axvline(x=9.5,c='k',ls='--')
+        axis([8.8,12,5.e-4,40.])
+        plt.plot(self.logstellarmass,self.s.SFR_ZDIST,'ro',label='rejected')
+        plt.plot(self.logstellarmass[self.sampleflag],self.s.SFR_ZDIST[self.sampleflag],'bo',label='final sample')
+        #axhline(y=.086,c='k',ls='--')
+        #axvline(x=9.7,c='k',ls='--')
         plt.xlabel(r'$ M_* \ (M_\odot/yr) $')
         plt.ylabel('$ SFR \ (M_\odot/yr) $')
+        g.plotelbaz()
+        g.plotlims()
+        plt.legend(loc='lower right',numpoints=1,scatterpoints=1, markerscale=0.7,fontsize='x-small')
 
-    def plotSFRstellarmasssel(self):
+    def plotSFRStellarmasssel(self):
         #detrmine how the different selection flags remove galaxies in
         #the SFR-Mstar space
         figure(figsize=(10,8))
@@ -116,10 +119,9 @@ class galaxies(lb.galaxies):
         bothax.append(ax)
         ax.set_xticklabels(([]))
         text(0.1,0.9,'AGN',transform=ax.transAxes,horizontalalignment='left',fontsize=12)
-        #plt.legend(loc='upper left',numpoints=1,scatterpoints=1)
         text(-0.25,-0,'$SFR \ (M_\odot/yr)$',transform=ax.transAxes,rotation=90,horizontalalignment='center',verticalalignment='center',fontsize=24)
         g.plotelbaz()
-
+        g.plotlims()
 
         plt.subplot(2,3,2)
         plt.plot(self.logstellarmass,self.s.SFR_ZDIST,'ro',markersize=5,label='Full Sample')
@@ -132,6 +134,7 @@ class galaxies(lb.galaxies):
         ax.set_xticklabels(([]))
         text(0.1,0.9,'galfitflag',transform=ax.transAxes,horizontalalignment='left',fontsize=12)
         g.plotelbaz()
+        g.plotlims()
 
         plt.subplot(2,3,3)
         plt.plot(self.logstellarmass,self.s.SFR_ZDIST,'ro',markersize=5,label='Full Sample')
@@ -144,6 +147,7 @@ class galaxies(lb.galaxies):
         ax.set_xticklabels(([]))
         text(0.1,0.9,'lirflag',transform=ax.transAxes,horizontalalignment='left',fontsize=12)
         g.plotelbaz()
+        g.plotlims()
 
         plt.subplot(2,3,4)
         plt.plot(self.logstellarmass,self.s.SFR_ZDIST,'ro',markersize=5,label='Full Sample')
@@ -154,6 +158,7 @@ class galaxies(lb.galaxies):
         bothax.append(ax)
         text(0.1,0.9,'size',transform=ax.transAxes,horizontalalignment='left',fontsize=12)
         g.plotelbaz()
+        g.plotlims()
 
         plt.subplot(2,3,5)
         plt.plot(self.logstellarmass,self.s.SFR_ZDIST,'ro',markersize=5,label='Full Sample')
@@ -166,6 +171,7 @@ class galaxies(lb.galaxies):
         text(0.1,0.9,'SB',transform=ax.transAxes,horizontalalignment='left',fontsize=12)
         text(0.5,-.2,'$log_{10}(M_*/M_\odot)$',transform=ax.transAxes,horizontalalignment='center',fontsize=24)
         g.plotelbaz()
+        g.plotlims()
 
         plt.subplot(2,3,6)
         plt.plot(self.logstellarmass,self.s.SFR_ZDIST,'ro',markersize=5,label='Full Sample')
@@ -177,6 +183,7 @@ class galaxies(lb.galaxies):
         ax.set_yticklabels(([]))
         text(0.1,0.9,'GIM2D',transform=ax.transAxes,horizontalalignment='left',fontsize=12)
         g.plotelbaz()
+        g.plotlims()
 
 
 
@@ -184,9 +191,19 @@ class galaxies(lb.galaxies):
         xe=arange(8.5,11.5,.1)
         xe=10.**xe
         ye=(.08e-9)*xe
+        plot(log10(xe),(ye),'w-',lw=3)
         plot(log10(xe),(ye),'k-',lw=2,label='$Elbaz+2011$')
+        plot(log10(xe),(2*ye),'w-',lw=4)
         plot(log10(xe),(2*ye),'k:',lw=2,label='$2 \ SFR_{MS}$')
-        plot(log10(xe),(ye/5.),'k:',lw=2,label='$Elbaz+2011$')
+        plot(log10(xe),(ye/5.),'w--',lw=4)
+        plot(log10(xe),(ye/5.),'k--',lw=2,label='$SFR_{MS}/5$')
+
+    def plotlims(self):
+        axhline(y=.086,c='w',lw=4,ls='--')
+        axhline(y=.086,c='g',lw=3,ls='--')
+
+        axvline(x=9.7,c='w',lw=4,ls='--')
+        axvline(x=9.7,c='g',lw=3,ls='--')
 
 
         
