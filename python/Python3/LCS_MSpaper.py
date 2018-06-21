@@ -312,8 +312,8 @@ class galaxies(lb.galaxies):
         #core plot binned points
         plt.subplot(2,2,2)
         ax=plt.gca()
-        xmin = 9.4
-        xmax = 11.0
+        xmin = 9.7
+        xmax = 11.1
         nbin = (xmax - xmin) / 0.2
         #SFRs
         xbin,ybin,ybinerr=g.binitbins(xmin, xmax, nbin ,self.logstellarmass[flag],self.SFR_BEST[flag])
