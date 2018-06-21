@@ -26,6 +26,7 @@ import os
 from LCScommon import *
 from astropy.io import fits
 from astropy.cosmology import WMAP9 as cosmo
+from scipy.optimize import curve_fit
 
 import argparse# here is min mass = 9.75
 
@@ -81,7 +82,7 @@ params = {'backend': 'pdf',
           'figure.figsize': plotsize_single}
 plt.rcParams.update(params)
 #figuredir = '/Users/rfinn/Dropbox/Research/MyPapers/LCSpaper1/submit/resubmit4/'
-figuredir = '/Users/grudnick/Work/Local_cluster_survey/Papers/Finn_MS/Plots/'
+figuredir = '/Users/grudnick/Work/Local_cluster_survey/Analysis/MS_paper/Plots/'
 
 ###########################
 ##### START OF GALAXIES CLASS
@@ -93,8 +94,8 @@ class galaxies(lb.galaxies):
         ax=gca()
         ax.set_yscale('log')
         axis([8.8,12,5.e-4,40.])
-        plt.plot(self.logstellarmass,self.s.SFR_ZDIST,'ro',label='rejected')
-        plt.plot(self.logstellarmass[self.sampleflag],self.s.SFR_ZDIST[self.sampleflag],'bo',label='final sample')
+        plt.plot(self.logstellarmass,self.s.SFR_BEST,'ro',label='rejected')
+        plt.plot(self.logstellarmass[self.sampleflag],self.s.SFR_BEST[self.sampleflag],'bo',label='final sample')
         #axhline(y=.086,c='k',ls='--')
         #axvline(x=9.7,c='k',ls='--')
         plt.xlabel(r'$ M_* \ (M_\odot/yr) $')
@@ -103,94 +104,91 @@ class galaxies(lb.galaxies):
         g.plotlims()
         plt.legend(loc='lower right',numpoints=1,scatterpoints=1, markerscale=0.7,fontsize='x-small')
 
-    def plotSFRStellarmasssel(self):
+    def plotSFRStellarmasssel(self,subsample='all'):
         #detrmine how the different selection flags remove galaxies in
         #the SFR-Mstar space
+
+        #the default is that it will plot all the galaxies
+        #(subsample='all') .  By selecting subsample='core' or
+        #'exterior' you can choose the other subsamples
+
+        #set up the figure and the subplots
         figure(figsize=(10,8))
         subplots_adjust(left=.12,bottom=.15,wspace=.02,hspace=.02)
         bothax=[]
         limits=[8.1,12,1.e-3,40.]
+
+        #plot each subplot separately
+        if subsample == 'all':
+            subsampflag = (self.logstellarmass > 0)
+        if subsample == 'core':
+            subsampflag = (self.membflag)
+        if subsample == 'exterior':
+            subsampflag = (~self.membflag)
+
+        flag = (subsampflag & ~self.agnflag)
         plt.subplot(2,3,1)
-        plt.plot(self.logstellarmass,self.s.SFR_ZDIST,'ro',markersize=5,label='Full Sample')
-        plt.plot(self.logstellarmass[~self.agnflag],self.s.SFR_ZDIST[~self.agnflag],'bo',markersize=4,label='No AGN')
-        plt.gca().set_yscale('log')
-        plt.axis(limits)
         ax=plt.gca()
-        bothax.append(ax)
+        g.sfrmasspanel(subsampflag,flag,limits,bothax,ax)
         ax.set_xticklabels(([]))
         text(0.1,0.9,'AGN',transform=ax.transAxes,horizontalalignment='left',fontsize=12)
         text(-0.25,-0,'$SFR \ (M_\odot/yr)$',transform=ax.transAxes,rotation=90,horizontalalignment='center',verticalalignment='center',fontsize=24)
-        g.plotelbaz()
-        g.plotlims()
 
+        flag = (subsampflag & self.galfitflag)
         plt.subplot(2,3,2)
-        plt.plot(self.logstellarmass,self.s.SFR_ZDIST,'ro',markersize=5,label='Full Sample')
-        plt.plot(self.logstellarmass[self.galfitflag],self.s.SFR_ZDIST[self.galfitflag],'bo',markersize=4,label='galfitflag')
-        plt.gca().set_yscale('log')
-        plt.axis(limits)
         ax=plt.gca()
-        bothax.append(ax)
+        g.sfrmasspanel(subsampflag,flag,limits,bothax,ax)
         ax.set_yticklabels(([]))
         ax.set_xticklabels(([]))
         text(0.1,0.9,'galfitflag',transform=ax.transAxes,horizontalalignment='left',fontsize=12)
-        g.plotelbaz()
-        g.plotlims()
+        if subsample == 'all':
+            plt.title('All galaxies')
+        if subsample == 'core':
+            plt.title('Core galaxies')
+        if subsample == 'exterior':
+            plt.title('Exterior galaxies')
 
+        flag = (subsampflag & self.lirflag)
         plt.subplot(2,3,3)
-        plt.plot(self.logstellarmass,self.s.SFR_ZDIST,'ro',markersize=5,label='Full Sample')
-        plt.plot(self.logstellarmass[self.lirflag],self.s.SFR_ZDIST[self.lirflag],'bo',markersize=4,label='lirflag')
-        plt.gca().set_yscale('log')
-        plt.axis(limits)
         ax=plt.gca()
-        bothax.append(ax)
+        g.sfrmasspanel(subsampflag,flag,limits,bothax,ax)
         ax.set_yticklabels(([]))
         ax.set_xticklabels(([]))
         text(0.1,0.9,'lirflag',transform=ax.transAxes,horizontalalignment='left',fontsize=12)
-        g.plotelbaz()
-        g.plotlims()
 
+        flag = (subsampflag & self.sizeflag)
         plt.subplot(2,3,4)
-        plt.plot(self.logstellarmass,self.s.SFR_ZDIST,'ro',markersize=5,label='Full Sample')
-        plt.plot(self.logstellarmass[self.sizeflag],self.s.SFR_ZDIST[self.sizeflag],'bo',markersize=4,label='sizeflag')
-        plt.gca().set_yscale('log')
-        plt.axis(limits)
         ax=plt.gca()
-        bothax.append(ax)
+        g.sfrmasspanel(subsampflag,flag,limits,bothax,ax)
         text(0.1,0.9,'size',transform=ax.transAxes,horizontalalignment='left',fontsize=12)
-        g.plotelbaz()
-        g.plotlims()
 
+        flag = (subsampflag & self.sbflag)
         plt.subplot(2,3,5)
-        plt.plot(self.logstellarmass,self.s.SFR_ZDIST,'ro',markersize=5,label='Full Sample')
-        plt.plot(self.logstellarmass[self.sbflag],self.s.SFR_ZDIST[self.sbflag],'bo',markersize=4,label='sbflag')
-        plt.gca().set_yscale('log')
-        plt.axis(limits)
         ax=plt.gca()
-        bothax.append(ax)
+        g.sfrmasspanel(subsampflag,flag,limits,bothax,ax)
         ax.set_yticklabels(([]))
         text(0.1,0.9,'SB',transform=ax.transAxes,horizontalalignment='left',fontsize=12)
         text(0.5,-.2,'$log_{10}(M_*/M_\odot)$',transform=ax.transAxes,horizontalalignment='center',fontsize=24)
-        g.plotelbaz()
-        g.plotlims()
 
+        flag = (subsampflag & self.gim2dflag)
         plt.subplot(2,3,6)
-        plt.plot(self.logstellarmass,self.s.SFR_ZDIST,'ro',markersize=5,label='Full Sample')
-        plt.plot(self.logstellarmass[self.gim2dflag],self.s.SFR_ZDIST[self.gim2dflag],'bo',markersize=4,label='gim2dflag')
-        plt.gca().set_yscale('log')
-        plt.axis(limits)
         ax=plt.gca()
-        bothax.append(ax)
+        g.sfrmasspanel(subsampflag,flag,limits,bothax,ax)
         ax.set_yticklabels(([]))
         text(0.1,0.9,'GIM2D',transform=ax.transAxes,horizontalalignment='left',fontsize=12)
-        g.plotelbaz()
-        g.plotlims()
-
 
 
     def plotelbaz(self):
         xe=arange(8.5,11.5,.1)
         xe=10.**xe
-        ye=(.08e-9)*xe
+
+        #I think that this comes from the intercept of the
+        #Main-sequence curve in Fig. 18 of Elbaz+11.  They make the
+        #assumption that galaxies at a fixed redshift have a constant
+        #sSFR=SFR/Mstar.  This is the value at z=0.
+        ye=(.08e-9)*xe   
+        
+        
         plot(log10(xe),(ye),'w-',lw=3)
         plot(log10(xe),(ye),'k-',lw=2,label='$Elbaz+2011$')
         plot(log10(xe),(2*ye),'w-',lw=4)
@@ -205,8 +203,165 @@ class galaxies(lb.galaxies):
         axvline(x=9.7,c='w',lw=4,ls='--')
         axvline(x=9.7,c='g',lw=3,ls='--')
 
+    def sfrmasspanel(self,subsampflag,flag,limits,bothax,ax):
+        #make SFR-Mstar plots of individual panels if given a subset of sources
+        plt.plot(self.logstellarmass[subsampflag],self.s.SFR_BEST[subsampflag],'ro',markersize=5)
+        #sample with selection
+        plt.plot(self.logstellarmass[flag],self.s.SFR_BEST[flag],'bo',markersize=4)
+        plt.gca().set_yscale('log')
+        plt.axis(limits)
+        bothax.append(ax)
+        #ax.set_xticklabels(([]))
+        g.plotelbaz()
+        g.plotlims()
+
+    def plotSFRStellarmassbin(self):
+        #Make Mstar-SFR plots for exterior and core samples including
+        #a binned plot
+
+        minsize=.4
+        maxsize=1.5
+        btcut = 0.3
+
+        btcutflag = True
+        #set up the figure and the subplots
+        figure(figsize=(10,8))
+        subplots_adjust(left=.12,bottom=.15,wspace=.02,hspace=.02)
+        bothax=[]
+        limits=[8.8,11.2,3e-2,15.]
+
+        #core galaxies - individual points
+        plt.subplot(2,2,1)
+        ax=plt.gca()
+
+        #select members with B/T<btcut
+        if btcutflag:
+            flag = (self.membflag & self.sampleflag) & (self.gim2d.B_T_r < btcut)
+        else:
+            flag = (self.membflag & self.sampleflag)
+        plt.scatter(self.logstellarmass[flag],self.SFR_BEST[flag],c=self.sizeratio[flag],vmin=minsize,vmax=maxsize,cmap='jet_r',s=60)
+
+        #fit M-S from own data
+        #popt, pcov = curve_fit(self.linefunc, self.logstellarmass[flag], log10(self.SFR_BEST[flag]), p0=(1.0,-10.5), bounds=([0.,-12.],[3., -5.])
+        #p = np.polyfit(self.logstellarmass[flag], log10(self.SFR_BEST[flag]), 1.)
+        #print("****************fit parameters",p)
+        #xmod=arange(8.5,12.,0.2)
+        #ymod=10**(p[0] * xmod + p[1])
+        #plt.plot(xmod,ymod,'r-',lw=6)
+
+        plt.gca().set_yscale('log')
+        plt.axis(limits)
+        bothax.append(ax)
+        ax.set_xticklabels(([]))
+        g.plotelbaz()
+        text(0.1,0.9,'$Core$',transform=ax.transAxes,horizontalalignment='left',fontsize=20)
+        plt.title('$SF Galaxies$',fontsize=22)
 
         
+        #core plot binned points
+        plt.subplot(2,2,2)
+        ax=plt.gca()
+        xmin = 9.4
+        xmax = 11.0
+        nbin = (xmax - xmin) / 0.2
+        #SFRs
+        xbin,ybin,ybinerr=g.binitbins(xmin, xmax, nbin ,self.logstellarmass[flag],self.SFR_BEST[flag])
+
+        #mean sizes
+        xbin,sbin,sbinerr = g.binitbins(xmin, xmax, nbin,self.logstellarmass[flag],self.sizeratio[flag])
+        print(xbin,sbin,sbinerr)
+        errorbar(xbin,ybin,yerr=ybinerr,fmt=None,color='k',markersize=16,ecolor='k')
+        plt.scatter(xbin,ybin,c='k',s=300,cmap='jet_r',vmin=minsize,vmax=maxsize,marker='s')
+        plt.scatter(xbin,ybin,c=sbin,s=300,cmap='jet_r',vmin=minsize,vmax=maxsize,marker='s')
+        gca().set_yscale('log')
+        plt.axis(limits)
+        ax=plt.gca()
+        bothax.append(ax)
+        ax.set_yticklabels(([]))
+        ax.set_xticklabels(([]))
+        plt.title('$Median $',fontsize=22)
+
+
+        g.plotelbaz()
+        legend(loc='upper left',numpoints=1)
+
+        if btcutflag:
+            s = '$B/T \ <  \  %.2f$'%(btcut)
+            text(-0.15,1.1,s,transform=ax.transAxes,horizontalalignment='left',fontsize=20)
+
+
+        ###############
+        plt.subplot(2,2,3)
+        ax=plt.gca()
+
+        #select non-members with B/T<btcut
+        flag = (~self.membflag & self.sampleflag) & (self.gim2d.B_T_r < btcut)
+        plt.scatter(self.logstellarmass[flag],self.SFR_BEST[flag],c=self.sizeratio[flag],vmin=minsize,vmax=maxsize,cmap='jet_r',s=60)
+        plt.gca().set_yscale('log')
+        plt.axis(limits)
+        bothax.append(ax)
+        g.plotelbaz()
+
+        text(-0.2,1.,'$SFR \ (M_\odot/yr)$',transform=ax.transAxes,rotation=90,horizontalalignment='center',verticalalignment='center',fontsize=24)
+        text(0.1,0.9,'$External$',transform=ax.transAxes,horizontalalignment='left',fontsize=20)
+
+        #external plot binned points
+        plt.subplot(2,2,4)
+        ax=plt.gca()
+        xmin = 9.4
+        xmax = 11.0
+        nbin = (xmax - xmin) / 0.2
+        #SFRs
+        xbin,ybin,ybinerr=g.binitbins(xmin, xmax, nbin ,self.logstellarmass[flag],self.SFR_BEST[flag])
+
+        #mean sizes
+        xbin,sbin,sbinerr = g.binitbins(xmin, xmax, nbin,self.logstellarmass[flag],self.sizeratio[flag])
+        print(xbin,sbin,sbinerr)
+        errorbar(xbin,ybin,yerr=ybinerr,fmt=None,color='k',markersize=16,ecolor='k')
+        plt.scatter(xbin,ybin,c='k',s=300,cmap='jet_r',vmin=minsize,vmax=maxsize,marker='s')
+        plt.scatter(xbin,ybin,c=sbin,s=300,cmap='jet_r',vmin=minsize,vmax=maxsize,marker='s')
+        gca().set_yscale('log')
+        plt.axis(limits)
+        ax=plt.gca()
+        bothax.append(ax)
+        ax.set_yticklabels(([]))
+        g.plotelbaz()
+
+
+        text(-0.02,-.2,'$log_{10}(M_*/M_\odot)$',transform=ax.transAxes,horizontalalignment='center',fontsize=24)
+
+        c=colorbar(ax=bothax,fraction=.05,ticks=arange(minsize,maxsize,.1),format='%.1f')
+        c.ax.text(2.2,.5,'$R_e(24)/R_e(r)$',rotation=-90,verticalalignment='center',fontsize=20)
+
+        
+        plt.savefig(figuredir + 'sfr_mstar_sizecolor.pdf')
+        
+    def binitbins(self,xmin,xmax,nbin,x,y):#use equally spaced bins
+        dx=float((xmax-xmin)/(nbin))
+        xbin=np.arange(xmin,(xmax),dx)+dx/2.
+        ybin=np.zeros(len(xbin),'d')
+        ybinerr=np.zeros(len(xbin),'d')
+        xbinnumb=np.array(len(x),'d')
+        x1=np.compress((x >= xmin) & (x <= xmax),x)
+        y1=np.compress((x >= xmin) & (x <= xmax),y) 
+        x=x1
+        y=y1
+        xbinnumb=((x-xmin)*nbin/(xmax-xmin))#calculate x  bin number for each point 
+        j=-1
+        for i in range(len(xbin)):
+            ydata=np.compress(abs(xbinnumb-float(i))<.5,y)
+            try:
+                #ybin[i]=np.average(ydata)
+                ybin[i] = np.median(ydata)
+                ybinerr[i] = np.std(ydata)/np.sqrt(float(len(ydata)))
+            except ZeroDivisionError:
+                ybin[i]=0.
+                ybinerr[i]=0.
+        return xbin,ybin,ybinerr
+            
+    def linefunc(self,x,slope,yint):
+        return x*slope + yint
+    
 if __name__ == '__main__':
     homedir = os.environ['HOME']
     g = galaxies(homedir+'/github/LCS/')
