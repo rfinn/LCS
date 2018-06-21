@@ -90,19 +90,68 @@ figuredir = '/Users/grudnick/Work/Local_cluster_survey/Analysis/MS_paper/Plots/'
 
 class galaxies(lb.galaxies):
     def plotSFRStellarmassall(self):
+        #plot SFR-Mstar showing all galaxies that make our final cut and those that don't
+
         figure()
         ax=gca()
         ax.set_yscale('log')
         axis([8.8,12,5.e-4,40.])
-        plt.plot(self.logstellarmass,self.s.SFR_BEST,'ro',label='rejected')
-        plt.plot(self.logstellarmass[self.sampleflag],self.s.SFR_BEST[self.sampleflag],'bo',label='final sample')
+        plt.plot(self.logstellarmass,self.SFR_BEST,'ro',label='rejected')
+        plt.plot(self.logstellarmass[self.sampleflag],self.SFR_BEST[self.sampleflag],'bo',label='final sample')
         #axhline(y=.086,c='k',ls='--')
         #axvline(x=9.7,c='k',ls='--')
         plt.xlabel(r'$ M_* \ (M_\odot/yr) $')
         plt.ylabel('$ SFR \ (M_\odot/yr) $')
         g.plotelbaz()
         g.plotlims()
+        plt.title("All Galaxies")
         plt.legend(loc='lower right',numpoints=1,scatterpoints=1, markerscale=0.7,fontsize='x-small')
+
+    def plotSFRStellarmassallenv(self):
+        #plot SFR-Mstar showing all galaxies that make our final cut
+        #and those that don't.  Split by environment.
+        
+        figure(figsize=(10,4))
+        subplots_adjust(left=.12,bottom=.19,wspace=.02,hspace=.02)
+
+        limits=[8.1,12,1.e-3,40.]
+
+        #plot selection for core galaxies
+        plt.subplot(1,2,1)
+        ax=gca()
+        ax.set_yscale('log')
+        bothax=[]
+        plt.axis(limits)
+
+        sampflag = self.sampleflag & self.membflag
+        nosampflag = ~self.sampleflag & self.membflag
+
+        plt.plot(self.logstellarmass[nosampflag],self.SFR_BEST[nosampflag],'ro',label='rejected')
+        plt.plot(self.logstellarmass[sampflag],self.SFR_BEST[sampflag],'bo',label='final sample')
+        #plt.xlabel(r'$ M_* \ (M_\odot/yr) $')
+        plt.ylabel('$ SFR \ (M_\odot/yr) $')
+        g.plotelbaz()
+        g.plotlims()
+        plt.title('Core')
+        #plt.legend(loc='lower right',numpoints=1,scatterpoints=1, markerscale=0.7,fontsize='x-small')
+        text(1.,-.2,'$log_{10}(M_*/M_\odot)$',transform=ax.transAxes,horizontalalignment='center',fontsize=24)
+
+        #plot selection for external galaxies
+        plt.subplot(1,2,2)
+        ax=gca()
+        ax.set_yscale('log')
+        bothax=[]
+        plt.axis(limits)
+
+        sampflag = self.sampleflag & ~self.membflag
+        nosampflag = ~self.sampleflag & self.membflag
+        
+        plt.plot(self.logstellarmass[nosampflag],self.SFR_BEST[nosampflag],'ro',label='rejected')
+        plt.plot(self.logstellarmass[sampflag],self.SFR_BEST[sampflag],'bo',label='final sample')
+        g.plotelbaz()
+        g.plotlims()
+        ax.set_yticklabels(([]))
+        plt.title('External')
 
     def plotSFRStellarmasssel(self,subsample='all'):
         #detrmine how the different selection flags remove galaxies in
@@ -197,17 +246,19 @@ class galaxies(lb.galaxies):
         plot(log10(xe),(ye/5.),'k--',lw=2,label='$SFR_{MS}/5$')
 
     def plotlims(self):
-        axhline(y=.086,c='w',lw=4,ls='--')
-        axhline(y=.086,c='g',lw=3,ls='--')
+        #0.086 is the MS SFR that corresponds to our LIR limit.
+        #The factor of 1.74 converts this to Chabrier
+        axhline(y=.086/1.74,c='w',lw=4,ls='--')
+        axhline(y=.086/1.74,c='g',lw=3,ls='--')
 
         axvline(x=9.7,c='w',lw=4,ls='--')
         axvline(x=9.7,c='g',lw=3,ls='--')
 
     def sfrmasspanel(self,subsampflag,flag,limits,bothax,ax):
         #make SFR-Mstar plots of individual panels if given a subset of sources
-        plt.plot(self.logstellarmass[subsampflag],self.s.SFR_BEST[subsampflag],'ro',markersize=5)
+        plt.plot(self.logstellarmass[subsampflag],self.SFR_BEST[subsampflag],'ro',markersize=5)
         #sample with selection
-        plt.plot(self.logstellarmass[flag],self.s.SFR_BEST[flag],'bo',markersize=4)
+        plt.plot(self.logstellarmass[flag],self.SFR_BEST[flag],'bo',markersize=4)
         plt.gca().set_yscale('log')
         plt.axis(limits)
         bothax.append(ax)
@@ -269,7 +320,7 @@ class galaxies(lb.galaxies):
 
         #mean sizes
         xbin,sbin,sbinerr = g.binitbins(xmin, xmax, nbin,self.logstellarmass[flag],self.sizeratio[flag])
-        print(xbin,sbin,sbinerr)
+        #print(xbin,sbin,sbinerr)
         errorbar(xbin,ybin,yerr=ybinerr,fmt=None,color='k',markersize=16,ecolor='k')
         plt.scatter(xbin,ybin,c='k',s=300,cmap='jet_r',vmin=minsize,vmax=maxsize,marker='s')
         plt.scatter(xbin,ybin,c=sbin,s=300,cmap='jet_r',vmin=minsize,vmax=maxsize,marker='s')
@@ -316,7 +367,7 @@ class galaxies(lb.galaxies):
 
         #mean sizes
         xbin,sbin,sbinerr = g.binitbins(xmin, xmax, nbin,self.logstellarmass[flag],self.sizeratio[flag])
-        print(xbin,sbin,sbinerr)
+        #print(xbin,sbin,sbinerr)
         errorbar(xbin,ybin,yerr=ybinerr,fmt=None,color='k',markersize=16,ecolor='k')
         plt.scatter(xbin,ybin,c='k',s=300,cmap='jet_r',vmin=minsize,vmax=maxsize,marker='s')
         plt.scatter(xbin,ybin,c=sbin,s=300,cmap='jet_r',vmin=minsize,vmax=maxsize,marker='s')
