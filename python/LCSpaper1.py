@@ -230,7 +230,7 @@ class galaxies(lb.galaxies):
         plt.text(-1.5,1,'$Cumulative \ Distribution$',fontsize=22,transform=plt.gca().transAxes,rotation=90,verticalalignment='center')
         #plt.savefig(homedir+'research/LocalClusters/SamplePlots/cluster_exterior.png')
         #plt.savefig(homedir+'research/LocalClusters/SamplePlots/cluster_exterior.eps')
-        plt.savefig(figuredir+'fig5.eps')
+        plt.savefig(figuredir+'fig5.pdf')
 
     def compare_single(self,var,baseflag=None,plotsingle=True,xlab=None,plotname=None):
         if baseflag == None:
@@ -386,7 +386,7 @@ class galaxies(lb.galaxies):
             #plt.ylim(0,20)
             #plt.savefig(homedir+'research/LocalClusters/SamplePlots/sizehistblue.eps')
             #plt.savefig(homedir+'research/LocalClusters/SamplePlots/sizehistblue.png')
-            plt.savefig(figuredir+'fig11a.eps')
+            plt.savefig(figuredir+'fig11a.pdf')
             
         else:
             #plt.ylim(0,15)
@@ -394,7 +394,7 @@ class galaxies(lb.galaxies):
             plt.title('$ B/T < %2.1f \ Galaxies $'%(btcut),fontsize=20)
             #plt.savefig(homedir+'research/LocalClusters/SamplePlots/sizehistblueBTcut.eps')
             #plt.savefig(homedir+'research/LocalClusters/SamplePlots/sizehistblueBTcut.png')
-            plt.savefig(figuredir+'fig11b.eps')
+            plt.savefig(figuredir+'fig11b.pdf')
     def plotsize3panel(self,logyscale=False,use_median=True,equal_pop_bins=True):
         plt.figure(figsize=(10,10))
         plt.subplots_adjust(left=.12,bottom=.1,top=.9,wspace=.02,hspace=.4)
@@ -406,6 +406,7 @@ class galaxies(lb.galaxies):
         flags = flags & (self.s.SIGMA_5 > 0.)
 
         x=[self.gim2d.B_T_r,np.log10(self.s.SIGMA_5),self.logstellarmass]
+        xbins = [np.linspace(0,.9,5),np.linspace(-.2,1.5,5),np.linspace(9,10.75,5)]
         xlabels=['$B/T$','$\log_{10}(\Sigma_5 \ (gal/Mpc^2))$','$\log_{10}(M_\star/M_\odot)$']
         colors=[self.logstellarmass,self.gim2d.B_T_r,self.gim2d.B_T_r]
         cblabel=['$\log(M_\star/M_\odot)$','$B/T$','$B/T$']
@@ -448,7 +449,7 @@ class galaxies(lb.galaxies):
                 if j == 0:
                     #plt.ylabel('$R_e(24)/Re(r)$')
                     plt.ylabel('$R_{24}/R_d$')
-                xbin,ybin,ybinerr, colorbin = binxycolor(x[i][flags[j]],y[flags[j]],colors[i][flags[j]],nbin=5,erry=True,equal_pop_bins=equal_pop_bins,use_median = use_median)
+                xbin,ybin,ybinerr, colorbin = binxycolor(x[i][flags[j]],y[flags[j]],colors[i][flags[j]],nbin=5,bins=xbins[i],erry=True,equal_pop_bins=equal_pop_bins,use_median = use_median)
                 plt.scatter(xbin,ybin,c=colorbin,s=180,vmin=v1[i],vmax=v2[i],cmap='jet',zorder=5,lw=2,edgecolors='k')
                 plt.errorbar(xbin,ybin,ybinerr,fmt=None,ecolor='k',alpha=0.7)
                 if logyscale:
@@ -487,7 +488,7 @@ class galaxies(lb.galaxies):
 
         savefig(figuredir+'fig12.pdf')
 
-    def plotsizestellarmass(self,plotsingle=True,btmax=None,btmin=None,equal_pop_bins=True,use_median=True):
+    def plotsizestellarmass(self,plotsingle=True,btmax=None,btmin=None,equal_pop_bins=True,use_median=True,xbinmin=9.25,xbinmax=10.5,nbins=5):
         if plotsingle:
             plt.figure(figsize=(7,6))
             plt.subplots_adjust(bottom=.15,left=.15)
@@ -497,6 +498,7 @@ class galaxies(lb.galaxies):
         if btmin != None:
             flags = flags & (self.gim2d.B_T_r > btmin)
         colors = ['r','b']
+        mybins = np.linspace(xbinmin,xbinmax,nbins)
         for i in range(len(flags)):
             #plot(self.logstellarmass[flags[i]],self.sizeratio[flags[i]],'ro',color=colors[i],alpha=0.5)
             plot(self.logstellarmass[flags[i]],self.sizeratio[flags[i]],'ro',color=colors[i],alpha=0.5)
@@ -504,7 +506,7 @@ class galaxies(lb.galaxies):
             flag = flags[i]
             if btmax != None:
                 flag = flag & (self.logstellarmass > 9.1) & (self.logstellarmass < 10.5)
-            xbin,ybin,ybinerr,colorbin = binxycolor(self.logstellarmass[flag],self.sizeratio[flag],self.gim2d.B_T_r[flag],erry=True,nbin=5,equal_pop_bins=equal_pop_bins,use_median=use_median)
+            xbin,ybin,ybinerr,colorbin = binxycolor(self.logstellarmass[flag],self.sizeratio[flag],self.gim2d.B_T_r[flag],yweights=self.sizeratioERR[flag],yerr=True,nbin=5,equal_pop_bins=equal_pop_bins,use_median=use_median,bins=mybins)
             #print xbin
             plot(xbin,ybin,'ro',color=colors[i],markersize=18,mec='k',zorder=5)
             #scatter(xbin,ybin,s=200, c=colorbin,marker='^',vmin=0,vmax=0.6,cmap='jet')
@@ -755,7 +757,7 @@ def plotsizevsMclallwhisker(sbcutobs=20,masscut=None,drcut=1.,blueflag=False,use
         plt.xticks(np.arange(43,46),['43','44','45'])
         ax.tick_params(axis='both', which='major', labelsize=16)
 
-    plt.savefig(figuredir+'fig14.eps')
+    plt.savefig(figuredir+'fig14.pdf')
 
 def plotsigmaLx(bwflag=True):
     plt.figure(figsize=[7,6])
@@ -870,7 +872,7 @@ def plotpositionson24(plotsingle=0,plotcolorbar=1,plotnofit=0,useirsb=0):
 
     #plt.savefig(homedir+'/research/LocalClusters/SamplePlots/positionson24.eps')
     #plt.savefig(homedir+'/research/LocalClusters/SamplePlots/positionson24.png')
-    plt.savefig(figuredir+'fig3.eps')
+    plt.savefig(figuredir+'fig3.pdf')
 
 def plotRe24vsReall(sbcutobs=20,plotcolorbar=0,fixPA=False,logyflag=False,usedr=False):
 
@@ -902,7 +904,7 @@ def plotRe24vsReall(sbcutobs=20,plotcolorbar=0,fixPA=False,logyflag=False,usedr=
     plt.text(-.5,-.3,'$R_d \ (kpc)$',fontsize=22,horizontalalignment='center',transform=ax.transAxes)
     plt.text(-2.4,1.5,'$R_{24} \ (kpc) $',fontsize=22,verticalalignment='center',rotation=90,transform=ax.transAxes,family='serif')
 
-    savefig(figuredir+'fig10.eps')
+    savefig(figuredir+'fig10.pdf')
 
 def plotsizevscluster(masscut=None,btcut=None):
 
@@ -1005,8 +1007,8 @@ if __name__ == '__main__':
     #g.plotsizedvdr(plothexbin=True,plotmembcut=False,plotoman=True,plotbadfits=0,hexbinmax=40,colormin=.2,colormax=1.1) # Fig 4
     #g.compare_cluster_exterior() # Fig 5
     #plotRe24vsReall(logyflag=False) # Fig 10
-    #g.plotsizehist(colorflag=True) # Fig 11a
-    #g.plotsizehist(btcut=.3,colorflag=True) # Fig 11b
+    #g.plotsizehist() # Fig 11a
+    #g.plotsizehist(btcut=.3) # Fig 11b
     #g.plotsize3panel(use_median=False,equal_pop_bins=True) # Fig 12
     #g.plotsizestellarmass(use_median=False,equal_pop_bins=True,btmax=0.3) # Fig 13
     #plotsizevsMclallwhisker(btcut=.3) # Fig 14

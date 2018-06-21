@@ -375,13 +375,17 @@ def convert_sb_to_fluxperpixel(sb):
     flux_sb=flux_sb/conv_MJysr_uJy
     
     return flux_sb
-def binxycolor(x,y,color,nbin=5,erry=False,use_median=False,equal_pop_bins=False):
+def binxycolor(x,y,color,nbin=5,yweights=None,yerr=True,use_median=False,equal_pop_bins=False,bins=None):
     '''
     - bin x in nbin equally spaced bins
     - calculate the median y value in each bin
     - calculate the median color in each bin
     '''
-    xbins = np.zeros(nbin,'f')
+    if bins != None:
+        xbins = bins
+        nbin = len(xbins)
+    else:
+        xbins = np.zeros(nbin,'f')
     ybins = np.zeros(nbin,'f')
     ybinerr = np.zeros(len(xbins),'f')
     colorbins = np.zeros(len(xbins),'f')
@@ -395,20 +399,27 @@ def binxycolor(x,y,color,nbin=5,erry=False,use_median=False,equal_pop_bins=False
         #print xbin_number
         #print x
     else:
-        xbin_number = np.array(((x-min(x))*nbin/(max(x)-min(x))),'i')
+        #xbin_number = np.array(((x-min(x))*nbin/(max(x)-min(x))),'i')
+        xbin_number = np.digitize(x,xbins)
     for i in range(nbin):
         if use_median:
-            xbins[i] = np.median(x[xbin_number == i])
+            if bins == None:
+                xbins[i] = np.median(x[xbin_number == i])
             ybins[i] = np.median(y[xbin_number == i])
             colorbins[i] = np.median(color[xbin_number == i])
         else:
-            xbins[i] = np.mean(x[xbin_number == i])
-            ybins[i] = np.mean(y[xbin_number == i])
+            if bins == None:
+                xbins[i] = np.mean(x[xbin_number == i])
+            if yweights != None:
+                ybins[i] = np.average(y[xbin_number ==i], weights = yweights[xbin_number == i])
+
+            else:
+                ybins[i] = np.mean(y[xbin_number == i])
             colorbins[i] = np.mean(color[xbin_number == i])
 
         ybinerr = np.std(y[xbin_number == i])/np.sqrt(sum(xbin_number == i))
                       
-    if erry:
+    if yerr:
         return xbins,ybins,ybinerr,colorbins
     else:
         return xbins,ybins,colorbins
