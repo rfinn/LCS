@@ -153,6 +153,9 @@ class galaxies(lb.galaxies):
         ax.set_yticklabels(([]))
         plt.title('External')
 
+        plt.savefig(figuredir + 'sfr_mstar_allsel_env.pdf')
+
+
     def plotSFRStellarmasssel(self,subsample='all'):
         #detrmine how the different selection flags remove galaxies in
         #the SFR-Mstar space
@@ -251,8 +254,8 @@ class galaxies(lb.galaxies):
         axhline(y=.086/1.74,c='w',lw=4,ls='--')
         axhline(y=.086/1.74,c='g',lw=3,ls='--')
 
-        axvline(x=9.7,c='w',lw=4,ls='--')
-        axvline(x=9.7,c='g',lw=3,ls='--')
+        axvline(x=9.5,c='w',lw=4,ls='--')
+        axvline(x=9.5,c='g',lw=3,ls='--')
 
     def sfrmasspanel(self,subsampflag,flag,limits,bothax,ax):
         #make SFR-Mstar plots of individual panels if given a subset of sources
@@ -292,13 +295,18 @@ class galaxies(lb.galaxies):
             flag = (self.membflag & self.sampleflag)
         plt.scatter(self.logstellarmass[flag],self.SFR_BEST[flag],c=self.sizeratio[flag],vmin=minsize,vmax=maxsize,cmap='jet_r',s=60)
 
-        #fit M-S from own data
-        #popt, pcov = curve_fit(self.linefunc, self.logstellarmass[flag], log10(self.SFR_BEST[flag]), p0=(1.0,-10.5), bounds=([0.,-12.],[3., -5.])
-        #p = np.polyfit(self.logstellarmass[flag], log10(self.SFR_BEST[flag]), 1.)
-        #print("****************fit parameters",p)
-        #xmod=arange(8.5,12.,0.2)
-        #ymod=10**(p[0] * xmod + p[1])
-        #plt.plot(xmod,ymod,'r-',lw=6)
+        #fit M-S from own data. Use all galaxies above IR limits that
+        #aren't AGN.  Also limit ourselves to things were we are
+        #reasonably mass complete and to galaxies with SFR>SFR_Ms(Mstar)/X
+        fitflag = self.lirflag & ~self.agnflag & (self.logstellarmass > 9.5) & (self.SFR_BEST >=  (.08e-9/6.)*10**self.logstellarmass)
+
+        #popt, pcov = curve_fit(self.linefunc, self.logstellarmass[fitflag], log10(self.SFR_BEST[fitflag]), p0=(1.0,-10.5), bounds=([0.,-12.],[3., -5.])
+        p = np.polyfit(self.logstellarmass[fitflag], log10(self.SFR_BEST[fitflag]), 1.)
+        print("****************fit parameters",p)
+        xmod=arange(8.5,12.,0.2)
+        ymod=10**(p[0] * xmod + p[1])
+        plt.plot(xmod,ymod,'w-',lw=5)
+        plt.plot(xmod,ymod,'r-',lw=3)
 
         plt.gca().set_yscale('log')
         plt.axis(limits)
@@ -312,8 +320,8 @@ class galaxies(lb.galaxies):
         #core plot binned points
         plt.subplot(2,2,2)
         ax=plt.gca()
-        xmin = 9.7
-        xmax = 11.1
+        xmin = 9.5
+        xmax = 10.9
         nbin = (xmax - xmin) / 0.2
         #SFRs
         xbin,ybin,ybinerr=g.binitbins(xmin, xmax, nbin ,self.logstellarmass[flag],self.SFR_BEST[flag])
@@ -332,6 +340,8 @@ class galaxies(lb.galaxies):
         ax.set_xticklabels(([]))
         plt.title('$Median $',fontsize=22)
 
+        plt.plot(xmod,ymod,'w-',lw=5)
+        plt.plot(xmod,ymod,'r-',lw=3)
 
         g.plotelbaz()
         legend(loc='upper left',numpoints=1)
@@ -351,6 +361,9 @@ class galaxies(lb.galaxies):
         plt.gca().set_yscale('log')
         plt.axis(limits)
         bothax.append(ax)
+
+        plt.plot(xmod,ymod,'w-',lw=5)
+        plt.plot(xmod,ymod,'r-',lw=3)
         g.plotelbaz()
 
         text(-0.2,1.,'$SFR \ (M_\odot/yr)$',transform=ax.transAxes,rotation=90,horizontalalignment='center',verticalalignment='center',fontsize=24)
@@ -376,6 +389,9 @@ class galaxies(lb.galaxies):
         ax=plt.gca()
         bothax.append(ax)
         ax.set_yticklabels(([]))
+
+        plt.plot(xmod,ymod,'w-',lw=5)
+        plt.plot(xmod,ymod,'r-',lw=3)
         g.plotelbaz()
 
 
