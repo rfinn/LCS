@@ -295,8 +295,8 @@ class galaxies(lb.galaxies):
         axhline(y=.086/1.74,c='w',lw=4,ls='--')
         axhline(y=.086/1.74,c='goldenrod',lw=3,ls='--')
 
-        axvline(x=9.5,c='w',lw=4,ls='--')
-        axvline(x=9.5,c='goldenrod',lw=3,ls='--')
+        axvline(x=9.7,c='w',lw=4,ls='--')
+        axvline(x=9.7,c='goldenrod',lw=3,ls='--')
 
     def sfrmasspanel(self,subsampflag,flag,limits,bothax,ax,xmod,ymod):
         #make SFR-Mstar plots of individual panels if given a subset of sources
@@ -365,7 +365,7 @@ class galaxies(lb.galaxies):
         #core plot binned points
         plt.subplot(2,2,2)
         ax=plt.gca()
-        xmin = 9.5
+        xmin = 9.7
         xmax = 10.9
         nbin = (xmax - xmin) / 0.2
         #SFRs
