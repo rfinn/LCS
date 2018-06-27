@@ -189,7 +189,7 @@ class galaxies:
 
         #now scale SFRs down by 1.58 dex to convert from Salpeter
         #(which Chary+Elbaz 2001 use) to Chabrier
-        #this conversion comes from Salim+16
+        #this conversion comes from Salim+16.  
         self.SFR_BEST = self.SFR_BEST / 1.58
 
         
