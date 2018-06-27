@@ -286,9 +286,16 @@ class galaxies(lb.galaxies):
 
     def plotsalim07(self):
         #plot the main sequence from Salim+07 for a Chabrier IMF
+
         lmstar=arange(8.5,11.5,0.1)
 
+        #use their equation 11 for pure SF galaxies
         lssfr = -0.35*(lmstar - 10) - 9.83
+
+        #use their equation 12 for color-selected galaxies including
+        #AGN/SF composites.  This is for log(Mstar)>9.4
+        #lssfr = -0.53*(lmstar - 10) - 9.87
+
         lsfr = lmstar + lssfr
         sfr = 10**lsfr
 
