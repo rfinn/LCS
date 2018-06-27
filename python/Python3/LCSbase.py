@@ -187,9 +187,10 @@ class galaxies:
         #assume that these are Chabrier
         self.SFR_BEST = self.s.SFR_ZCLUST * np.array(self.membflag,'i') + np.array(~self.membflag,'i')*(self.s.SFR_ZDIST)
 
-        #now scale SFRs down by 0.25 dex to convert from Salpeter
+        #now scale SFRs down by 1.58 dex to convert from Salpeter
         #(which Chary+Elbaz 2001 use) to Chabrier
-        self.SFR_BEST = self.SFR_BEST / 1.74
+        #this conversion comes from Salim+16
+        self.SFR_BEST = self.SFR_BEST / 1.58
 
         
     def setup(self):
