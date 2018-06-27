@@ -123,15 +123,27 @@ class galaxies(lb.galaxies):
         plt.title("All Galaxies")
         plt.legend(loc='lower right',numpoints=1,scatterpoints=1, markerscale=0.7,fontsize='x-small')
 
-    def plotSFRStellarmassallenv(self):
+    def plotSFRStellarmassallenv(self, savefig=False, btcutflag=True):
         #plot SFR-Mstar showing all galaxies that make our final cut
         #and those that don't.  Split by environment.
         
-        figure(figsize=(10,4))
+        figure(figsize=(10,5))
         subplots_adjust(left=.12,bottom=.19,wspace=.02,hspace=.02)
 
         limits=[8.1,12,1.e-3,40.]
 
+        #what is the B/T cut
+        btcut = 0.3
+
+        #decide whether to apply the B/T<btcut 
+        if btcutflag:
+            sampflag = self.sampleflag & self.membflag & (self.gim2d.B_T_r < btcut)
+            nosampflag = ~self.sampleflag & self.membflag & (self.gim2d.B_T_r < btcut)
+        else:
+            sampflag = self.sampleflag & self.membflag
+            nosampflag = ~self.sampleflag & self.membflag
+
+        
         #plot selection for core galaxies
         plt.subplot(1,2,1)
         ax=gca()
@@ -139,8 +151,6 @@ class galaxies(lb.galaxies):
         bothax=[]
         plt.axis(limits)
 
-        sampflag = self.sampleflag & self.membflag
-        nosampflag = ~self.sampleflag & self.membflag
 
         #determine MS fit and output fit results
         xmod,ymod = g.MSfit()
@@ -149,7 +159,8 @@ class galaxies(lb.galaxies):
         plt.plot(self.logstellarmass[sampflag],self.SFR_BEST[sampflag],'ro',label='final sample')
         #plt.xlabel(r'$ M_* \ (M_\odot/yr) $')
         plt.ylabel('$ SFR \ (M_\odot/yr) $')
-        #g.plotelbaz()
+        g.plotsalim07()
+        g.plotelbaz()
         g.plotlims()
 
         #plot our own MS
@@ -174,13 +185,11 @@ class galaxies(lb.galaxies):
         ax.set_yscale('log')
         bothax=[]
         plt.axis(limits)
-
-        sampflag = self.sampleflag & ~self.membflag
-        nosampflag = ~self.sampleflag & self.membflag
         
         plt.plot(self.logstellarmass[nosampflag],self.SFR_BEST[nosampflag],'ko',label='rejected')
         plt.plot(self.logstellarmass[sampflag],self.SFR_BEST[sampflag],'ro',label='final sample')
-        #g.plotelbaz()
+        g.plotsalim07()
+        g.plotelbaz()
         g.plotlims()
         ax.set_yticklabels(([]))
         plt.title('$External$', fontsize=22)
@@ -191,7 +200,12 @@ class galaxies(lb.galaxies):
         plt.plot(xmod,ymod/5.,'w--',lw=3)
         plt.plot(xmod,ymod/5.,'b--',lw=2)
 
-        plt.savefig(figuredir + 'sfr_mstar_allsel_env.pdf')
+        if btcutflag:
+            s = '$B/T \ <  \  %.2f$'%(btcut)
+            text(-0.15,1.05,s,transform=ax.transAxes,horizontalalignment='left',fontsize=20)
+
+        if savefig:
+            plt.savefig(figuredir + 'sfr_mstar_allsel_env.pdf')
 
 
     def plotSFRStellarmasssel(self,subsample='all'):
@@ -270,22 +284,39 @@ class galaxies(lb.galaxies):
         ax.set_yticklabels(([]))
         text(0.1,0.9,'GIM2D',transform=ax.transAxes,horizontalalignment='left',fontsize=12)
 
+    def plotsalim07(self):
+        #plot the main sequence from Salim+07 for a Chabrier IMF
+        lmstar=arange(8.5,11.5,0.1)
 
+        lssfr = -0.35*(lmstar - 10) - 9.83
+        lsfr = lmstar + lssfr
+        sfr = 10**lsfr
+
+        plot(lmstar, sfr, 'w-', lw=4)
+        plot(lmstar, sfr, c='salmon',ls='-', lw=2, label='$Salim+07$')
+        plot(lmstar, sfr/5., 'w--', lw=4)
+        plot(lmstar, sfr/5., c='salmon',ls='--', lw=2)
+        
     def plotelbaz(self):
+        #plot the main sequence from Elbaz+13
+        
         xe=arange(8.5,11.5,.1)
         xe=10.**xe
 
         #I think that this comes from the intercept of the
         #Main-sequence curve in Fig. 18 of Elbaz+11.  They make the
         #assumption that galaxies at a fixed redshift have a constant
-        #sSFR=SFR/Mstar.  This is the value at z=0.
+        #sSFR=SFR/Mstar.  This is the value at z=0.  This is
+        #consistent with the value in their Eq. 13
+
+        #This is for a Salpeter IMF
         ye=(.08e-9)*xe   
         
         
         plot(log10(xe),(ye),'w-',lw=3)
         plot(log10(xe),(ye),'k-',lw=2,label='$Elbaz+2011$')
-        plot(log10(xe),(2*ye),'w-',lw=4)
-        plot(log10(xe),(2*ye),'k:',lw=2,label='$2 \ SFR_{MS}$')
+        #plot(log10(xe),(2*ye),'w-',lw=4)
+        #plot(log10(xe),(2*ye),'k:',lw=2,label='$2 \ SFR_{MS}$')
         plot(log10(xe),(ye/5.),'w--',lw=4)
         plot(log10(xe),(ye/5.),'k--',lw=2,label='$SFR_{MS}/5$')
 
@@ -353,7 +384,7 @@ class galaxies(lb.galaxies):
         ax.set_xticklabels(([]))
         #g.plotelbaz()
         text(0.1,0.9,'$Core$',transform=ax.transAxes,horizontalalignment='left',fontsize=20)
-        plt.title('$SF Galaxies$',fontsize=22)
+        plt.title('$SF \ Galaxies$',fontsize=22)
 
         #plot our MS fit
         plt.plot(xmod,ymod,'w-',lw=3)
