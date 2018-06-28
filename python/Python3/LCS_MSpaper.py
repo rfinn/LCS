@@ -594,7 +594,11 @@ class galaxies(lb.galaxies):
         ax=plt.gca()
 
         #select non-members with B/T<btcut
-        flag = (~self.membflag & self.sampleflag) & (self.gim2d.B_T_r < btcut)
+        if btcutflag:
+            flag = (~self.membflag & self.sampleflag) & (self.gim2d.B_T_r < btcut)
+        else:
+            flag = (~self.membflag & self.sampleflag)
+            
         plt.scatter(self.logstellarmass[flag],self.SFR_BEST[flag],c=log10(self.sfrdense[flag]),vmin=minlsfrdense,vmax=maxlsfrdense,cmap='jet_r',s=60)
         plt.gca().set_yscale('log')
         plt.axis(limits)
@@ -656,7 +660,92 @@ class galaxies(lb.galaxies):
         
         if savefig:
             plt.savefig(figuredir + 'sfr_mstar_musfrcolor.pdf')
+
+
+    #def sizediff_mass(self, savefig=False, btcutflag=True):
+        #make a plot of the difference in size ratios between the core
+        #and external sample as a function of stellar mass
         
+    #def musfrdiff_mass(self, savefig=False, btcutflag=True):
+        #make a plot of the difference in SFR surface density between
+        #the core and external sample as a function of stellar mass
+        
+    def musfr_size(self, savefig=False, btcutflag=True):
+        #make a plot of the relation between SFR surface density and size ratio
+        
+        minsize=0.0
+        maxsize=2.5
+
+        minlsfrdense=-3
+        maxlsfrdense=-0.0
+
+        minlogmass = 8.8
+        maxlogmass = 11.2
+        btcut = 0.3
+
+        #set up the figure and the subplots
+        figure(figsize=(10,8))
+        subplots_adjust(left=.12,bottom=.15,wspace=.02,hspace=.02)
+        bothax=[]
+        limits=[minsize,maxsize,minlsfrdense,maxlsfrdense]
+
+        self.sfrdense = 0.5 * self.SFR_BEST / (np.pi * self.mipssize**2)
+        
+        #core galaxies - individual points
+        plt.subplot(1,2,1)
+        ax=plt.gca()
+
+        #select members with B/T<btcut
+        if btcutflag:
+            flag = (self.membflag & self.sampleflag) & (self.gim2d.B_T_r < btcut)
+        else:
+            flag = (self.membflag & self.sampleflag)
+
+        #plot the individual points.
+        plt.scatter(self.sizeratio[flag],log10(self.sfrdense[flag]),c=self.logstellarmass[flag],vmin=minlogmass,vmax=maxlogmass,cmap='jet_r',s=60)
+        
+        #plt.gca().set_yscale('log')
+        plt.axis(limits)
+        bothax.append(ax)
+        #ax.set_yticklabels(([]))
+        text(0.5,0.9,'$Core$',transform=ax.transAxes,horizontalalignment='left',fontsize=20)
+
+        s1 = '$SF~Galaxies$'
+        text(0.9,1.02,s1,transform=ax.transAxes,horizontalalignment='left',fontsize=20)
+        if btcutflag:
+            s2 = '$B/T \ <  \  %.2f$'%(btcut)
+            text(0.9,1.07,s2,transform=ax.transAxes,horizontalalignment='left',fontsize=20)
+
+
+        plt.ylabel('$log_{10}(\mu_{SFR}/(M_\odot~yr^{-1}~kpc^{-2}))$')
+
+        #external galaxies - individual points
+        plt.subplot(1,2,2)
+        ax=plt.gca()
+
+        #select non-members with B/T<btcut
+        if btcutflag:
+            flag = (~self.membflag & self.sampleflag) & (self.gim2d.B_T_r < btcut)
+        else:
+            flag = (~self.membflag & self.sampleflag)
+
+        #plot the individual points.
+        plt.scatter(self.sizeratio[flag],log10(self.sfrdense[flag]),c=self.logstellarmass[flag],vmin=8.8,vmax=11.2,cmap='jet_r',s=60)
+
+        #plt.gca().set_yscale('log')
+        plt.axis(limits)
+        bothax.append(ax)
+        ax.set_yticklabels(([]))
+        text(0.5,0.9,'$External$',transform=ax.transAxes,horizontalalignment='left',fontsize=20)
+
+        text(-0.02,-.2,'$R_e(24)/R_e(r)$',transform=ax.transAxes,horizontalalignment='center',fontsize=24)
+
+        c=colorbar(ax=bothax,fraction=.05,ticks=arange(minlogmass,maxlogmass,.1),format='%.1f')
+        c.ax.text(2.2,.5,'$log_{10}(M_*/M_\odot)$',rotation=-90,verticalalignment='center',fontsize=20)
+
+        if savefig:
+            plt.savefig(figuredir + 'size_musfr_masscolor.pdf')       
+            
     def binitbins(self,xmin,xmax,nbin,x,y):#use equally spaced bins
         #compute median values of a quantity for data binned by another quantity
         
