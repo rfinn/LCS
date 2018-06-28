@@ -355,7 +355,7 @@ class galaxies(lb.galaxies):
 
         g.plotlims()
 
-    def plotSFRStellarmassbin(self):
+    def plotSFRStellarmass_sizebin(self, savefig=False, btcutflag=True):
         #Make Mstar-SFR plots for exterior and core samples including
         #a binned plot
 
@@ -363,7 +363,6 @@ class galaxies(lb.galaxies):
         maxsize=1.5
         btcut = 0.3
 
-        btcutflag = True
         #set up the figure and the subplots
         figure(figsize=(10,8))
         subplots_adjust(left=.12,bottom=.15,wspace=.02,hspace=.02)
@@ -406,10 +405,10 @@ class galaxies(lb.galaxies):
         xmin = 9.7
         xmax = 10.9
         nbin = (xmax - xmin) / 0.2
-        #SFRs
+        #median SFR  in bins of mass
         xbin,ybin,ybinerr=g.binitbins(xmin, xmax, nbin ,self.logstellarmass[flag],self.SFR_BEST[flag])
 
-        #mean sizes
+        #median size ratio  in bins of mass
         xbin,sbin,sbinerr = g.binitbins(xmin, xmax, nbin,self.logstellarmass[flag],self.sizeratio[flag])
         #print(xbin,sbin,sbinerr)
         errorbar(xbin,ybin,yerr=ybinerr,fmt=None,color='k',markersize=16,ecolor='k')
@@ -464,10 +463,11 @@ class galaxies(lb.galaxies):
         xmin = 9.4
         xmax = 11.0
         nbin = (xmax - xmin) / 0.2
-        #SFRs
+
+        #median SFR  in bins of mass
         xbin,ybin,ybinerr=g.binitbins(xmin, xmax, nbin ,self.logstellarmass[flag],self.SFR_BEST[flag])
 
-        #mean sizes
+        #median size ratio  in bins of mass
         xbin,sbin,sbinerr = g.binitbins(xmin, xmax, nbin,self.logstellarmass[flag],self.sizeratio[flag])
         #print(xbin,sbin,sbinerr)
         errorbar(xbin,ybin,yerr=ybinerr,fmt=None,color='k',markersize=16,ecolor='k')
@@ -493,9 +493,173 @@ class galaxies(lb.galaxies):
         c.ax.text(2.2,.5,'$R_e(24)/R_e(r)$',rotation=-90,verticalalignment='center',fontsize=20)
 
         
-        plt.savefig(figuredir + 'sfr_mstar_sizecolor.pdf')
+        if savefig:
+            plt.savefig(figuredir + 'sfr_mstar_sizecolor.pdf')
+        
+    def plotSFRStellarmass_musfrbin(self, savefig=False, btcutflag=True):
+        #Make Mstar-SFR plots for exterior and core samples including
+        #a binned plot
+
+        minlsfrdense=-2.5
+        maxlsfrdense=-0.5
+        btcut = 0.3
+
+        #set up the figure and the subplots
+        figure(figsize=(10,8))
+        subplots_adjust(left=.12,bottom=.15,wspace=.02,hspace=.02)
+        bothax=[]
+        limits=[8.8,11.2,3e-2,15.]
+
+        self.sfrdense = 0.5 * self.SFR_BEST / (np.pi * self.mipssize**2)
+        
+        #core galaxies - individual points
+        plt.subplot(2,2,1)
+        ax=plt.gca()
+
+        #determine MS fit and output fit results
+        xmod,ymod = g.MSfit()
+
+        #select members with B/T<btcut
+        if btcutflag:
+            flag = (self.membflag & self.sampleflag) & (self.gim2d.B_T_r < btcut)
+        else:
+            flag = (self.membflag & self.sampleflag)
+
+        #plot the individual points.
+        plt.scatter(self.logstellarmass[flag],self.SFR_BEST[flag],c=log10(self.sfrdense[flag]),vmin=minlsfrdense,vmax=maxlsfrdense,cmap='jet_r',s=60)
+
+        
+        plt.gca().set_yscale('log')
+        plt.axis(limits)
+        bothax.append(ax)
+        ax.set_xticklabels(([]))
+        #g.plotelbaz()
+        text(0.1,0.9,'$Core$',transform=ax.transAxes,horizontalalignment='left',fontsize=20)
+        plt.title('$SF \ Galaxies$',fontsize=22)
+
+        #plot our MS fit
+        plt.plot(xmod,ymod,'w-',lw=3)
+        plt.plot(xmod,ymod,'b-',lw=2)
+        plt.plot(xmod,ymod/5.,'w--',lw=3)
+        plt.plot(xmod,ymod/5.,'b--',lw=2)
+
+        
+        #core plot binned points
+        plt.subplot(2,2,2)
+        ax=plt.gca()
+        xmin = 9.7
+        xmax = 10.9
+        nbin = (xmax - xmin) / 0.2
+        #median SFR  in bins of mass
+        xbin,ybin,ybinerr=g.binitbins(xmin, xmax, nbin ,self.logstellarmass[flag],self.SFR_BEST[flag])
+
+        #median SFR density in bins of mass
+        xbin,sbin,sbinerr = g.binitbins(xmin, xmax, nbin,self.logstellarmass[flag],self.sfrdense[flag])
+        #median log(SFR density) in bins of mass
+        xbin,lsbin,lsbinerr = g.binitbins(xmin, xmax, nbin,self.logstellarmass[flag],log10(self.sfrdense[flag]))
+
+        #print(xbin,sbin,sbinerr)
+        errorbar(xbin,ybin,yerr=ybinerr,fmt=None,color='k',markersize=16,ecolor='k')
+        plt.scatter(xbin,ybin,c='k',s=300,cmap='jet_r',vmin=minlsfrdense,vmax=maxlsfrdense,marker='s')
+
+        #color code by log of the median SFR density
+        plt.scatter(xbin,ybin,c=log10(sbin),s=300,cmap='jet_r',vmin=minlsfrdense,vmax=maxlsfrdense,marker='s')
+
+        #color code by the median of log(SFR density)
+        #plt.scatter(xbin,ybin,c=lsbin,s=300,cmap='jet_r',vmin=minlsfrdense,vmax=maxlsfrdense,marker='s')
+        gca().set_yscale('log')
+        plt.axis(limits)
+        ax=plt.gca()
+        bothax.append(ax)
+        ax.set_yticklabels(([]))
+        ax.set_xticklabels(([]))
+        plt.title('$Median $',fontsize=22)
+
+        #plot our MS fit
+        plt.plot(xmod,ymod,'w-',lw=3)
+        plt.plot(xmod,ymod,'b-',lw=2)
+        plt.plot(xmod,ymod/5.,'w--',lw=3)
+        plt.plot(xmod,ymod/5.,'b--',lw=2)
+
+        #g.plotelbaz()
+        legend(loc='upper left',numpoints=1)
+
+        if btcutflag:
+            s = '$B/T \ <  \  %.2f$'%(btcut)
+            text(-0.15,1.1,s,transform=ax.transAxes,horizontalalignment='left',fontsize=20)
+
+
+        ###############
+        plt.subplot(2,2,3)
+        ax=plt.gca()
+
+        #select non-members with B/T<btcut
+        flag = (~self.membflag & self.sampleflag) & (self.gim2d.B_T_r < btcut)
+        plt.scatter(self.logstellarmass[flag],self.SFR_BEST[flag],c=log10(self.sfrdense[flag]),vmin=minlsfrdense,vmax=maxlsfrdense,cmap='jet_r',s=60)
+        plt.gca().set_yscale('log')
+        plt.axis(limits)
+        bothax.append(ax)
+
+        #plot our MS fit
+        plt.plot(xmod,ymod,'w-',lw=3)
+        plt.plot(xmod,ymod,'b-',lw=2)
+        plt.plot(xmod,ymod/5.,'w--',lw=3)
+        plt.plot(xmod,ymod/5.,'b--',lw=2)
+        #g.plotelbaz()
+
+        text(-0.2,1.,'$SFR \ (M_\odot/yr)$',transform=ax.transAxes,rotation=90,horizontalalignment='center',verticalalignment='center',fontsize=24)
+        text(0.1,0.9,'$External$',transform=ax.transAxes,horizontalalignment='left',fontsize=20)
+
+        #external plot binned points
+        plt.subplot(2,2,4)
+        ax=plt.gca()
+        xmin = 9.4
+        xmax = 11.0
+        nbin = (xmax - xmin) / 0.2
+        #median SFRs in bins of mass
+        xbin,ybin,ybinerr=g.binitbins(xmin, xmax, nbin ,self.logstellarmass[flag],self.SFR_BEST[flag])
+
+        #median SFR density in bins of mass
+        xbin,sbin,sbinerr = g.binitbins(xmin, xmax, nbin,self.logstellarmass[flag],self.sfrdense[flag])
+
+        #median log(SFR density) in bins of mass
+        xbin,lsbin,sbinerr = g.binitbins(xmin, xmax, nbin,self.logstellarmass[flag],log10(self.sfrdense[flag]))
+        #print(xbin,sbin,sbinerr)
+        errorbar(xbin,ybin,yerr=ybinerr,fmt=None,color='k',markersize=16,ecolor='k')
+        plt.scatter(xbin,ybin,c='k',s=300,cmap='jet_r',vmin=minlsfrdense,vmax=maxlsfrdense,marker='s')
+
+        #color code by log of the median SFR density
+        plt.scatter(xbin,ybin,c=log10(sbin),s=300,cmap='jet_r',vmin=minlsfrdense,vmax=maxlsfrdense,marker='s')
+        
+        #color code by the median of log(SFR density)
+        #plt.scatter(xbin,ybin,c=lsbin,s=300,cmap='jet_r',vmin=minlsfrdense,vmax=maxlsfrdense,marker='s')
+
+        gca().set_yscale('log')
+        plt.axis(limits)
+        ax=plt.gca()
+        bothax.append(ax)
+        ax.set_yticklabels(([]))
+
+        #plot our MS fit
+        plt.plot(xmod,ymod,'w-',lw=3)
+        plt.plot(xmod,ymod,'b-',lw=2)
+        plt.plot(xmod,ymod/5.,'w--',lw=3)
+        plt.plot(xmod,ymod/5.,'b--',lw=2)
+        #g.plotelbaz()
+
+
+        text(-0.02,-.2,'$log_{10}(M_*/M_\odot)$',transform=ax.transAxes,horizontalalignment='center',fontsize=24)
+
+        c=colorbar(ax=bothax,fraction=.05,ticks=arange(minlsfrdense,maxlsfrdense,.1),format='%.1f')
+        c.ax.text(2.2,.5,'$log_{10}(\mu_{SFR}/(M_\odot~yr^{-1}~kpc^{-2}))$',rotation=-90,verticalalignment='center',fontsize=20)
+
+        
+        if savefig:
+            plt.savefig(figuredir + 'sfr_mstar_musfrcolor.pdf')
         
     def binitbins(self,xmin,xmax,nbin,x,y):#use equally spaced bins
+        #compute median values of a quantity for data binned by another quantity
+        
         dx=float((xmax-xmin)/(nbin))
         xbin=np.arange(xmin,(xmax),dx)+dx/2.
         ybin=np.zeros(len(xbin),'d')

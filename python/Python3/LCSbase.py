@@ -158,6 +158,11 @@ class galaxies:
         b = self.DA[self.gim2dflag]
         c = self.gim2d.Rd[self.gim2dflag] # gim2d half light radius for disk in kpc
 
+        #calculate 24um size in kpc
+        self.mipssize = self.s.fcre1*mipspixelscale * self.DA
+        #calculate optical size in kpc
+        self.optdisksize = self.gim2d.Rd
+
         # this is the size ratio we use in paper 1
         self.SIZE_RATIO_DISK[self.gim2dflag] =a*b/c
         self.SIZE_RATIO_DISK_ERR = np.zeros(len(self.gim2dflag))
@@ -187,7 +192,7 @@ class galaxies:
         #assume that these are Chabrier
         self.SFR_BEST = self.s.SFR_ZCLUST * np.array(self.membflag,'i') + np.array(~self.membflag,'i')*(self.s.SFR_ZDIST)
 
-        #now scale SFRs down by 1.58 dex to convert from Salpeter
+        #now scale SFRs down by 1.58 dex to convert from Salpeter IMF
         #(which Chary+Elbaz 2001 use) to Chabrier
         #this conversion comes from Salim+16.  
         self.SFR_BEST = self.SFR_BEST / 1.58
