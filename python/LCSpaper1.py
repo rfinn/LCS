@@ -489,7 +489,7 @@ class galaxies(lb.galaxies):
 
         savefig(figuredir+'fig12.pdf')
 
-    def plotsizestellarmass(self,plotsingle=True,btmax=None,btmin=None,equal_pop_bins=True,use_median=True,xbinmin=9.25,xbinmax=10.5,nbins=5):
+    def plotsizestellarmass(self,plotsingle=True,btmax=None,btmin=None,equal_pop_bins=True,use_median=True,xbinmin=9.25,xbinmax=10.25,nbins=5):
         if plotsingle:
             plt.figure(figsize=(7,6))
             plt.subplots_adjust(bottom=.15,left=.15)
@@ -499,20 +499,20 @@ class galaxies(lb.galaxies):
         if btmin != None:
             flags = flags & (self.gim2d.B_T_r > btmin)
         colors = ['r','b']
-        mybins = np.linspace(xbinmin,xbinmax,nbins)
+        mybins = np.linspace(xbinmin,xbinmax,nbins+1)
         for i in range(len(flags)):
             #plot(self.logstellarmass[flags[i]],self.sizeratio[flags[i]],'ro',color=colors[i],alpha=0.5)
             plot(self.logstellarmass[flags[i]],self.sizeratio[flags[i]],'ro',color=colors[i],alpha=0.5)
             errorbar(self.logstellarmass[flags[i]],self.sizeratio[flags[i]],self.sizeratioERR[flags[i]],fmt=None,ecolor='0.5',alpha=0.5)
             flag = flags[i]
-            if btmax != None:
-                flag = flag & (self.logstellarmass > 9.1) & (self.logstellarmass < 10.5)
+            #if btmax != None:
+            #    flag = flag & (self.logstellarmass > 9.1) & (self.logstellarmass < 10.5)
             xbin,ybin,ybinerr,colorbin = binxycolor(self.logstellarmass[flag],self.sizeratio[flag],self.gim2d.B_T_r[flag],yweights=self.sizeratioERR[flag],yerr=True,nbin=nbins,equal_pop_bins=equal_pop_bins,use_median=use_median,bins=mybins)
             #print xbin
-            plot(xbin,ybin,'ro',color=colors[i],markersize=18,mec='k',zorder=5)
+            plot(xbin[:-1],ybin[:-1],'ro',color=colors[i],markersize=16,mec='k',zorder=5)
             print ybinerr
             #scatter(xbin,ybin,s=200, c=colorbin,marker='^',vmin=0,vmax=0.6,cmap='jet')
-            errorbar(xbin,ybin,ybinerr,fmt=None,ecolor='k',alpha=0.7)
+            errorbar(xbin,ybin,ybinerr,fmt=None,ecolor='k',alpha=1,lw=2,capsize=10)
         #colorbar(label='$B/T$')
 
         xlabel('$ \log_{10}(M_\star /M_\odot) $',fontsize=22)

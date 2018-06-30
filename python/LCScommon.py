@@ -6,7 +6,8 @@ from scipy.stats import ks_2samp
 from scipy.stats import scoreatpercentile
 from scipy.stats.mstats import normaltest
 from anderson import *
-
+from astropy.stats import bootstrap
+import numpy as np
 pscale24=2.45#arcsec per pixel
 
 pscalesdss=1.#arcsec per pixel
@@ -414,6 +415,9 @@ def binxycolor(x,y,color,nbin=5,yweights=None,yerr=True,use_median=False,equal_p
                 xbins[i] = np.median(x[xbin_number == i])
             ybins[i] = np.median(y[xbin_number == i])
             colorbins[i] = np.median(color[xbin_number == i])
+            t = bootstrap(y[xbin_number == i], bootnum=100, bootfunc = np.median)
+            #print t
+            ybinerr[i]= (scoreatpercentile(t,84) - scoreatpercentile(t,16))/2. # not worrying about asymmetric errors right now
         else:
             if bins == None:
                 xbins[i] = np.mean(x[xbin_number == i])
@@ -423,12 +427,14 @@ def binxycolor(x,y,color,nbin=5,yweights=None,yerr=True,use_median=False,equal_p
                 print 'yweights = ',yweights[xbin_number == i]
                 print 'y = ',y[xbin_number == i]
                 ybins[i] = np.average(y[xbin_number ==i], weights = yweights[xbin_number == i])
+                ybinerr[i] = np.std(y[xbin_number == i])/np.sqrt(sum(xbin_number == i))
 
             else:
                 ybins[i] = np.mean(y[xbin_number == i])
+                ybinerr[i] = np.std(y[xbin_number == i])/np.sqrt(sum(xbin_number == i))
             colorbins[i] = np.mean(color[xbin_number == i])
 
-        ybinerr[i] = np.std(y[xbin_number == i])#/np.sqrt(sum(xbin_number == i))
+        
 
     if yerr:
         return xbins,ybins,ybinerr,colorbins
