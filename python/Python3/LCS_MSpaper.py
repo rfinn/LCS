@@ -27,6 +27,8 @@ from LCScommon import *
 from astropy.io import fits
 from astropy.cosmology import WMAP9 as cosmo
 from scipy.optimize import curve_fit
+from astropy.stats import bootstrap
+from astropy.utils import NumpyRNGContext
 
 import argparse# here is min mass = 9.75
 
@@ -460,8 +462,8 @@ class galaxies(lb.galaxies):
         #external plot binned points
         plt.subplot(2,2,4)
         ax=plt.gca()
-        xmin = 9.4
-        xmax = 11.0
+        xmin = 9.7
+        xmax = 10.9
         nbin = (xmax - xmin) / 0.2
 
         #median SFR  in bins of mass
@@ -554,19 +556,19 @@ class galaxies(lb.galaxies):
         xbin,ybin,ybinerr=g.binitbins(xmin, xmax, nbin ,self.logstellarmass[flag],self.SFR_BEST[flag])
 
         #median SFR density in bins of mass
-        xbin,sbin,sbinerr = g.binitbins(xmin, xmax, nbin,self.logstellarmass[flag],self.sfrdense[flag])
+        xbin,mubin,mubinerr = g.binitbins(xmin, xmax, nbin,self.logstellarmass[flag],self.sfrdense[flag])
         #median log(SFR density) in bins of mass
-        xbin,lsbin,lsbinerr = g.binitbins(xmin, xmax, nbin,self.logstellarmass[flag],log10(self.sfrdense[flag]))
+        xbin,lmubin,lmubinerr = g.binitbins(xmin, xmax, nbin,self.logstellarmass[flag],log10(self.sfrdense[flag]))
 
-        #print(xbin,sbin,sbinerr)
+        #print(xbin,mubin,mubinerr)
         errorbar(xbin,ybin,yerr=ybinerr,fmt=None,color='k',markersize=16,ecolor='k')
         plt.scatter(xbin,ybin,c='k',s=300,cmap='jet_r',vmin=minlsfrdense,vmax=maxlsfrdense,marker='s')
 
         #color code by log of the median SFR density
-        plt.scatter(xbin,ybin,c=log10(sbin),s=300,cmap='jet_r',vmin=minlsfrdense,vmax=maxlsfrdense,marker='s')
+        plt.scatter(xbin,ybin,c=log10(mubin),s=300,cmap='jet_r',vmin=minlsfrdense,vmax=maxlsfrdense,marker='s')
 
         #color code by the median of log(SFR density)
-        #plt.scatter(xbin,ybin,c=lsbin,s=300,cmap='jet_r',vmin=minlsfrdense,vmax=maxlsfrdense,marker='s')
+        #plt.scatter(xbin,ybin,c=lmubin,s=300,cmap='jet_r',vmin=minlsfrdense,vmax=maxlsfrdense,marker='s')
         gca().set_yscale('log')
         plt.axis(limits)
         ax=plt.gca()
@@ -617,26 +619,26 @@ class galaxies(lb.galaxies):
         #external plot binned points
         plt.subplot(2,2,4)
         ax=plt.gca()
-        xmin = 9.4
-        xmax = 11.0
+        xmin = 9.7
+        xmax = 10.9
         nbin = (xmax - xmin) / 0.2
         #median SFRs in bins of mass
         xbin,ybin,ybinerr=g.binitbins(xmin, xmax, nbin ,self.logstellarmass[flag],self.SFR_BEST[flag])
 
         #median SFR density in bins of mass
-        xbin,sbin,sbinerr = g.binitbins(xmin, xmax, nbin,self.logstellarmass[flag],self.sfrdense[flag])
+        xbin,mubin,mubinerr = g.binitbins(xmin, xmax, nbin,self.logstellarmass[flag],self.sfrdense[flag])
 
         #median log(SFR density) in bins of mass
-        xbin,lsbin,sbinerr = g.binitbins(xmin, xmax, nbin,self.logstellarmass[flag],log10(self.sfrdense[flag]))
-        #print(xbin,sbin,sbinerr)
+        xbin,lmubin,mubinerr = g.binitbins(xmin, xmax, nbin,self.logstellarmass[flag],log10(self.sfrdense[flag]))
+        #print(xbin,mubin,mubinerr)
         errorbar(xbin,ybin,yerr=ybinerr,fmt=None,color='k',markersize=16,ecolor='k')
         plt.scatter(xbin,ybin,c='k',s=300,cmap='jet_r',vmin=minlsfrdense,vmax=maxlsfrdense,marker='s')
 
         #color code by log of the median SFR density
-        plt.scatter(xbin,ybin,c=log10(sbin),s=300,cmap='jet_r',vmin=minlsfrdense,vmax=maxlsfrdense,marker='s')
+        plt.scatter(xbin,ybin,c=log10(mubin),s=300,cmap='jet_r',vmin=minlsfrdense,vmax=maxlsfrdense,marker='s')
         
         #color code by the median of log(SFR density)
-        #plt.scatter(xbin,ybin,c=lsbin,s=300,cmap='jet_r',vmin=minlsfrdense,vmax=maxlsfrdense,marker='s')
+        #plt.scatter(xbin,ybin,c=lmubin,s=300,cmap='jet_r',vmin=minlsfrdense,vmax=maxlsfrdense,marker='s')
 
         gca().set_yscale('log')
         plt.axis(limits)
@@ -662,19 +664,118 @@ class galaxies(lb.galaxies):
             plt.savefig(figuredir + 'sfr_mstar_musfrcolor.pdf')
 
 
-    #def sizediff_mass(self, savefig=False, btcutflag=True):
-        #make a plot of the difference in size ratios between the core
-        #and external sample as a function of stellar mass
+    def sizediff_musfrdiff_mass(self, savefig=False, btcutflag=True):
+        #make a plot of the difference in size ratios and SFR surface
+        #density between the core and external sample as a function of
+        #stellar mass
+
+        btcut = 0.3
+
+        #set up the figure and the subplots
+        figure(figsize=(10,8))
+        subplots_adjust(left=.12,bottom=.15,wspace=.02,hspace=.02)
+        bothax=[]
+
+        self.sfrdense = 0.5 * self.SFR_BEST / (np.pi * self.mipssize**2)
         
-    #def musfrdiff_mass(self, savefig=False, btcutflag=True):
-        #make a plot of the difference in SFR surface density between
-        #the core and external sample as a function of stellar mass
+        #select core with B/T<btcut
+        if btcutflag:
+            cflag = (self.membflag & self.sampleflag) & (self.gim2d.B_T_r < btcut)
+        else:
+            cflag = (self.membflag & self.sampleflag)
+
+        #select external galaxies with B/T<btcut
+        if btcutflag:
+            eflag = (~self.membflag & self.sampleflag) & (self.gim2d.B_T_r < btcut)
+        else:
+            eflag = (~self.membflag & self.sampleflag)
+
+        logmassmin = 9.7
+        logmassmax = 10.7
+        nbin = (logmassmax - logmassmin) / 0.2
+
+        ################
+        #the size difference as a function of mass, binned
+        plt.subplot(2,1,1)
+        ax=plt.gca()
+
+
+        #median size ratio in bins of mass for core
+        xbin,sbinc,sbinc_err,sbinc_err_btlow,sbinc_err_bthigh = g.binitbinsbt(logmassmin, logmassmax, nbin,self.logstellarmass[cflag],self.sizeratio[cflag])
+
+        #median size ratio in bins of mass for external
+        xbin,sbine,sbine_err,sbine_err_btlow,sbine_err_bthigh = g.binitbinsbt(logmassmin, logmassmax, nbin,self.logstellarmass[eflag],self.sizeratio[eflag])
+
+        #ratio of median size ratio
+        sizerat_rat = sbinc / sbine
+        sizerat_rat_err = np.sqrt(sizerat_rat**2 * ((sbine_err/sbine)**2 + (sbinc_err/sbinc)**2))
         
+        #print(xbin,sbin,sbinerr)
+        errorbar(xbin,sizerat_rat,yerr=sizerat_rat_err,fmt='rs',color='k',markersize=8,ecolor='k',mfc='r')
+    #plt.scatter(xbin,sizerat_rat,c='r',s=30,marker='s')
+
+        limits=[logmassmin - 0.2,logmassmax + 0.2,0,2.49]
+        plt.axis(limits)
+        bothax.append(ax)
+        #ax.set_yticklabels(([]))
+        ax.set_xticklabels(([]))
+        #plt.title('$Median $',fontsize=22)
+
+        axhline(y=1,c='k',ls='--')
+
+        if btcutflag:
+            s = '$B/T \ <  \  %.2f$'%(btcut)
+            plt.title(s,fontsize=20)
+            #text(-0.15,1.1,s,transform=ax.transAxes,horizontalalignment='left',fontsize=20)
+
+        plt.ylabel('$[R_e(24)/R_e(r)]_{core}/[R_e(24)/R_e(r)]_{ext}$',fontsize=16)
+        #plt.ylabel('$\frac{(R_e(24)/R_e(r))_{core}}{(R_e(24)/R_e(r))_{ext}}$',fontsize=12)
+
+        ##########################
+        #the musfr difference as a function of mass
+        plt.subplot(2,1,2)
+        ax=plt.gca()
+
+        #median size ratio in bins of mass for core
+        xbin,mubinc,mubinc_err ,mubinc_err_btlow,mubinc_err_bthigh = g.binitbinsbt(logmassmin, logmassmax, nbin,self.logstellarmass[cflag],self.sfrdense[cflag])
+
+        #median size ratio in bins of mass for external
+        xbin,mubine,mubine_err,mubine_err_btlow,mubine_err_bthigh = g.binitbinsbt(logmassmin, logmassmax, nbin,self.logstellarmass[eflag],self.sfrdense[eflag])
+
+        #symmetrize the 2-sided bootstrap errors
+        symarrc = (mubinc_err_bthigh - mubinc_err_btlow) / 2.
+        symarre = (mubinc_err_bthigh - mubinc_err_btlow) / 2.
+
+        #ratio of median size ratio
+        musfr_rat = mubinc / mubine
+        musfr_rat_err = np.sqrt(musfr_rat**2 * ((mubine_err/mubine)**2 + (mubinc_err/mubinc)**2))
+        musfr_rat_errbt = np.sqrt(musfr_rat**2 * ((symarre/mubine)**2 + (symarrc/mubinc)**2))
+        #print("mu_sfr Bootstrap error", musfr_rat_errbt)
+        
+        #print(xbin,mubin,mubinerr)
+        errorbar(xbin,musfr_rat,yerr=musfr_rat_errbt,fmt='rs',color='k',markersize=8,ecolor='k',mfc='r')
+        errorbar(xbin,musfr_rat,yerr=musfr_rat_errbt,fmt='none',color='k',ecolor='k')
+    #plt.scatter(xbin,sizerat_rat,c='r',s=30,marker='s')
+
+        limits=[logmassmin - 0.2,logmassmax + 0.2,0,3.99]
+        plt.axis(limits)
+        bothax.append(ax)
+        #ax.set_yticklabels(([]))
+        #ax.set_xticklabels(([]))
+        #plt.title('$Median $',fontsize=22)
+        plt.ylabel('$\mu_{SFR,core}/\mu_{SFR,ext}$',fontsize=20)
+        plt.xlabel('$log_{10}(M_*/M_\odot)$',fontsize=20)
+
+        axhline(y=1,c='k',ls='--')
+            
+        if savefig:
+            plt.savefig(figuredir + 'sizediff_musfrdiff_mass.pdf')
+
     def musfr_size(self, savefig=False, btcutflag=True):
         #make a plot of the relation between SFR surface density and size ratio
         
         minsize=0.0
-        maxsize=2.5
+        maxsize=2.49
 
         minlsfrdense=-3
         maxlsfrdense=-0.0
@@ -703,6 +804,16 @@ class galaxies(lb.galaxies):
 
         #plot the individual points.
         plt.scatter(self.sizeratio[flag],log10(self.sfrdense[flag]),c=self.logstellarmass[flag],vmin=minlogmass,vmax=maxlogmass,cmap='jet_r',s=60)
+
+        #spearman-rank coefficient 
+        rho,p = spearman(self.sizeratio[flag],log10(self.sfrdense[flag]))
+        text(.4,.8,r'$\rho = %4.2f$'%(rho),horizontalalignment='left',transform=ax.transAxes,fontsize=20)
+        text(.4,.7,'$p = %5.2e$'%(p),horizontalalignment='left',transform=ax.transAxes,fontsize=20)
+
+        #plot line showing intrinsic correlation
+        x = arange(0.01,2.49,0.01)
+        y = log10(1/x**2) - 2.
+        plt.plot(x,y,'k--',lw=3)
         
         #plt.gca().set_yscale('log')
         plt.axis(limits)
@@ -715,10 +826,10 @@ class galaxies(lb.galaxies):
         if btcutflag:
             s2 = '$B/T \ <  \  %.2f$'%(btcut)
             text(0.9,1.07,s2,transform=ax.transAxes,horizontalalignment='left',fontsize=20)
-
-
+           
         plt.ylabel('$log_{10}(\mu_{SFR}/(M_\odot~yr^{-1}~kpc^{-2}))$')
 
+        ##############################
         #external galaxies - individual points
         plt.subplot(1,2,2)
         ax=plt.gca()
@@ -731,6 +842,15 @@ class galaxies(lb.galaxies):
 
         #plot the individual points.
         plt.scatter(self.sizeratio[flag],log10(self.sfrdense[flag]),c=self.logstellarmass[flag],vmin=8.8,vmax=11.2,cmap='jet_r',s=60)
+
+        rho,p = spearman(self.sizeratio[flag],log10(self.sfrdense[flag]))
+        text(.4,.8,r'$\rho = %4.2f$'%(rho),horizontalalignment='left',transform=ax.transAxes,fontsize=20)
+        text(.4,.7,'$p = %5.2e$'%(p),horizontalalignment='left',transform=ax.transAxes,fontsize=20)
+
+        #plot line showing intrinsic correlation
+        x = arange(0.01,2.49,0.01)
+        y = log10(1/x**2) - 2.
+        plt.plot(x,y,'k--',lw=3)
 
         #plt.gca().set_yscale('log')
         plt.axis(limits)
@@ -746,29 +866,102 @@ class galaxies(lb.galaxies):
         if savefig:
             plt.savefig(figuredir + 'size_musfr_masscolor.pdf')       
             
-    def binitbins(self,xmin,xmax,nbin,x,y):#use equally spaced bins
+    def binitbinsbt(self,xmin,xmax,nbin,x,y):#use equally spaced bins
         #compute median values of a quantity for data binned by another quantity
+        #also compute 68% confidence limits on bootstrapped value of median
+
         
-        dx=float((xmax-xmin)/(nbin))
-        xbin=np.arange(xmin,(xmax),dx)+dx/2.
-        ybin=np.zeros(len(xbin),'d')
-        ybinerr=np.zeros(len(xbin),'d')
-        xbinnumb=np.array(len(x),'d')
+        dx=float((xmax-xmin)/(nbin))                    #width of each bin
+        xbin=np.arange(xmin,(xmax),dx)+dx/2.    #centers of each bin
+        ybin=np.zeros(len(xbin),'d')                      #initialize y-values of each bin
+        ybinerr=np.zeros(len(xbin),'d')                  #initialize yerror-values of each bin
+
+        #initialize bootstrap errors on the median
+        ybinerrbtlow=np.zeros(len(xbin),'d')         
+        ybinerrbthigh=np.zeros(len(xbin),'d')
+        
+        xbinnumb=np.array(len(x),'d')                  #give each bin a number
         x1=np.compress((x >= xmin) & (x <= xmax),x)
         y1=np.compress((x >= xmin) & (x <= xmax),y) 
         x=x1
         y=y1
-        xbinnumb=((x-xmin)*nbin/(xmax-xmin))#calculate x  bin number for each point 
+        xbinnumb=((x-xmin)*nbin/(xmax-xmin))     #calculate x  bin number for each point 
         j=-1
+
+        #iterate through bin number
         for i in range(len(xbin)):
+
+            #find all data in that bin
             ydata=np.compress(abs(xbinnumb-float(i))<.5,y)
-            try:
+            
+            nydata = len(ydata)
+            
+            #calculate median
+            if nydata>0:
                 #ybin[i]=np.average(ydata)
                 ybin[i] = np.median(ydata)
-                ybinerr[i] = np.std(ydata)/np.sqrt(float(len(ydata)))
-            except ZeroDivisionError:
+                ybinerr[i] = np.std(ydata)/np.sqrt(float(nydata))
+
+                #bootstrap ydata to get medians of each bootstrap sample
+                niter = 1000
+                confint = 0.68                           #confidence interval
+                with NumpyRNGContext(1):    #assures reproducibility of monte carlo
+                    btmed = bootstrap(ydata,bootnum=niter,bootfunc=np.median)
+                    #print("btmed = ", btmed)
+                    #print("standard deviation = ",np.std(btmed))
+
+                #compute confidence intervals of median
+                sbtmed = sort(btmed)
+                lowind = int(round((1 - confint) / 2 * niter,2))
+                highind = int(round((1-((1 - confint) / 2))*niter,2))
+
+                #compute errorbars relative to median
+                ybinerrbtlow[i] = ybin[i] - sbtmed[lowind]
+                ybinerrbthigh[i] = sbtmed[highind] - ybin[i]
+                #print("low BT = ",sbtmed[lowind],"high BT = ",sbtmed[highind]," symm = ", (sbtmed[highind] - sbtmed[lowind])/2.)
+                    
+            else: 
                 ybin[i]=0.
                 ybinerr[i]=0.
+                ybinerrbtlow[i] = 0.
+                ybinerrbthigh[i] = 0.
+
+                
+        return xbin,ybin,ybinerr,ybinerrbtlow,ybinerrbthigh
+            
+    def binitbins(self,xmin,xmax,nbin,x,y):#use equally spaced bins
+        #compute median values of a quantity for data binned by another quantity
+        
+        dx=float((xmax-xmin)/(nbin))                    #width of each bin
+        xbin=np.arange(xmin,(xmax),dx)+dx/2.    #centers of each bin
+        ybin=np.zeros(len(xbin),'d')                      #initialize y-values of each bin
+        ybinerr=np.zeros(len(xbin),'d')                  #initialize yerror-values of each bin
+
+        
+        xbinnumb=np.array(len(x),'d')                  #give each bin a number
+        x1=np.compress((x >= xmin) & (x <= xmax),x)
+        y1=np.compress((x >= xmin) & (x <= xmax),y) 
+        x=x1
+        y=y1
+        xbinnumb=((x-xmin)*nbin/(xmax-xmin))     #calculate x  bin number for each point 
+        j=-1
+
+        #iterate through bin number
+        for i in range(len(xbin)):
+
+            #find all data in that bin
+            ydata=np.compress(abs(xbinnumb-float(i))<.5,y)
+            nydata = len(ydata)
+            
+            #calculate median
+            if nydata>0:
+                #ybin[i]=np.average(ydata)
+                ybin[i] = np.median(ydata)
+                ybinerr[i] = np.std(ydata)/np.sqrt(float(nydata))                    
+            else: 
+                ybin[i]=0.
+                ybinerr[i]=0.
+                
         return xbin,ybin,ybinerr
             
     def MSfit(self):
