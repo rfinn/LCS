@@ -379,7 +379,8 @@ class galaxies(lb.galaxies):
         
         plt.text(-.2,1,'$N_{gal}$',transform=gca().transAxes,verticalalignment='center',rotation=90,fontsize=24)
         print 'comparing cluster and exterior SF galaxies'
-        ks(self.sizeratio[flag & self.membflag & ~self.agnflag],self.sizeratio[flag & ~self.membflag & ~self.agnflag])
+        a,b=ks(self.sizeratio[flag & self.membflag & ~self.agnflag],self.sizeratio[flag & ~self.membflag & ~self.agnflag])
+        print 
         
         plt.xlabel('$ R_{24}/R_d $')
         if btcut == None:
@@ -506,9 +507,10 @@ class galaxies(lb.galaxies):
             flag = flags[i]
             if btmax != None:
                 flag = flag & (self.logstellarmass > 9.1) & (self.logstellarmass < 10.5)
-            xbin,ybin,ybinerr,colorbin = binxycolor(self.logstellarmass[flag],self.sizeratio[flag],self.gim2d.B_T_r[flag],yweights=self.sizeratioERR[flag],yerr=True,nbin=5,equal_pop_bins=equal_pop_bins,use_median=use_median,bins=mybins)
+            xbin,ybin,ybinerr,colorbin = binxycolor(self.logstellarmass[flag],self.sizeratio[flag],self.gim2d.B_T_r[flag],yweights=self.sizeratioERR[flag],yerr=True,nbin=nbins,equal_pop_bins=equal_pop_bins,use_median=use_median,bins=mybins)
             #print xbin
             plot(xbin,ybin,'ro',color=colors[i],markersize=18,mec='k',zorder=5)
+            print ybinerr
             #scatter(xbin,ybin,s=200, c=colorbin,marker='^',vmin=0,vmax=0.6,cmap='jet')
             errorbar(xbin,ybin,ybinerr,fmt=None,ecolor='k',alpha=0.7)
         #colorbar(label='$B/T$')
@@ -580,7 +582,7 @@ class galaxies(lb.galaxies):
 
         ax.tick_params(axis='both', which='major', labelsize=16)
         plt.axis([-1.8,1.6,0,2.5])
-        plt.savefig(figuredir+'fig16a.eps')
+        plt.savefig(figuredir+'fig16a.pdf')
     def plotsizeHIdef(self,sbcutobs=20.5,isoflag=0,r90flag=0):
         figure(figsize=plotsize_single)
         plt.subplots_adjust(left=.15,bottom=.2)
@@ -622,7 +624,7 @@ class galaxies(lb.galaxies):
         plt.ylabel('$R_{24}/R_d$')
         plt.xlabel('$HI \ Deficiency$')#,fontsize=26)
         plt.axis([-.6,1.6,0,2.5])
-        plt.savefig(figuredir+'fig16b.eps')
+        plt.savefig(figuredir+'fig16b.pdf')
     def plotNUVrsize(self):
         plt.figure(figsize=(10,4))
         plt.subplots_adjust(left=.1,wspace=.01,bottom=.2,right=.9)
@@ -660,7 +662,7 @@ class galaxies(lb.galaxies):
         c=plt.colorbar(ax=allax,fraction=.02,ticks = np.arange(0,.5,.1))
         c.ax.text(3.5,.5,colorlabel,rotation=-90,verticalalignment='center',fontsize=20)
         plt.text(-.51,-.2,'$R_{24}/R_d $',transform=plt.gca().transAxes,fontsize=24,horizontalalignment='center')
-        plt.savefig(figuredir+'fig17.eps')
+        plt.savefig(figuredir+'fig17.pdf')
 
 def plotsizevsMclallwhisker(sbcutobs=20,masscut=None,drcut=1.,blueflag=False,usetemp=False,useM500=False,usesigma=False,bwflag=True,btcut=None):
 
@@ -965,7 +967,7 @@ def plotsizevscluster(masscut=None,btcut=None):
     plt.subplots_adjust(bottom=.2,top=.9,left=.15,right=.92)
     #plt.subplots_adjust(bottom=.15)
 
-    plt.savefig(figuredir+'fig15.eps')
+    plt.savefig(figuredir+'fig15.pdf')
     
 def paperTable1Paper1(sbcutobs=20,masscut=0):
     #clustersigma={'MKW11':361, 'MKW8':325., 'AWM4':500., 'A2063':660., 'A2052':562., 'NGC6107':500., 'Coma':1000., 'A1367':745., 'Hercules':689.}
@@ -997,7 +999,18 @@ def paperTable1Paper1(sbcutobs=20,masscut=0):
     outfile.write('\enddata \n')
     outfile.write('\end{deluxetable*} \n')
     outfile.close()
-
+def write_out_sizes():
+    outfile = open(homedir+'/research/LocalClusters/catalogs/sizes.txt','w')
+    size = g.sizeratio[g.sampleflag]
+    sizerr = g.sizeratioERR[g.sampleflag]
+    myflag = g.membflag[g.sampleflag]
+    bt = g.gim2d.B_T_r[g.sampleflag]
+    ra = g.s.RA[g.sampleflag]
+    dec = g.s.DEC[g.sampleflag]
+    outfile.write('#R24/Rd size_err  core_flag   B/T RA DEC \n')
+    for i in range(len(size)):
+        outfile.write('%6.2f  %6.2f  %i   %.2f %10.9e %10.9e \n'%(size[i],sizerr[i],myflag[i],bt[i],ra[i],dec[i]))
+    outfile.close()
 
 if __name__ == '__main__':
     homedir = os.environ['HOME']
@@ -1010,7 +1023,7 @@ if __name__ == '__main__':
     #g.plotsizehist() # Fig 11a
     #g.plotsizehist(btcut=.3) # Fig 11b
     #g.plotsize3panel(use_median=False,equal_pop_bins=True) # Fig 12
-    #g.plotsizestellarmass(use_median=False,equal_pop_bins=True,btmax=0.3) # Fig 13
+    #g.plotsizestellarmass(use_median=True,equal_pop_bins=False,btmax=0.3) # Fig 13
     #plotsizevsMclallwhisker(btcut=.3) # Fig 14
     #plotsizevscluster(btcut=.3) # Fig 15
 

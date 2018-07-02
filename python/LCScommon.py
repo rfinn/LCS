@@ -289,11 +289,11 @@ def ks_boot(x,y,N=1000,conf_int=68.):
         xboot=x[randint(0,len(x)-1,len(x))]
         yboot=y[randint(0,len(y)-1,len(y))]
         boot_D[i],boot_p[i]=ks_2samp(xboot,yboot)
-    return scoreatpercentile(boot_D,per=50),scoreatpercentile(boot_p,per=50) 
+    return scoreatpercentile(boot_D,per=50),scoreatpercentile(boot_p,per=50)
 def ks(x,y,run_anderson=True):
     #D,pvalue=ks_2samp(x,y)
     D,pvalue=ks_boot(x,y)
-    print 'KS Test:'
+    print 'KS Test (median of bootstrap):'
     print 'D = %6.2f'%(D)
     print 'p-vale = %6.5f (prob that samples are from same distribution)'%(pvalue)
     if run_anderson:
@@ -400,8 +400,15 @@ def binxycolor(x,y,color,nbin=5,yweights=None,yerr=True,use_median=False,equal_p
         #print x
     else:
         #xbin_number = np.array(((x-min(x))*nbin/(max(x)-min(x))),'i')
-        xbin_number = np.digitize(x,xbins)
+        xbin_number = -1*np.ones(len(x),'i')
+        for i in range(len(xbins)-1):
+            flag = (x >= xbins[i]) & (x < xbins[i+1])
+            xbin_number[flag] = i*np.ones(sum(flag),'i')
+
+        xbins = xbins + 0.5*(xbins[1]-xbins[0])
     for i in range(nbin):
+        if sum(xbin_number == i) < 1:
+            continue
         if use_median:
             if bins == None:
                 xbins[i] = np.median(x[xbin_number == i])
@@ -411,14 +418,18 @@ def binxycolor(x,y,color,nbin=5,yweights=None,yerr=True,use_median=False,equal_p
             if bins == None:
                 xbins[i] = np.mean(x[xbin_number == i])
             if yweights != None:
+                print i
+                print 'xbin = ',xbins[i]
+                print 'yweights = ',yweights[xbin_number == i]
+                print 'y = ',y[xbin_number == i]
                 ybins[i] = np.average(y[xbin_number ==i], weights = yweights[xbin_number == i])
 
             else:
                 ybins[i] = np.mean(y[xbin_number == i])
             colorbins[i] = np.mean(color[xbin_number == i])
 
-        ybinerr = np.std(y[xbin_number == i])/np.sqrt(sum(xbin_number == i))
-                      
+        ybinerr[i] = np.std(y[xbin_number == i])#/np.sqrt(sum(xbin_number == i))
+
     if yerr:
         return xbins,ybins,ybinerr,colorbins
     else:
