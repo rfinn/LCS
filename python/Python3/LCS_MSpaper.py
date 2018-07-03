@@ -664,10 +664,11 @@ class galaxies(lb.galaxies):
             plt.savefig(figuredir + 'sfr_mstar_musfrcolor.pdf')
 
 
-    def sizediff_musfrdiff_mass(self, savefig=False, btcutflag=True):
+    def sizediff_musfrdiff_mass(self, savefig=False, btcutflag=True,sfrlimflag=False):
         #make a plot of the difference in size ratios and SFR surface
         #density between the core and external sample as a function of
         #stellar mass
+        #if sfrlim==True the limit galaxies to within a factor of the main sequence.
 
         btcut = 0.3
 
@@ -677,18 +678,33 @@ class galaxies(lb.galaxies):
         bothax=[]
 
         self.sfrdense = 0.5 * self.SFR_BEST / (np.pi * self.mipssize**2)
+
+        #determine offsets w.r.t. main sequence
+        #determine MS fit and output fit results
+        xmod,ymod,param = g.MSfit()
         
-        #select core with B/T<btcut
+        sfrpred = 10**(param[0] * self.logstellarmass + param[1])
+        lsfrdiff = log10(self.SFR_BEST) - log10(sfrpred)
+
+        #what is the difference in SFR with respect to the main
+        #sequence for which we will perform the  calculation
+        lsfrthresh = 100.0
+        if sfrlimflag:
+            #lsfrthresh = 0.6 #factor of 4
+            #lsfrthresh = 0.477 #factor of 3
+            lsfrthresh = 0.3 #factor of 2
+        
+        #select core with B/T<btcut and within a certain distance of the main sequence
         if btcutflag:
-            cflag = (self.membflag & self.sampleflag) & (self.gim2d.B_T_r < btcut)
+            cflag = (self.membflag & self.sampleflag) & (self.gim2d.B_T_r < btcut) & (abs(lsfrdiff) < lsfrthresh)
         else:
-            cflag = (self.membflag & self.sampleflag)
+            cflag = (self.membflag & self.sampleflag) & (abs(lsfrdiff) < lsfrthresh)
 
         #select external galaxies with B/T<btcut
         if btcutflag:
-            eflag = (~self.membflag & self.sampleflag) & (self.gim2d.B_T_r < btcut)
+            eflag = (~self.membflag & self.sampleflag) & (self.gim2d.B_T_r < btcut) & (abs(lsfrdiff) < lsfrthresh)
         else:
-            eflag = (~self.membflag & self.sampleflag)
+            eflag = (~self.membflag & self.sampleflag) & (abs(lsfrdiff) < lsfrthresh)
 
         logmassmin = 9.7
         logmassmax = 10.7
@@ -731,6 +747,10 @@ class galaxies(lb.galaxies):
         plt.ylabel('$[R_e(24)/R_e(r)]_{core}/[R_e(24)/R_e(r)]_{ext}$',fontsize=16)
         #plt.ylabel('$\frac{(R_e(24)/R_e(r))_{core}}{(R_e(24)/R_e(r))_{ext}}$',fontsize=12)
 
+        if sfrlimflag:
+            s = '$|log(SFR) - log(SFR_{MS})|<  \  %.2f$'%(lsfrthresh)
+            text(0.4,0.8,s,transform=ax.transAxes,horizontalalignment='left',fontsize=20)
+            
         ##########################
         #the musfr difference as a function of mass
         plt.subplot(2,1,2)
@@ -866,10 +886,12 @@ class galaxies(lb.galaxies):
         if savefig:
             plt.savefig(figuredir + 'size_musfr_masscolor.pdf')
 
-    def sfr_offset(self,savefig=False,btcutflag=True):
+    def sfr_offset(self,savefig=False,btcutflag=True,logmassmin=7.0, logmassmax=12.0):
         #compares the distribution w.r.t. the main sequence for both
         #the core and external galaxies
-            
+        
+        #logmassmin and logmassmax set limits on mass for the histograms
+                
         btcut = 0.3
 
         #set up the figure and the subplots
@@ -891,9 +913,9 @@ class galaxies(lb.galaxies):
 
         #select members with B/T<btcut
         if btcutflag:
-            cflag = (self.membflag & self.sampleflag) & (self.gim2d.B_T_r < btcut)
+            cflag = (self.membflag & self.sampleflag) & (self.gim2d.B_T_r < btcut) & (self.logstellarmass > logmassmin) & (self.logstellarmass < logmassmax)
         else:
-            cflag = (self.membflag & self.sampleflag)
+            cflag = (self.membflag & self.sampleflag) & (self.logstellarmass > logmassmin) & (self.logstellarmass < logmassmax)
 
         lsfrdiffmin = -1.0
         lsfrdiffmax = 1.2
@@ -931,6 +953,10 @@ class galaxies(lb.galaxies):
             #text(0.5,1.05,s,transform=ax.transAxes,horizontalalignment='left',fontsize=20)
             plt.title(s,fontsize=20)
 
+        if logmassmin>7.0:
+            s = '$%.2f < log(M_\star/M_\odot) < %.2f$'%(logmassmin, logmassmax)
+            text(0.4,0.8,s,transform=ax.transAxes,horizontalalignment='left',fontsize=20)
+
         ##################
         #external galaxies. plot MS offsets
         plt.subplot(2,1,2)
@@ -938,9 +964,9 @@ class galaxies(lb.galaxies):
 
         #select external galaxies with B/T<btcut
         if btcutflag:
-            eflag = (~self.membflag & self.sampleflag) & (self.gim2d.B_T_r < btcut)
+            eflag = (~self.membflag & self.sampleflag) & (self.gim2d.B_T_r < btcut) & (self.logstellarmass > logmassmin) & (self.logstellarmass < logmassmax)
         else:
-            eflag = (~self.membflag & self.sampleflag)
+            eflag = (~self.membflag & self.sampleflag) & (self.logstellarmass > logmassmin) & (self.logstellarmass < logmassmax)
 
         hist(lsfrdiff[eflag],bins=mybins,histtype='stepfilled',color='b',label='$External$',lw=1.5,alpha=1)#,normed=True)
 
