@@ -722,12 +722,17 @@ class galaxies(lb.galaxies):
         #median size ratio in bins of mass for external
         xbin,sbine,sbine_err,sbine_err_btlow,sbine_err_bthigh = g.binitbinsbt(logmassmin, logmassmax, nbin,self.logstellarmass[eflag],self.sizeratio[eflag])
 
+        #symmetrize the 2-sided bootstrap errors
+        symarrc = (sbinc_err_bthigh + sbinc_err_btlow) / 2.
+        symarre = (sbine_err_bthigh + sbine_err_btlow) / 2.
+
         #ratio of median size ratio
         sizerat_rat = sbinc / sbine
         sizerat_rat_err = np.sqrt(sizerat_rat**2 * ((sbine_err/sbine)**2 + (sbinc_err/sbinc)**2))
+        sizerat_rat_errbt = np.sqrt(sizerat_rat**2 * ((symarre/sbine)**2 + (symarrc/sbinc)**2))
         
         #print(xbin,sbin,sbinerr)
-        errorbar(xbin,sizerat_rat,yerr=sizerat_rat_err,fmt='rs',color='k',markersize=8,ecolor='k',mfc='r')
+        errorbar(xbin,sizerat_rat,yerr=sizerat_rat_errbt,fmt='rs',color='k',markersize=8,ecolor='k',mfc='r')
     #plt.scatter(xbin,sizerat_rat,c='r',s=30,marker='s')
 
         limits=[logmassmin - 0.2,logmassmax + 0.2,0,2.49]
@@ -763,8 +768,8 @@ class galaxies(lb.galaxies):
         xbin,mubine,mubine_err,mubine_err_btlow,mubine_err_bthigh = g.binitbinsbt(logmassmin, logmassmax, nbin,self.logstellarmass[eflag],self.sfrdense[eflag])
 
         #symmetrize the 2-sided bootstrap errors
-        symarrc = (mubinc_err_bthigh - mubinc_err_btlow) / 2.
-        symarre = (mubinc_err_bthigh - mubinc_err_btlow) / 2.
+        symarrc = (mubinc_err_bthigh + mubinc_err_btlow) / 2.
+        symarre = (mubine_err_bthigh + mubine_err_btlow) / 2.
 
         #ratio of median size ratio
         musfr_rat = mubinc / mubine
