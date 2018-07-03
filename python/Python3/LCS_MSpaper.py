@@ -115,7 +115,7 @@ class galaxies(lb.galaxies):
         g.plotlims()
 
         #determine MS fit and output fit results
-        xmod,ymod = g.MSfit()
+        xmod,ymod,param = g.MSfit()
         #plot our own MS
         plt.plot(xmod,ymod,'w-',lw=3)
         plt.plot(xmod,ymod,'b-',lw=2)
@@ -155,7 +155,7 @@ class galaxies(lb.galaxies):
 
 
         #determine MS fit and output fit results
-        xmod,ymod = g.MSfit()
+        xmod,ymod,param = g.MSfit()
 
         plt.plot(self.logstellarmass[nosampflag],self.SFR_BEST[nosampflag],'ko',label='rejected')
         plt.plot(self.logstellarmass[sampflag],self.SFR_BEST[sampflag],'ro',label='final sample')
@@ -225,7 +225,7 @@ class galaxies(lb.galaxies):
         limits=[8.1,12,1.e-3,40.]
 
         #determine MS fit and output fit results
-        xmod,ymod = g.MSfit()
+        xmod,ymod,param = g.MSfit()
 
         #plot each subplot separately
         if subsample == 'all':
@@ -376,7 +376,7 @@ class galaxies(lb.galaxies):
         ax=plt.gca()
 
         #determine MS fit and output fit results
-        xmod,ymod = g.MSfit()
+        xmod,ymod,param = g.MSfit()
 
         #select members with B/T<btcut
         if btcutflag:
@@ -519,7 +519,7 @@ class galaxies(lb.galaxies):
         ax=plt.gca()
 
         #determine MS fit and output fit results
-        xmod,ymod = g.MSfit()
+        xmod,ymod,param = g.MSfit()
 
         #select members with B/T<btcut
         if btcutflag:
@@ -864,8 +864,123 @@ class galaxies(lb.galaxies):
         c.ax.text(2.2,.5,'$log_{10}(M_*/M_\odot)$',rotation=-90,verticalalignment='center',fontsize=20)
 
         if savefig:
-            plt.savefig(figuredir + 'size_musfr_masscolor.pdf')       
+            plt.savefig(figuredir + 'size_musfr_masscolor.pdf')
+
+    def sfr_offset(self,savefig=False,btcutflag=True):
+        #compares the distribution w.r.t. the main sequence for both
+        #the core and external galaxies
             
+        btcut = 0.3
+
+        #set up the figure and the subplots
+        figure(figsize=(10,4))
+        subplots_adjust(left=.12,bottom=.15,wspace=.02,hspace=.02)
+        bothax=[]
+        limits=[-1,1.3,0, 22]
+
+        #determine offsets w.r.t. main sequence
+        #determine MS fit and output fit results
+        xmod,ymod,param = g.MSfit()
+        
+        sfrpred = 10**(param[0] * self.logstellarmass + param[1])
+        lsfrdiff = log10(self.SFR_BEST) - log10(sfrpred)
+
+        #core galaxies. plot MS offsets
+        plt.subplot(2,1,1)
+        ax=plt.gca()
+
+        #select members with B/T<btcut
+        if btcutflag:
+            cflag = (self.membflag & self.sampleflag) & (self.gim2d.B_T_r < btcut)
+        else:
+            cflag = (self.membflag & self.sampleflag)
+
+        lsfrdiffmin = -1.0
+        lsfrdiffmax = 1.2
+        mybins=np.arange(lsfrdiffmin, lsfrdiffmax, 0.1)
+        plt.hist(lsfrdiff[cflag],bins=mybins,histtype='stepfilled',color='r',label='$Core$',lw=1.5,alpha=1)#,normed=True)
+
+        #median SFR diff
+        medlsfrdiff = np.median(lsfrdiff[cflag])
+        plt.axvline(x=medlsfrdiff,c='k',ls='-',lw=3)
+
+        #68% confidence intervals on SFRdiff
+        lsfrdiffsort = sort(lsfrdiff[cflag])
+        confint = 0.68                           #confidence interval
+        lowind = int(round((1 - confint) / 2 * len(lsfrdiffsort),2))
+        highind = int(round((1-((1 - confint) / 2)) * len(lsfrdiffsort),2))
+        
+        plt.axvline(x=lsfrdiffsort[lowind],c='k',ls='--',lw=3)
+        plt.axvline(x=lsfrdiffsort[highind],c='k',ls='--',lw=3)
+                
+        confint = 0.90                           #confidence interval
+        lowind = int(round((1 - confint) / 2 * len(lsfrdiffsort),2))
+        highind = int(round((1-((1 - confint) / 2)) * len(lsfrdiffsort),2))
+        
+        plt.axvline(x=lsfrdiffsort[lowind],c='k',ls=':',lw=3)
+        plt.axvline(x=lsfrdiffsort[highind],c='k',ls=':',lw=3)
+                
+        plt.axis(limits)
+        bothax.append(ax)
+        ax.set_xticklabels(([]))
+        plt.ylabel('$N_{gal}$',fontsize=18)
+        plt.legend(loc='upper right')
+
+        if btcutflag:
+            s = '$B/T \ <  \  %.2f$'%(btcut)
+            #text(0.5,1.05,s,transform=ax.transAxes,horizontalalignment='left',fontsize=20)
+            plt.title(s,fontsize=20)
+
+        ##################
+        #external galaxies. plot MS offsets
+        plt.subplot(2,1,2)
+        ax=plt.gca()
+
+        #select external galaxies with B/T<btcut
+        if btcutflag:
+            eflag = (~self.membflag & self.sampleflag) & (self.gim2d.B_T_r < btcut)
+        else:
+            eflag = (~self.membflag & self.sampleflag)
+
+        hist(lsfrdiff[eflag],bins=mybins,histtype='stepfilled',color='b',label='$External$',lw=1.5,alpha=1)#,normed=True)
+
+        #median SFR diff
+        medlsfrdiff = np.median(lsfrdiff[eflag])
+        plt.axvline(x=medlsfrdiff,c='k',ls='-',lw=3)
+
+        #68% confidence intervals on SFRdiff
+        lsfrdiffsort = sort(lsfrdiff[eflag])
+        confint = 0.68                           #confidence interval
+        lowind = int(round((1 - confint) / 2 * len(lsfrdiffsort),2))
+        highind = int(round((1-((1 - confint) / 2)) * len(lsfrdiffsort),2))
+        
+        plt.axvline(x=lsfrdiffsort[lowind],c='k',ls='--',lw=3)
+        plt.axvline(x=lsfrdiffsort[highind],c='k',ls='--',lw=3)
+                
+        confint = 0.90                           #confidence interval
+        lowind = int(round((1 - confint) / 2 * len(lsfrdiffsort),2))
+        highind = int(round((1-((1 - confint) / 2)) * len(lsfrdiffsort),2))
+        
+        plt.axvline(x=lsfrdiffsort[lowind],c='k',ls=':',lw=3)
+        plt.axvline(x=lsfrdiffsort[highind],c='k',ls=':',lw=3)
+
+        #K-S test
+        a,b=ks(lsfrdiff[cflag],lsfrdiff[eflag])
+
+        plt.axis(limits)
+        bothax.append(ax)
+        #ax.set_xticklabels(([]))
+        plt.text(-.2,1,'$N_{gal}$',transform=gca().transAxes,verticalalignment='center',rotation=90,fontsize=24)
+        plt.legend(loc='upper right')
+
+        plt.ylabel('$N_{gal}$',fontsize=18)
+        plt.xlabel('log(SFR) - log(SFR$_{MS}$)',fontsize=18)
+        
+        if savefig:
+            plt.savefig(figuredir + 'sfrdiff.pdf')
+
+
+
     def binitbinsbt(self,xmin,xmax,nbin,x,y):#use equally spaced bins
         #compute median values of a quantity for data binned by another quantity
         #also compute 68% confidence limits on bootstrapped value of median
@@ -975,7 +1090,7 @@ class galaxies(lb.galaxies):
         print("****************fit parameters",p)
         xmod=arange(8.5,12.,0.2)
         ymod=10**(p[0] * xmod + p[1])
-        return xmod,ymod
+        return xmod,ymod,p
     #plt.plot(xmod,ymod,'w-',lw=5)
     #plt.plot(xmod,ymod,'b-',lw=3)
 
