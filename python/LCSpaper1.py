@@ -450,7 +450,7 @@ class galaxies(lb.galaxies):
                 if j == 0:
                     #plt.ylabel('$R_e(24)/Re(r)$')
                     plt.ylabel('$R_{24}/R_d$')
-                xbin,ybin,ybinerr, colorbin = binxycolor(x[i][flags[j]],y[flags[j]],colors[i][flags[j]],nbin=5,bins=xbins[i],erry=True,equal_pop_bins=equal_pop_bins,use_median = use_median)
+                xbin,ybin,ybinerr, colorbin = binxycolor(x[i][flags[j]],y[flags[j]],colors[i][flags[j]],nbin=5,bins=xbins[i],yerr=True,equal_pop_bins=equal_pop_bins,use_median = use_median)
                 plt.scatter(xbin,ybin,c=colorbin,s=180,vmin=v1[i],vmax=v2[i],cmap='jet',zorder=5,lw=2,edgecolors='k')
                 plt.errorbar(xbin,ybin,ybinerr,fmt=None,ecolor='k',alpha=0.7)
                 if logyscale:
@@ -821,13 +821,13 @@ def plotpositionson24(plotsingle=0,plotcolorbar=1,plotnofit=0,useirsb=0):
         cir=Circle((0,0),radius=r200deg,color='None',ec='k')
         gca().add_patch(cir)
 
-        flag=(g.s.CLUSTER == cl) & g.dvflag
+        flag=(g.s.CLUSTER == cl)& g.sampleflag  #& g.dvflag 
         plt.hexbin(d.RA-clusterRA[cl],d.DEC-clusterDec[cl],cmap=cm.Greys,gridsize=40,vmin=0,vmax=10)
         if plotnofit:
             flag=g.sfsampleflag & ~g.sampleflag & g.dvflag & (g.s.CLUSTER == cl)
             plot(ra[flag],dec[flag],'rv',mec='r',mfc='None')
 
-        flag=g.sampleflag & g.dvflag & (g.s.CLUSTER == cl)
+        flag=g.sampleflag & (g.s.CLUSTER == cl) #& g.membflag
         #print cl, len(ra[flag]),len(dec[flag]),len(s.s.SIZE_RATIO[flag])
         if useirsb:
             color=log10(g.sigma_ir)
