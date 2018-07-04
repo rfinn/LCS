@@ -657,7 +657,7 @@ class galaxies(lb.galaxies):
         text(-0.02,-.2,'$log_{10}(M_*/M_\odot)$',transform=ax.transAxes,horizontalalignment='center',fontsize=24)
 
         c=colorbar(ax=bothax,fraction=.05,ticks=arange(minlsfrdense,maxlsfrdense,.1),format='%.1f')
-        c.ax.text(2.2,.5,'$log_{10}(\mu_{SFR}/(M_\odot~yr^{-1}~kpc^{-2}))$',rotation=-90,verticalalignment='center',fontsize=20)
+        c.ax.text(2.2,.5,'$log_{10}(\Sigma_{SFR}/(M_\odot~yr^{-1}~kpc^{-2}))$',rotation=-90,verticalalignment='center',fontsize=20)
 
         
         if savefig:
@@ -707,12 +707,12 @@ class galaxies(lb.galaxies):
             eflag = (~self.membflag & self.sampleflag) & (abs(lsfrdiff) < lsfrthresh)
 
         logmassmin = 9.7
-        logmassmax = 10.7
+        logmassmax = 10.9
         nbin = (logmassmax - logmassmin) / 0.2
 
         ################
         #the size difference as a function of mass, binned
-        plt.subplot(2,1,1)
+        plt.subplot(3,1,1)
         ax=plt.gca()
 
 
@@ -730,9 +730,13 @@ class galaxies(lb.galaxies):
         sizerat_rat = sbinc / sbine
         sizerat_rat_err = np.sqrt(sizerat_rat**2 * ((sbine_err/sbine)**2 + (sbinc_err/sbinc)**2))
         sizerat_rat_errbt = np.sqrt(sizerat_rat**2 * ((symarre/sbine)**2 + (symarrc/sbinc)**2))
+        #asymmetric errorbars
+        sizerat_rat_errbthigh = np.sqrt(sizerat_rat**2 * ((sbine_err_bthigh/sbine)**2 + (sbinc_err_bthigh/sbinc)**2))
+        sizerat_rat_errbtlow = np.sqrt(sizerat_rat**2 * ((sbine_err_btlow/sbine)**2 + (sbinc_err_btlow/sbinc)**2))
         
         #print(xbin,sbin,sbinerr)
-        errorbar(xbin,sizerat_rat,yerr=sizerat_rat_errbt,fmt='rs',color='k',markersize=8,ecolor='k',mfc='r')
+        #errorbar(xbin,sizerat_rat,yerr=sizerat_rat_errbt,fmt='rs',color='k',markersize=8,ecolor='k',mfc='r')
+        errorbar(xbin,sizerat_rat,yerr=[ sizerat_rat_errbthigh, sizerat_rat_errbtlow],fmt='rs',color='k',markersize=8,ecolor='k',mfc='r')
     #plt.scatter(xbin,sizerat_rat,c='r',s=30,marker='s')
 
         limits=[logmassmin - 0.2,logmassmax + 0.2,0,2.49]
@@ -749,7 +753,9 @@ class galaxies(lb.galaxies):
             plt.title(s,fontsize=20)
             #text(-0.15,1.1,s,transform=ax.transAxes,horizontalalignment='left',fontsize=20)
 
-        plt.ylabel('$[R_e(24)/R_e(r)]_{core}/[R_e(24)/R_e(r)]_{ext}$',fontsize=16)
+        #plt.ylabel('$[R_e(24)/R_e(r)]_{core}/[R_e(24)/R_e(r)]_{ext}$',fontsize=16)
+        plt.ylabel('$R_e(24)/R_e(r)~ratio$',fontsize=18)
+        text(0.35,0.8,'$[R_e(24)/R_e(r)]_{core}/[R_e(24)/R_e(r)]_{ext}$',transform=ax.transAxes,horizontalalignment='left',fontsize=18)
         #plt.ylabel('$\frac{(R_e(24)/R_e(r))_{core}}{(R_e(24)/R_e(r))_{ext}}$',fontsize=12)
 
         if sfrlimflag:
@@ -758,7 +764,7 @@ class galaxies(lb.galaxies):
             
         ##########################
         #the musfr difference as a function of mass
-        plt.subplot(2,1,2)
+        plt.subplot(3,1,2)
         ax=plt.gca()
 
         #median size ratio in bins of mass for core
@@ -775,12 +781,56 @@ class galaxies(lb.galaxies):
         musfr_rat = mubinc / mubine
         musfr_rat_err = np.sqrt(musfr_rat**2 * ((mubine_err/mubine)**2 + (mubinc_err/mubinc)**2))
         musfr_rat_errbt = np.sqrt(musfr_rat**2 * ((symarre/mubine)**2 + (symarrc/mubinc)**2))
-        #print("mu_sfr Bootstrap error", musfr_rat_errbt)
+
+        #asymmetric errorbars
+        musfrrat_rat_errbthigh = np.sqrt(musfr_rat**2 * ((mubine_err_bthigh/mubine)**2 + (mubinc_err_bthigh/mubinc)**2))
+        musfrrat_rat_errbtlow = np.sqrt(musfr_rat**2 * ((mubine_err_btlow/mubine)**2 + (mubinc_err_btlow/mubinc)**2))
+
+        #errorbar(xbin,musfr_rat,yerr=musfr_rat_errbt,fmt='rs',color='k',markersize=8,ecolor='k',mfc='r')
+        #errorbar(xbin,musfr_rat,yerr=musfr_rat_errbt,fmt='none',color='k',ecolor='k')
+        errorbar(xbin,musfr_rat,yerr=[musfrrat_rat_errbthigh ,musfrrat_rat_errbtlow],fmt='rs',color='k',markersize=8,ecolor='k',mfc='r')
+        errorbar(xbin,musfr_rat,yerr=[musfrrat_rat_errbthigh ,musfrrat_rat_errbtlow],fmt='none',color='k',ecolor='k')
+
+        limits=[logmassmin - 0.2,logmassmax + 0.2,0,3.99]
+        plt.axis(limits)
+        bothax.append(ax)
+        #ax.set_yticklabels(([]))
+        ax.set_xticklabels(([]))
+        #plt.title('$Median $',fontsize=22)
+
+        plt.ylabel('$\Sigma_{SFR}~ratio$',fontsize=18)
+        text(0.35,0.8,'$\Sigma_{SFR,core}/\Sigma_{SFR,ext}$',transform=ax.transAxes,horizontalalignment='left',fontsize=18)
+        axhline(y=1,c='k',ls='--')
+
+
+        ##########################
+        #the SFR difference as a function of mass
+        plt.subplot(3,1,3)
+        ax=plt.gca()
+
+        #median SFR in bins of mass for core
+        xbin,sfrbinc,sfrbinc_err ,sfrbinc_err_btlow,sfrbinc_err_bthigh = g.binitbinsbt(logmassmin, logmassmax, nbin,self.logstellarmass[cflag],self.SFR_BEST[cflag])
+
+        #median SFR in bins of mass for external
+        xbin,sfrbine,sfrbine_err,sfrbine_err_btlow,sfrbine_err_bthigh = g.binitbinsbt(logmassmin, logmassmax, nbin,self.logstellarmass[eflag],self.SFR_BEST[eflag])
+
+        #symmetrize the 2-sided bootstrap errors
+        symarrc = (sfrbinc_err_bthigh + sfrbinc_err_btlow) / 2.
+        symarre = (sfrbine_err_bthigh + sfrbine_err_btlow) / 2.
+
+        #ratio of median size ratio
+        sfr_rat = sfrbinc / sfrbine
+        sfr_rat_err = np.sqrt(sfr_rat**2 * ((sfrbine_err/sfrbine)**2 + (sfrbinc_err/sfrbinc)**2))
+        sfr_rat_errbt = np.sqrt(sfr_rat**2 * ((symarre/sfrbine)**2 + (symarrc/sfrbinc)**2))
         
-        #print(xbin,mubin,mubinerr)
-        errorbar(xbin,musfr_rat,yerr=musfr_rat_errbt,fmt='rs',color='k',markersize=8,ecolor='k',mfc='r')
-        errorbar(xbin,musfr_rat,yerr=musfr_rat_errbt,fmt='none',color='k',ecolor='k')
-    #plt.scatter(xbin,sizerat_rat,c='r',s=30,marker='s')
+        #asymmetric errorbars
+        sfr_rat_errbthigh = np.sqrt(sfr_rat**2 * (((sfrbine_err_bthigh/sfrbine)**2 + (sfrbinc_err_bthigh/sfrbinc)**2)))
+        sfr_rat_errbtlow = np.sqrt(sfr_rat**2 * (((sfrbine_err_btlow/sfrbine)**2 + (sfrbinc_err_btlow/sfrbinc)**2)))
+
+        #errorbar(xbin,sfr_rat,yerr=sfr_rat_errbt,fmt='rs',color='k',markersize=8,ecolor='k',mfc='r')
+        #errorbar(xbin,sfr_rat,yerr=sfr_rat_errbt,fmt='none',color='k',ecolor='k')
+        errorbar(xbin,sfr_rat,yerr=[sfr_rat_errbthigh,sfr_rat_errbtlow],fmt='rs',color='k',markersize=8,ecolor='k',mfc='r')
+        errorbar(xbin,sfr_rat,yerr=[sfr_rat_errbthigh,sfr_rat_errbtlow],fmt='none',color='k',ecolor='k')
 
         limits=[logmassmin - 0.2,logmassmax + 0.2,0,3.99]
         plt.axis(limits)
@@ -788,11 +838,13 @@ class galaxies(lb.galaxies):
         #ax.set_yticklabels(([]))
         #ax.set_xticklabels(([]))
         #plt.title('$Median $',fontsize=22)
-        plt.ylabel('$\mu_{SFR,core}/\mu_{SFR,ext}$',fontsize=20)
-        plt.xlabel('$log_{10}(M_*/M_\odot)$',fontsize=20)
+        plt.ylabel('${SFR}~ratio$',fontsize=18)
+        text(0.35,0.8,'$SFR_{core}/SFR_{ext}$',transform=ax.transAxes,horizontalalignment='left',fontsize=18)
 
         axhline(y=1,c='k',ls='--')
             
+        plt.xlabel('$log_{10}(M_*/M_\odot)$',fontsize=20)
+
         if savefig:
             plt.savefig(figuredir + 'sizediff_musfrdiff_mass.pdf')
 
@@ -852,7 +904,7 @@ class galaxies(lb.galaxies):
             s2 = '$B/T \ <  \  %.2f$'%(btcut)
             text(0.9,1.07,s2,transform=ax.transAxes,horizontalalignment='left',fontsize=20)
            
-        plt.ylabel('$log_{10}(\mu_{SFR}/(M_\odot~yr^{-1}~kpc^{-2}))$')
+        plt.ylabel('$log_{10}(\Sigma_{SFR}/(M_\odot~yr^{-1}~kpc^{-2}))$')
 
         ##############################
         #external galaxies - individual points
