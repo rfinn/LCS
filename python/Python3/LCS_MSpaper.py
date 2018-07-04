@@ -891,7 +891,7 @@ class galaxies(lb.galaxies):
         if savefig:
             plt.savefig(figuredir + 'size_musfr_masscolor.pdf')
 
-    def sfr_offset(self,savefig=False,btcutflag=True,logmassmin=7.0, logmassmax=12.0):
+    def sfr_offset(self,savefig=False,btcutflag=True,logmassmin=9.7, logmassmax=12.0):
         #compares the distribution w.r.t. the main sequence for both
         #the core and external galaxies
         
@@ -933,19 +933,41 @@ class galaxies(lb.galaxies):
 
         #68% confidence intervals on SFRdiff
         lsfrdiffsort = sort(lsfrdiff[cflag])
-        confint = 0.68                           #confidence interval
-        lowind = int(round((1 - confint) / 2 * len(lsfrdiffsort),2))
-        highind = int(round((1-((1 - confint) / 2)) * len(lsfrdiffsort),2))
+        confint1 = 0.68                           #confidence interval
+        lowind1 = int(round((1 - confint1) / 2 * len(lsfrdiffsort),2))
+        highind1 = int(round((1-((1 - confint1) / 2)) * len(lsfrdiffsort),2))
         
-        plt.axvline(x=lsfrdiffsort[lowind],c='k',ls='--',lw=3)
-        plt.axvline(x=lsfrdiffsort[highind],c='k',ls='--',lw=3)
+        plt.axvline(x=lsfrdiffsort[lowind1],c='k',ls='--',lw=3)
+        plt.axvline(x=lsfrdiffsort[highind1],c='k',ls='--',lw=3)
                 
-        confint = 0.90                           #confidence interval
-        lowind = int(round((1 - confint) / 2 * len(lsfrdiffsort),2))
-        highind = int(round((1-((1 - confint) / 2)) * len(lsfrdiffsort),2))
+        confint2 = 0.90                           #confidence interval
+        lowind2 = int(round((1 - confint2) / 2 * len(lsfrdiffsort),2))
+        highind2 = int(round((1-((1 - confint2) / 2)) * len(lsfrdiffsort),2))
         
-        plt.axvline(x=lsfrdiffsort[lowind],c='k',ls=':',lw=3)
-        plt.axvline(x=lsfrdiffsort[highind],c='k',ls=':',lw=3)
+        plt.axvline(x=lsfrdiffsort[lowind2],c='k',ls=':',lw=3)
+        plt.axvline(x=lsfrdiffsort[highind2],c='k',ls=':',lw=3)
+
+        #bootstrap the sample to determine the robustness of the lower
+        #SFR tail to sampling issues
+        niter = 1000
+        with NumpyRNGContext(1):    #assures reproducibility of monte carlo
+            btlsfrdiff = bootstrap(lsfrdiff[cflag],bootnum=niter)
+
+        btconflimlowc1 = np.zeros(niter)        #bootstrap 68% lower limits
+        btconflimlowc2 = np.zeros(niter)        #bootstrap 90% lower limits
+        for iter in range(niter):
+            btlsfrdiffsort = sort(btlsfrdiff[iter,:])
+            confint1 = 0.68                           #confidence interval
+            lowind1 = int(round((1 - confint1) / 2 * len(lsfrdiffsort),2))
+            btconflimlowc1[iter] = btlsfrdiffsort[lowind1]
+
+            confint2 = 0.90                           #confidence interva
+            lowind2 = int(round((1 - confint2) / 2 * len(lsfrdiffsort),2))
+            btconflimlowc2[iter] = btlsfrdiffsort[lowind2]
+
+        print("Core")
+        print("median lower 68% SFRdiff confidence interval",np.median(btconflimlowc1))
+        print("median lower 90% SFRdiff confidence interval",np.median(btconflimlowc2))
                 
         plt.axis(limits)
         bothax.append(ax)
@@ -958,7 +980,7 @@ class galaxies(lb.galaxies):
             #text(0.5,1.05,s,transform=ax.transAxes,horizontalalignment='left',fontsize=20)
             plt.title(s,fontsize=20)
 
-        if logmassmin>7.0:
+        if logmassmin>9.7:
             s = '$%.2f < log(M_\star/M_\odot) < %.2f$'%(logmassmin, logmassmax)
             text(0.4,0.8,s,transform=ax.transAxes,horizontalalignment='left',fontsize=20)
 
@@ -981,20 +1003,51 @@ class galaxies(lb.galaxies):
 
         #68% confidence intervals on SFRdiff
         lsfrdiffsort = sort(lsfrdiff[eflag])
-        confint = 0.68                           #confidence interval
-        lowind = int(round((1 - confint) / 2 * len(lsfrdiffsort),2))
-        highind = int(round((1-((1 - confint) / 2)) * len(lsfrdiffsort),2))
+        confint1 = 0.68                           #confidence interval
+        lowind1 = int(round((1 - confint1) / 2 * len(lsfrdiffsort),2))
+        highind1 = int(round((1-((1 - confint1) / 2)) * len(lsfrdiffsort),2))
         
-        plt.axvline(x=lsfrdiffsort[lowind],c='k',ls='--',lw=3)
-        plt.axvline(x=lsfrdiffsort[highind],c='k',ls='--',lw=3)
+        plt.axvline(x=lsfrdiffsort[lowind1],c='k',ls='--',lw=3)
+        plt.axvline(x=lsfrdiffsort[highind1],c='k',ls='--',lw=3)
                 
-        confint = 0.90                           #confidence interval
-        lowind = int(round((1 - confint) / 2 * len(lsfrdiffsort),2))
-        highind = int(round((1-((1 - confint) / 2)) * len(lsfrdiffsort),2))
+        confint2 = 0.90                           #confidence interval
+        lowind2 = int(round((1 - confint2) / 2 * len(lsfrdiffsort),2))
+        highind2 = int(round((1-((1 - confint2) / 2)) * len(lsfrdiffsort),2))
         
-        plt.axvline(x=lsfrdiffsort[lowind],c='k',ls=':',lw=3)
-        plt.axvline(x=lsfrdiffsort[highind],c='k',ls=':',lw=3)
+        plt.axvline(x=lsfrdiffsort[lowind2],c='k',ls=':',lw=3)
+        plt.axvline(x=lsfrdiffsort[highind2],c='k',ls=':',lw=3)
 
+        #bootstrap the sample to determine the robustness of the lower
+        #SFR tail to sampling issues
+        niter = 1000
+        with NumpyRNGContext(1):    #assures reproducibility of monte carlo
+            btlsfrdiff = bootstrap(lsfrdiff[eflag],bootnum=niter)
+
+        btconflimlowe1 = np.zeros(niter)        #bootstrap 68% lower limits
+        btconflimlowe2 = np.zeros(niter)        #bootstrap 90% lower limits
+        for iter in range(niter):
+            btlsfrdiffsort = sort(btlsfrdiff[iter,:])
+            confint1 = 0.68                           #confidence interval
+            lowind1 = int(round((1 - confint1) / 2 * len(lsfrdiffsort),2))
+            btconflimlowe1[iter] = btlsfrdiffsort[lowind1]
+
+            confint2 = 0.90                           #confidence interva
+            lowind2 = int(round((1 - confint2) / 2 * len(lsfrdiffsort),2))
+            btconflimlowe2[iter] = btlsfrdiffsort[lowind2]
+
+        print("External")
+        print("median lower 68% SFRdiff confidence interval",np.median(btconflimlowe1))
+        print("median lower 90% SFRdiff confidence interval",np.median(btconflimlowe2))
+
+        #find how often the core lower 68 and 90% confidence limits are below the field
+        nlow1 = np.where(btconflimlowc1 < btconflimlowe1)
+        nlow2 = np.where(btconflimlowc2 < btconflimlowe2)
+        nlow1norm = float(size(nlow1)) / float(niter)
+        nlow2norm = float(size(nlow2)) / float(niter)
+
+        print("Core has lower 68% SFR limit",nlow1norm,"of the time")
+        print("Core has lower 90% SFR limit",nlow2norm,"of the time")
+        
         #K-S test
         a,b=ks(lsfrdiff[cflag],lsfrdiff[eflag])
 
