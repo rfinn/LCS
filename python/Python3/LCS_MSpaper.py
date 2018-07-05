@@ -815,6 +815,156 @@ class galaxies(lb.galaxies):
             plt.savefig(figuredir + 'musfr_optdisksize.pdf')
 
 
+    def plotmusfr_mustar(self, savefig=False, btcutflag=True):
+        #Plot SFR surface density vs optical disk size
+
+        minlsfrdense=-2.5
+        maxlsfrdense=-0.5
+        minlmstardense = 7.0
+        maxlmstardense = 8.5
+        btcut = 0.3
+
+        #set up the figure and the subplots
+        figure(figsize=(10,8))
+        subplots_adjust(left=.12,bottom=.15,wspace=.02,hspace=.02)
+        bothax=[]
+        limits=[6.51,8.99, -2.99, -0.001]
+
+        #SFR surface density
+        self.sfrdense = 0.5 * self.SFR_BEST / (np.pi * self.mipssize**2)
+
+        #stellar mass surface density
+        self.optsize = self.s.SERSIC_TH50 * self.DA
+        self.mstardense = 0.5 * 10**(self.logstellarmass) / (np.pi * self.optsize**2)
+        
+        #core galaxies - individual points
+        plt.subplot(2,2,1)
+        ax=plt.gca()
+
+        #select members with B/T<btcut
+        if btcutflag:
+            flag = (self.membflag & self.sampleflag) & (self.gim2d.B_T_r < btcut)
+        else:
+            flag = (self.membflag & self.sampleflag)
+
+        #plot the individual points, color coded by total stellar surface mass density 
+        plt.scatter(log10(self.mstardense[flag]),log10(self.sfrdense[flag]),c='r',vmin=minlmstardense,vmax=maxlmstardense,cmap='jet_r',s=60)
+        
+        #plt.gca().set_yscale('log')
+        plt.axis(limits)
+        bothax.append(ax)
+        ax.set_xticklabels(([]))
+        text(0.1,0.9,'$Core$',transform=ax.transAxes,horizontalalignment='left',fontsize=20)
+        plt.title('$SF \ Galaxies$',fontsize=22)
+
+        #plt.ylabel('$log_{10}(\Sigma_{SFR}/(M_\odot~yr^{-1}~kpc^{-2}))$',fontsize=20)
+        text(6.0, -3,'$log_{10}(\Sigma_{SFR}/(M_\odot~yr^{-1}~kpc^{-2}))$',rotation=90,verticalalignment='center',fontsize=20)
+
+        print("Core - Spearman Rank")
+        (rho,p) = st.spearmanr(log10(self.mstardense[flag]),log10(self.sfrdense[flag]))
+        print("rho = ",rho)
+        print("p = ",p)
+        
+        #core plot binned points
+        plt.subplot(2,2,2)
+        ax=plt.gca()
+        xmin = 7.
+        xmax = 8.4
+        nbin = (xmax - xmin) / 0.2
+        #median musfr in bins of Rd
+        xbin,musfrbin,musfrbin_err,musfrbin_err_btlow,musfrbin_err_bthigh =self.binitbinsbt(xmin, xmax, nbin ,log10(self.mstardense[flag]),self.sfrdense[flag])
+
+        #median log(Sigma_Mstar) in bins of Rd
+        #xbin,mumstarbin,mumstarbin_err,mumstarbin_err_btlow,mumstarbin_err_bthigh =self.binitbinsbt(xmin, xmax, nbin ,self.gim2d.Rd[flag],self.mstardense[flag])
+
+        #have to redo the errors because it's in log space
+        lmusfrbin_err_btlow = log10(musfrbin) - log10(musfrbin - musfrbin_err_btlow)
+        lmusfrbin_err_bthigh = log10(musfrbin + musfrbin_err_bthigh) - log10(musfrbin)
+        
+        #print(xbin,mubin,mubinerr)
+        errorbar(xbin,log10(musfrbin),yerr=[lmusfrbin_err_btlow,lmusfrbin_err_bthigh],fmt=None,color='k',markersize=16,ecolor='k')
+        plt.scatter(xbin,log10(musfrbin),c='r',s=300,cmap='jet_r',vmin=minlmstardense,vmax=maxlmstardense,marker='s')
+        #plt.scatter(xbin,log10(musfrbin),c=log10(mumstarbin),s=300,cmap='jet_r',vmin=minlmstardense,vmax=maxlmstardense,marker='s')
+        
+        #gca().set_yscale('log')
+        plt.axis(limits)
+        ax=plt.gca()
+        bothax.append(ax)
+        ax.set_yticklabels(([]))
+        ax.set_xticklabels(([]))
+        plt.title('$Median $',fontsize=22)
+
+        axhline(y=-2.0,c='k',ls='--')
+
+        legend(loc='upper left',numpoints=1)
+
+        if btcutflag:
+            s = '$B/T \ <  \  %.2f$'%(btcut)
+            text(-0.15,1.1,s,transform=ax.transAxes,horizontalalignment='left',fontsize=20)
+
+        ###############
+        #external individual points
+        plt.subplot(2,2,3)
+        ax=plt.gca()
+
+        #select non-members with B/T<btcut
+        if btcutflag:
+            flag = (~self.membflag & self.sampleflag) & (self.gim2d.B_T_r < btcut)
+        else:
+            flag = (~self.membflag & self.sampleflag)
+            
+       #plot the individual points.
+        plt.scatter(log10(self.mstardense[flag]),log10(self.sfrdense[flag]),c='r',vmin=minlmstardense,vmax=maxlmstardense,cmap='jet_r',s=60)
+        
+        #plt.gca().set_yscale('log')
+        plt.axis(limits)
+        bothax.append(ax)
+        #ax.set_xticklabels(([]))
+        text(0.1,0.9,'$External$',transform=ax.transAxes,horizontalalignment='left',fontsize=20)
+        
+        print("External - Spearman Rank")
+        (rho,p) = st.spearmanr(log10(self.mstardense[flag]),log10(self.sfrdense[flag]))
+        print("rho = ",rho)
+        print("p = ",p)
+
+        #external plot binned points
+        plt.subplot(2,2,4)
+        ax=plt.gca()
+        xmin = 7.
+        xmax = 8.4
+        nbin = (xmax - xmin) / 0.2
+        #median musfr in bins of Rd
+        xbin,musfrbin,musfrbin_err,musfrbin_err_btlow,musfrbin_err_bthigh =self.binitbinsbt(xmin, xmax, nbin ,log10(self.mstardense[flag]),self.sfrdense[flag])
+
+        #median log(Sigma_Mstar) in bins of Rd
+        #xbin,mumstarbin,mumstarbin_err,mumstarbin_err_btlow,mumstarbin_err_bthigh =self.binitbinsbt(xmin, xmax, nbin ,self.gim2d.Rd[flag],self.mstardense[flag])
+
+        lmusfrbin_err_btlow = log10(musfrbin) - log10(musfrbin - musfrbin_err_btlow)
+        lmusfrbin_err_bthigh = log10(musfrbin + musfrbin_err_bthigh) - log10(musfrbin)
+        
+        #print(xbin,mubin,mubinerr)
+        errorbar(xbin,log10(musfrbin),yerr=[lmusfrbin_err_btlow,lmusfrbin_err_bthigh],fmt=None,color='k',markersize=16,ecolor='k')
+        plt.scatter(xbin,log10(musfrbin),c='r',s=300,cmap='jet_r',vmin=minlmstardense,vmax=maxlmstardense,marker='s')
+        #plt.scatter(xbin,log10(musfrbin),c=log10(mumstarbin),s=300,cmap='jet_r',vmin=minlmstardense,vmax=maxlmstardense,marker='s')
+        
+        #gca().set_yscale('log')
+        plt.axis(limits)
+        ax=plt.gca()
+        bothax.append(ax)
+        ax.set_yticklabels(([]))
+
+        axhline(y=-2.0,c='k',ls='--')
+
+        legend(loc='upper left',numpoints=1)
+
+        text(-0.02,-.2,'$log_{10}(\Sigma_{\star}/(M_\odot~kpc^{-2}))$',transform=ax.transAxes,horizontalalignment='center',fontsize=24)
+        
+        #c=colorbar(ax=bothax,fraction=.05,ticks=arange(minlmstardense,maxlmstardense,.1),format='%.1f')
+        #c.ax.text(2.2,.5,'$log_{10}(\Sigma_{\star}/(M_\odot~kpc^{-2}))$',rotation=-90,verticalalignment='center',fontsize=20)
+        
+        if savefig:
+            plt.savefig(figuredir + 'musfr_mustar.pdf')
+
     def sizediff_musfrdiff_mass(self, savefig=False, btcutflag=True,sfrlimflag=False):
         #make a plot of the difference in size ratios and SFR surface
         #density between the core and external sample as a function of
