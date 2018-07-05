@@ -29,6 +29,7 @@ from astropy.cosmology import WMAP9 as cosmo
 from scipy.optimize import curve_fit
 from astropy.stats import bootstrap
 from astropy.utils import NumpyRNGContext
+import scipy.stats as st
 
 import argparse# here is min mass = 9.75
 
@@ -664,6 +665,152 @@ class galaxies(lb.galaxies):
             plt.savefig(figuredir + 'sfr_mstar_musfrcolor.pdf')
 
 
+    def plotmusfr_optdisksize(self, savefig=False, btcutflag=True):
+        #Plot SFR surface density vs optical disk size
+
+        minlsfrdense=-2.5
+        maxlsfrdense=-0.5
+        minlmstardense = 7.0
+        maxlmstardense = 8.5
+        btcut = 0.3
+
+        #set up the figure and the subplots
+        figure(figsize=(10,8))
+        subplots_adjust(left=.12,bottom=.15,wspace=.02,hspace=.02)
+        bothax=[]
+        limits=[0.,11.9, -2.99, -0.001]
+
+        #SFR surface density
+        self.sfrdense = 0.5 * self.SFR_BEST / (np.pi * self.mipssize**2)
+
+        #stellar mass surface density
+        self.optsize = self.s.SERSIC_TH50 * self.DA
+        self.mstardense = 0.5 * 10**(self.logstellarmass) / (np.pi * self.optsize**2)
+        
+        #core galaxies - individual points
+        plt.subplot(2,2,1)
+        ax=plt.gca()
+
+        #select members with B/T<btcut
+        if btcutflag:
+            flag = (self.membflag & self.sampleflag) & (self.gim2d.B_T_r < btcut)
+        else:
+            flag = (self.membflag & self.sampleflag)
+
+        #plot the individual points, color coded by total stellar surface mass density 
+        plt.scatter(self.gim2d.Rd[flag],log10(self.sfrdense[flag]),c=log10(self.mstardense[flag]),vmin=minlmstardense,vmax=maxlmstardense,cmap='jet_r',s=60)
+        
+        #plt.gca().set_yscale('log')
+        plt.axis(limits)
+        bothax.append(ax)
+        ax.set_xticklabels(([]))
+        text(0.6,0.9,'$Core$',transform=ax.transAxes,horizontalalignment='left',fontsize=20)
+        plt.title('$SF \ Galaxies$',fontsize=22)
+
+        text(-3.,-3,'$log_{10}(\Sigma_{SFR}/(M_\odot~yr^{-1}~kpc^{-2}))$',rotation=90,verticalalignment='center',fontsize=20)
+
+        print("Core - Spearman Rank")
+        (rho,p) = st.spearmanr(self.gim2d.Rd[flag],log10(self.sfrdense[flag]))
+        print("rho = ",rho)
+        print("p = ",p)
+        
+        #core plot binned points
+        plt.subplot(2,2,2)
+        ax=plt.gca()
+        xmin = 0.
+        xmax = 12.
+        nbin = (xmax - xmin) / 1.
+        #median musfr in bins of Rd
+        xbin,musfrbin,musfrbin_err,musfrbin_err_btlow,musfrbin_err_bthigh =self.binitbinsbt(xmin, xmax, nbin ,self.gim2d.Rd[flag],self.sfrdense[flag])
+
+        #median log(Sigma_Mstar) in bins of Rd
+        xbin,mumstarbin,mumstarbin_err,mumstarbin_err_btlow,mumstarbin_err_bthigh =self.binitbinsbt(xmin, xmax, nbin ,self.gim2d.Rd[flag],self.mstardense[flag])
+
+        #have to redo the errors because it's in log space
+        lmusfrbin_err_btlow = log10(musfrbin) - log10(musfrbin - musfrbin_err_btlow)
+        lmusfrbin_err_bthigh = log10(musfrbin + musfrbin_err_bthigh) - log10(musfrbin)
+        
+        #print(xbin,mubin,mubinerr)
+        errorbar(xbin,log10(musfrbin),yerr=[lmusfrbin_err_btlow,lmusfrbin_err_bthigh],fmt=None,color='k',markersize=16,ecolor='k')
+        plt.scatter(xbin,log10(musfrbin),c='k',s=300,cmap='jet_r',vmin=minlmstardense,vmax=maxlmstardense,marker='s')
+        plt.scatter(xbin,log10(musfrbin),c=log10(mumstarbin),s=300,cmap='jet_r',vmin=minlmstardense,vmax=maxlmstardense,marker='s')
+        
+        #gca().set_yscale('log')
+        plt.axis(limits)
+        ax=plt.gca()
+        bothax.append(ax)
+        ax.set_yticklabels(([]))
+        ax.set_xticklabels(([]))
+        plt.title('$Median $',fontsize=22)
+
+        legend(loc='upper left',numpoints=1)
+
+        if btcutflag:
+            s = '$B/T \ <  \  %.2f$'%(btcut)
+            text(-0.15,1.1,s,transform=ax.transAxes,horizontalalignment='left',fontsize=20)
+
+        ###############
+        #external individual points
+        plt.subplot(2,2,3)
+        ax=plt.gca()
+
+        #select non-members with B/T<btcut
+        if btcutflag:
+            flag = (~self.membflag & self.sampleflag) & (self.gim2d.B_T_r < btcut)
+        else:
+            flag = (~self.membflag & self.sampleflag)
+            
+       #plot the individual points.
+        plt.scatter(self.gim2d.Rd[flag],log10(self.sfrdense[flag]),c=log10(self.mstardense[flag]),vmin=minlmstardense,vmax=maxlmstardense,cmap='jet_r',s=60)
+        
+        #plt.gca().set_yscale('log')
+        plt.axis(limits)
+        bothax.append(ax)
+        #ax.set_xticklabels(([]))
+        text(0.6,0.9,'$External$',transform=ax.transAxes,horizontalalignment='left',fontsize=20)
+        
+        print("External - Spearman Rank")
+        (rho,p) = st.spearmanr(self.gim2d.Rd[flag],log10(self.sfrdense[flag]))
+        print("rho = ",rho)
+        print("p = ",p)
+
+        #external plot binned points
+        plt.subplot(2,2,4)
+        ax=plt.gca()
+        xmin = 0.
+        xmax = 12.
+        nbin = (xmax - xmin) / 1.
+        #median musfr in bins of Rd
+        xbin,musfrbin,musfrbin_err,musfrbin_err_btlow,musfrbin_err_bthigh =self.binitbinsbt(xmin, xmax, nbin ,self.gim2d.Rd[flag],self.sfrdense[flag])
+
+        #median log(Sigma_Mstar) in bins of Rd
+        xbin,mumstarbin,mumstarbin_err,mumstarbin_err_btlow,mumstarbin_err_bthigh =self.binitbinsbt(xmin, xmax, nbin ,self.gim2d.Rd[flag],self.mstardense[flag])
+
+        lmusfrbin_err_btlow = log10(musfrbin) - log10(musfrbin - musfrbin_err_btlow)
+        lmusfrbin_err_bthigh = log10(musfrbin + musfrbin_err_bthigh) - log10(musfrbin)
+        
+        #print(xbin,mubin,mubinerr)
+        errorbar(xbin,log10(musfrbin),yerr=[lmusfrbin_err_btlow,lmusfrbin_err_bthigh],fmt=None,color='k',markersize=16,ecolor='k')
+        plt.scatter(xbin,log10(musfrbin),c='k',s=300,cmap='jet_r',vmin=minlmstardense,vmax=maxlmstardense,marker='s')
+        plt.scatter(xbin,log10(musfrbin),c=log10(mumstarbin),s=300,cmap='jet_r',vmin=minlmstardense,vmax=maxlmstardense,marker='s')
+        
+        #gca().set_yscale('log')
+        plt.axis(limits)
+        ax=plt.gca()
+        bothax.append(ax)
+        ax.set_yticklabels(([]))
+
+        legend(loc='upper left',numpoints=1)
+
+        text(-0.02,-.2,'$R_e(r)/kpc$',transform=ax.transAxes,horizontalalignment='center',fontsize=24)
+        
+        c=colorbar(ax=bothax,fraction=.05,ticks=arange(minlmstardense,maxlmstardense,.1),format='%.1f')
+        c.ax.text(2.2,.5,'$log_{10}(\Sigma_{\star}/(M_\odot~kpc^{-2}))$',rotation=-90,verticalalignment='center',fontsize=20)
+        
+        if savefig:
+            plt.savefig(figuredir + 'musfr_optdisksize.pdf')
+
+
     def sizediff_musfrdiff_mass(self, savefig=False, btcutflag=True,sfrlimflag=False):
         #make a plot of the difference in size ratios and SFR surface
         #density between the core and external sample as a function of
@@ -717,10 +864,10 @@ class galaxies(lb.galaxies):
 
 
         #median size ratio in bins of mass for core
-        xbin,sbinc,sbinc_err,sbinc_err_btlow,sbinc_err_bthigh = g.binitbinsbt(logmassmin, logmassmax, nbin,self.logstellarmass[cflag],self.sizeratio[cflag])
+        xbin,sbinc,sbinc_err,sbinc_err_btlow,sbinc_err_bthigh = self.binitbinsbt(logmassmin, logmassmax, nbin,self.logstellarmass[cflag],self.sizeratio[cflag])
 
         #median size ratio in bins of mass for external
-        xbin,sbine,sbine_err,sbine_err_btlow,sbine_err_bthigh = g.binitbinsbt(logmassmin, logmassmax, nbin,self.logstellarmass[eflag],self.sizeratio[eflag])
+        xbin,sbine,sbine_err,sbine_err_btlow,sbine_err_bthigh = self.binitbinsbt(logmassmin, logmassmax, nbin,self.logstellarmass[eflag],self.sizeratio[eflag])
 
         #symmetrize the 2-sided bootstrap errors
         symarrc = (sbinc_err_bthigh + sbinc_err_btlow) / 2.
@@ -768,10 +915,10 @@ class galaxies(lb.galaxies):
         ax=plt.gca()
 
         #median size ratio in bins of mass for core
-        xbin,mubinc,mubinc_err ,mubinc_err_btlow,mubinc_err_bthigh = g.binitbinsbt(logmassmin, logmassmax, nbin,self.logstellarmass[cflag],self.sfrdense[cflag])
+        xbin,mubinc,mubinc_err ,mubinc_err_btlow,mubinc_err_bthigh = self.binitbinsbt(logmassmin, logmassmax, nbin,self.logstellarmass[cflag],self.sfrdense[cflag])
 
         #median size ratio in bins of mass for external
-        xbin,mubine,mubine_err,mubine_err_btlow,mubine_err_bthigh = g.binitbinsbt(logmassmin, logmassmax, nbin,self.logstellarmass[eflag],self.sfrdense[eflag])
+        xbin,mubine,mubine_err,mubine_err_btlow,mubine_err_bthigh = self.binitbinsbt(logmassmin, logmassmax, nbin,self.logstellarmass[eflag],self.sfrdense[eflag])
 
         #symmetrize the 2-sided bootstrap errors
         symarrc = (mubinc_err_bthigh + mubinc_err_btlow) / 2.
@@ -809,10 +956,10 @@ class galaxies(lb.galaxies):
         ax=plt.gca()
 
         #median SFR in bins of mass for core
-        xbin,sfrbinc,sfrbinc_err ,sfrbinc_err_btlow,sfrbinc_err_bthigh = g.binitbinsbt(logmassmin, logmassmax, nbin,self.logstellarmass[cflag],self.SFR_BEST[cflag])
+        xbin,sfrbinc,sfrbinc_err ,sfrbinc_err_btlow,sfrbinc_err_bthigh = self.binitbinsbt(logmassmin, logmassmax, nbin,self.logstellarmass[cflag],self.SFR_BEST[cflag])
 
         #median SFR in bins of mass for external
-        xbin,sfrbine,sfrbine_err,sfrbine_err_btlow,sfrbine_err_bthigh = g.binitbinsbt(logmassmin, logmassmax, nbin,self.logstellarmass[eflag],self.SFR_BEST[eflag])
+        xbin,sfrbine,sfrbine_err,sfrbine_err_btlow,sfrbine_err_bthigh = self.binitbinsbt(logmassmin, logmassmax, nbin,self.logstellarmass[eflag],self.SFR_BEST[eflag])
 
         #symmetrize the 2-sided bootstrap errors
         symarrc = (sfrbinc_err_bthigh + sfrbinc_err_btlow) / 2.
@@ -883,7 +1030,7 @@ class galaxies(lb.galaxies):
         plt.scatter(self.sizeratio[flag],log10(self.sfrdense[flag]),c=self.logstellarmass[flag],vmin=minlogmass,vmax=maxlogmass,cmap='jet_r',s=60)
 
         #spearman-rank coefficient 
-        rho,p = spearman(self.sizeratio[flag],log10(self.sfrdense[flag]))
+        rho,p = st.spearmanr(self.sizeratio[flag],log10(self.sfrdense[flag]))
         text(.4,.8,r'$\rho = %4.2f$'%(rho),horizontalalignment='left',transform=ax.transAxes,fontsize=20)
         text(.4,.7,'$p = %5.2e$'%(p),horizontalalignment='left',transform=ax.transAxes,fontsize=20)
 
@@ -920,7 +1067,7 @@ class galaxies(lb.galaxies):
         #plot the individual points.
         plt.scatter(self.sizeratio[flag],log10(self.sfrdense[flag]),c=self.logstellarmass[flag],vmin=8.8,vmax=11.2,cmap='jet_r',s=60)
 
-        rho,p = spearman(self.sizeratio[flag],log10(self.sfrdense[flag]))
+        rho,p = st.spearmanr(self.sizeratio[flag],log10(self.sfrdense[flag]))
         text(.4,.8,r'$\rho = %4.2f$'%(rho),horizontalalignment='left',transform=ax.transAxes,fontsize=20)
         text(.4,.7,'$p = %5.2e$'%(p),horizontalalignment='left',transform=ax.transAxes,fontsize=20)
 
