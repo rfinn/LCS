@@ -743,6 +743,8 @@ class galaxies(lb.galaxies):
         ax.set_xticklabels(([]))
         plt.title('$Median $',fontsize=22)
 
+        axhline(y=-2.0,c='k',ls='--')
+
         legend(loc='upper left',numpoints=1)
 
         if btcutflag:
@@ -799,6 +801,8 @@ class galaxies(lb.galaxies):
         ax=plt.gca()
         bothax.append(ax)
         ax.set_yticklabels(([]))
+
+        axhline(y=-2.0,c='k',ls='--')
 
         legend(loc='upper left',numpoints=1)
 
