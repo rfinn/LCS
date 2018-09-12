@@ -1629,6 +1629,94 @@ class galaxies(lb.galaxies):
                 
         return xbin,ybin,ybinerr
             
+    def musfr_mustar_ks(self, savefig=False, btcutflag=True):
+        #make cumulative histograms of the SFR and Mstar surface
+        #densities and perform a K-S and Anderson-Darling test of the
+        #distributions in the different environments.
+        
+        minlsfrdense=-3
+        maxlsfrdense=-0.0
+        minlmstardense = 7.0
+        maxlmstardense = 8.5
+
+        minlogmass = 8.8
+        maxlogmass = 11.2
+        btcut = 0.3
+
+        #set up the figure and the subplots
+        figure(figsize=(10,8))
+        subplots_adjust(left=.12,bottom=.15,wspace=.02,hspace=.02)
+        bothax=[]
+        limits=[minlsfrdense,maxlsfrdense,0.,1.]
+
+        #SFR surface density
+        self.logsfrdense = log10(0.5 * self.SFR_BEST / (np.pi * self.mipssize**2))
+        
+        #stellar mass surface density using total half-light ratio
+        self.optsize = self.s.SERSIC_TH50 * self.DA
+        self.logmstardense = log10(0.5 * 10**(self.logstellarmass) / (np.pi * self.optsize**2))
+
+        #core galaxies - individual points
+        plt.subplot(1,2,1)
+        ax=plt.gca()
+
+        #select members with B/T<btcut and in our mass range.
+        if btcutflag:
+            cflag = (self.membflag & self.sampleflag) & (self.gim2d.B_T_r < btcut) & (self.logstellarmass > minlogmass) & (self.logstellarmass < maxlogmass)
+            eflag = (~self.membflag & self.sampleflag) & (self.gim2d.B_T_r < btcut) & (self.logstellarmass > minlogmass) & (self.logstellarmass < maxlogmass)
+        else:
+            cflag = (self.membflag & self.sampleflag) & (self.logstellarmass > minlogmass) & (self.logstellarmass < maxlogmass)
+            eflag = (~self.membflag & self.sampleflag) & (self.logstellarmass > minlogmass) & (self.logstellarmass < maxlogmass)
+
+        #plot cumulative histogram 
+        plt.hist(self.logsfrdense[cflag], cumulative=True,normed=True,color='r',label='$Core$',lw=1.5,alpha=1,histtype='step',bins=len(self.logsfrdense[cflag]))
+        plt.hist(self.logsfrdense[eflag], cumulative=True,normed=True,color='b',label='$External$',lw=1.5,alpha=1,histtype='step',bins=len(self.logsfrdense[cflag]))
+            
+        #K-S test
+        a,b=ks(self.logsfrdense[cflag],self.logsfrdense[eflag])
+        
+        #plt.gca().set_yscale('log')
+        plt.axis(limits)
+        bothax.append(ax)
+        #ax.set_yticklabels(([]))
+        #text(0.5,0.9,'$Core$',transform=ax.transAxes,horizontalalignment='left',fontsize=20)
+
+        s1 = '$SF~Galaxies$'
+        text(0.9,1.02,s1,transform=ax.transAxes,horizontalalignment='left',fontsize=20)
+        if btcutflag:
+            s2 = '$B/T \ <  \  %.2f$'%(btcut)
+            text(0.9,1.07,s2,transform=ax.transAxes,horizontalalignment='left',fontsize=20)
+           
+        plt.ylabel('$log_{10}(\Sigma_{SFR}/(M_\odot~yr^{-1}~kpc^{-2}))$')
+
+        ##############################
+        #external galaxies - individual points
+        plt.subplot(1,2,2)
+        ax=plt.gca()
+
+        #plot cumulative histogram 
+        plt.hist(self.logmstardense[cflag], cumulative=True,normed=True,color='r',label='$Core$',lw=1.5,alpha=1,histtype='step',bins=len(self.logmstardense[cflag]))
+        plt.hist(self.logmstardense[eflag], cumulative=True,normed=True,color='b',label='$External$',lw=1.5,alpha=1,histtype='step',bins=len(self.logmstardense[cflag]))
+            
+        #K-S test
+        a,b=ks(self.logmstardense[cflag],self.logmstardense[eflag])
+
+        limits=[minlmstardense,maxlmstardense,0.,1.]
+
+        #plt.gca().set_yscale('log')
+        plt.axis(limits)
+        bothax.append(ax)
+        ax.set_yticklabels(([]))
+        #text(0.5,0.9,'$External$',transform=ax.transAxes,horizontalalignment='left',fontsize=20)
+
+        #text(-0.02,-.2,'$R_e(24)/R_e(r)$',transform=ax.transAxes,horizontalalignment='center',fontsize=24)
+
+        #c=colorbar(ax=bothax,fraction=.05,ticks=arange(minlogmass,maxlogmass,.1),format='%.1f')
+        #c.ax.text(2.2,.5,'$log_{10}(M_*/M_\odot)$',rotation=-90,verticalalignment='center',fontsize=20)
+
+        if savefig:
+            plt.savefig(figuredir + 'musfr_mustar_cumhist.pdf')
+
     def MSfit(self):
         #fit M-S from own data. Use all galaxies above IR limits that
         #aren't AGN.  Also limit ourselves to things were we are
