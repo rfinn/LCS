@@ -54,19 +54,19 @@ minsize_kpc=1.3 # one mips pixel at distance of hercules
 #minsize_kpc=2*minsize_kpc
 
 mstarmin=float(args.minmass)
-mstarmax=10.8
+#mstarmax=10.8
 minmass=mstarmin #log of M*
-ssfrmin=-12.
-ssfrmax=-9
-spiralcut=0.8
-truncation_ratio=0.5
+#ssfrmin=-12.
+#ssfrmax=-9
+#spiralcut=0.8
+#truncation_ratio=0.5
 
 exterior=.68
 colors=['k','b','c','g','m','y','r','sienna','0.5']
 shapes=['o','*','p','d','s','^','>','<','v']
 #colors=['k','b','c','g','m','y','r','sienna','0.5']
 
-truncated=np.array([113107,140175,79360,79394,79551,79545,82185,166185,166687,162832,146659,99508,170903,18236,43796,43817,43821,70634,104038,104181],'i')
+#truncated=np.array([113107,140175,79360,79394,79551,79545,82185,166185,166687,162832,146659,99508,170903,18236,43796,43817,43821,70634,104038,104181],'i')
 
 ###########################
 ##### Plot defaults
@@ -1416,6 +1416,119 @@ class galaxies(lb.galaxies):
         if savefig:
             plt.savefig(figuredir + 'sfrdiff.pdf')
 
+    def massmatch(self,savefig=False,btcutflag=True):
+        '''This create massmatched samples from the external population
+        for every galaxy in the core population.  It will compute how
+        each galaxy in the core deviates from the median of the
+        mass-matched sample along various axes.  It will plot these
+        deviations against each other.
+
+        '''
+        #what is the B/T cut
+        btcut = 0.3
+
+        if btcutflag:
+            cind = np.where((self.membflag & self.sampleflag) & (self.gim2d.B_T_r < btcut))
+            eind = np.where((~self.membflag & self.sampleflag) & (self.gim2d.B_T_r < btcut))
+            cflag = (self.membflag & self.sampleflag) & (self.gim2d.B_T_r < btcut)
+            eflag = (~self.membflag & self.sampleflag) & (self.gim2d.B_T_r < btcut)
+
+        else:
+            cind = np.where(self.membflag & self.sampleflag)
+            eind = np.where(~self.membflag & self.sampleflag)
+            cflag = (self.membflag & self.sampleflag)
+            eflag = (~self.membflag & self.sampleflag)
+
+        #This is the mass interval around which each mass matched
+        #sample should be consrtucted
+        dlMstarsel = 0.3           #dex
+
+        #initialize the differences of each mass-matched sample with
+        #respect to the core galaxy
+        self.diffoptsize = np.zeros(len(cind[0]))     #r-band size
+        self.diffoptdisksize = np.zeros(len(cind[0]))     #r-band size
+        self.diffSFR = np.zeros(len(cind[0]))         #absolute SFR
+        self.diffSFRdense = np.zeros(len(cind[0]))     #SFR surface density
+        self.diffsizeratio = np.zeros(len(cind[0]))      #R24/Rd
+        self.diffmstardense = np.zeros(len(cind[0]))    #stellar mass surface density
+        self.diffmstar = np.zeros(len(cind[0]))
+
+        #stellar mass surface density
+        self.optsize = self.s.SERSIC_TH50 * self.DA
+        self.mstardense = 0.5 * 10**(self.logstellarmass) / (np.pi * self.optsize**2)
+
+        #SFR surface density
+        self.sfrdense = 0.5 * self.SFR_BEST / (np.pi * self.mipssize**2)
+        
+        #loop through all cluster members
+        jcore=0           #the index of the differences, sequential for every core galaxy
+        for i in cind[0]:     #index into the self.<value> array for each core galaxy
+
+            #construct mass matched sample of external galaxies within
+            #dMstar.  Exclude the galaxy itself
+            dlMstar = self.logstellarmass[i] - self.logstellarmass
+            mmatchflag = (eflag) & (abs(dlMstar) < dlMstarsel) & (self.s.NSAID[i] != self.s.NSAID)
+
+            #compute the difference between the mass of each core
+            #galaxy and all external galaxies.  
+            self.diffmstar[jcore] = self.logstellarmass[i] - np.median(self.logstellarmass[mmatchflag])
+            self.diffoptdisksize[jcore] = log10(self.optdisksize[i]) - log10(np.median(self.optdisksize[mmatchflag]))
+            self.diffoptsize[jcore] = log10(self.optsize[i]) - log10(np.median(self.optsize[mmatchflag]))
+            self.diffSFR[jcore] = log10(self.SFR_BEST[i]) - log10(np.median(self.SFR_BEST[mmatchflag]))
+            self.diffSFRdense[jcore] = log10(self.sfrdense[i]) - log10(np.median(self.sfrdense[mmatchflag]))
+            self.diffsizeratio[jcore] = log10(self.sizeratio[i]) - log10(np.median(self.sizeratio[mmatchflag]))
+            self.diffmstardense[jcore] = log10(self.mstardense[i]) - log10(np.median(self.mstardense[mmatchflag]))
+            jcore += 1
+
+            
+        figure(figsize=(10,8))
+        #subplots_adjust(left=.12,bottom=.15,wspace=.02,hspace=.02)
+        subplots_adjust(left=.12,bottom=.15,wspace=.3,hspace=.3)
+        bothax=[]
+        limits=[-1.,1.,-2.,2.]
+
+        plt.subplot(2,2,1)
+        ax=plt.gca()
+
+        plt.plot(self.diffsizeratio,self.diffSFR,'ko')
+
+
+        
+        #plt.gca().set_yscale('log')
+        plt.axis(limits)
+        bothax.append(ax)
+        #ax.set_xticklabels(([]))
+        #text(0.1,0.9,'$Core$',transform=ax.transAxes,horizontalalignment='left',fontsize=20)
+        #plt.title('$SF \ Galaxies$',fontsize=22)
+        plt.xlabel(r'$ \Delta log(R_{24}/R_d )$')
+        #plt.ylabel('$ \Delta log(\Sigma_{SFR})$')
+        plt.ylabel('$ \Delta log(SFR)$')
+
+
+        plt.subplot(2,2,2)
+        ax=plt.gca()
+
+        plt.plot(self.diffsizeratio,self.diffSFRdense,'ko')
+
+        #plot line showing intrinsic correlation
+        x = arange(0.01,2.49,0.01)
+        y = log10(1/x**2) - 2.5
+        plt.plot(x,y,'r--',lw=3)
+
+        
+        #plt.gca().set_yscale('log')
+        plt.axis(limits)
+        bothax.append(ax)
+        #ax.set_xticklabels(([]))
+        #text(0.1,0.9,'$Core$',transform=ax.transAxes,horizontalalignment='left',fontsize=20)
+        #plt.title('$SF \ Galaxies$',fontsize=22)
+        plt.xlabel(r'$ \Delta log(R_{24}/R_d )$')
+        plt.ylabel('$ \Delta log(\Sigma_{SFR})$')
+        #plt.ylabel('$ \Delta log(SFR)$')
+
+        plt.show()
+
+            
 
 
     def binitbinsbt(self,xmin,xmax,nbin,x,y):#use equally spaced bins
@@ -1535,3 +1648,4 @@ class galaxies(lb.galaxies):
 if __name__ == '__main__':
     homedir = os.environ['HOME']
     g = galaxies(homedir+'/github/LCS/')
+
