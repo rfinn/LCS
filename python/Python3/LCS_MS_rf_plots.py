@@ -84,3 +84,33 @@ figuredir='/Users/grudnick/Work/Local_cluster_survey/Papers/Finn_MS/Plots/'
 ###########################
 
 class galaxies(lb.galaxies):
+    def plotNUV24_vs_sizeratio(self):
+        self.NUV24 = self.s.ABSMAG[:,1] - self.s.fcmag1
+        plt.figure()
+        plt.plot(self.sizeratio[self.sampleflag],self.NUV24[self.sampleflag],'b.')
+        plt.xlabel('$R_{24}/R_d$', fontsize=24)
+        plt.ylabel('$NUV - 24 $', fontsize=24)
+        plt.xticks(fontsize=16)
+        plt.yticks(fontsize=16)
+
+    def plotn24_vs_R24(self):
+        plt.figure()
+        plt.plot(self.s.fcre1[self.sampleflag],self.s.fcnsersic1[self.sampleflag],'b.')
+        plt.xlabel('$R_{24} \ (pixels)$', fontsize=24)
+        plt.ylabel('$24\mu m \ Sersic \ Index $', fontsize=24)
+        plt.xticks(fontsize=16)
+        plt.yticks(fontsize=16)
+        a = plt.axis()
+        print(a)
+        # add errorbars
+        plt.errorbar(self.s.fcre1[self.sampleflag],self.s.fcnsersic1[self.sampleflag],xerr=self.s.fcre1err[self.sampleflag],yerr=self.s.fcnsersic1err[self.sampleflag],fmt='bo',label='all',ecolor='0.5',markersize=5,alpha=0.5)
+        plt.plot(self.s.fcre1[self.sampleflag & self.nerrorflag],self.s.fcnsersic1[self.sampleflag & self.nerrorflag],'ro',markerfacecolor='None',markersize=10, label='Numerical Error')
+        plt.axis(a)
+        plt.legend()
+        plt.subplots_adjust(bottom=.15)
+        # denote galaxies with numerical
+
+        
+
+g = galaxies('/Users/rfinn/github/LCS/')
+        
