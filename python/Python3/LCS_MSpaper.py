@@ -1629,7 +1629,7 @@ class galaxies(lb.galaxies):
                 
         return xbin,ybin,ybinerr
             
-    def musfr_mustar_ks(self, savefig=False, btcutflag=True):
+    def musfr_mustar_ks(self, logmassmin=9.7,logmassmax=10.9,dlogmass=0.4,savefig=False, btcutflag=True):
         #make cumulative histograms of the SFR and Mstar surface
         #densities and perform a K-S and Anderson-Darling test of the
         #distributions in the different environments.
@@ -1644,9 +1644,12 @@ class galaxies(lb.galaxies):
         btcut = 0.3
 
         #the lower and upper mass limits
-        logmassmin = 9.7
-        logmassmax = 10.9
-        dlogmass = 0.4
+        #logmassmin = 9.6
+        #logmassmax = 10.8
+        #dlogmass = 0.3
+        #logmassmin = 9.7
+        #logmassmax = 10.9
+        #dlogmass = 0.4
         nbin = round((logmassmax - logmassmin) / dlogmass)
         print(nbin,"bins of mass")
 
@@ -1671,7 +1674,7 @@ class galaxies(lb.galaxies):
                        
             
             #SFR surface density
-            plt.subplot(3,2,1 + i * 2)
+            plt.subplot(nbin,2,1 + i * 2)
             ax=plt.gca()
             
             #select members with B/T<btcut and in our mass range.
@@ -1688,6 +1691,7 @@ class galaxies(lb.galaxies):
             plt.hist(self.logsfrdense[eflag], cumulative=True,normed=True,color='b',label='$External$',lw=1.5,alpha=1,histtype='step',bins=len(self.logsfrdense[cflag]))
             
             #K-S test
+            print("SFR surface density")
             a,b=ks(self.logsfrdense[cflag],self.logsfrdense[eflag])
         
             #plt.gca().set_yscale('log')
@@ -1717,7 +1721,7 @@ class galaxies(lb.galaxies):
 
             ##############################
             #Stellar Mass surface density
-            plt.subplot(3,2,2 + i * 2)
+            plt.subplot(nbin,2,2 + i * 2)
             ax=plt.gca()
 
             #plot cumulative histogram 
@@ -1725,6 +1729,7 @@ class galaxies(lb.galaxies):
             plt.hist(self.logmstardense[eflag], cumulative=True,normed=True,color='b',label='$External$',lw=1.5,alpha=1,histtype='step',bins=len(self.logmstardense[cflag]))
             
             #K-S test
+            print("Stellar mass surface density")
             a,b=ks(self.logmstardense[cflag],self.logmstardense[eflag])
 
             limits=[minlmstardense,maxlmstardense,0.01,1.]
