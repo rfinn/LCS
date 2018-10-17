@@ -1416,7 +1416,7 @@ class galaxies(lb.galaxies):
         if savefig:
             plt.savefig(figuredir + 'sfrdiff.pdf')
 
-    def massmatch(self,savefig=False,btcutflag=True):
+    def massmatch_mass(self,savefig=False,btcutflag=True):
         '''This create massmatched samples from the external population
         for every galaxy in the core population.  It will compute how
         each galaxy in the core deviates from the median of the
