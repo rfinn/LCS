@@ -719,7 +719,8 @@ class galaxies(lb.galaxies):
         ax=plt.gca()
         xmin = 0.
         xmax = 12.
-        nbin = (xmax - xmin) / 1.
+        #nbin = (xmax - xmin) / 1.
+        nbin = (xmax - xmin) / 2.
         #median musfr in bins of Rd
         xbin,musfrbin,musfrbin_err,musfrbin_err_btlow,musfrbin_err_bthigh =self.binitbinsbt(xmin, xmax, nbin ,self.gim2d.Rd[flag],self.sfrdense[flag])
 
@@ -781,7 +782,7 @@ class galaxies(lb.galaxies):
         ax=plt.gca()
         xmin = 0.
         xmax = 12.
-        nbin = (xmax - xmin) / 1.
+        nbin = (xmax - xmin) / 2.
         #median musfr in bins of Rd
         xbin,musfrbin,musfrbin_err,musfrbin_err_btlow,musfrbin_err_bthigh =self.binitbinsbt(xmin, xmax, nbin ,self.gim2d.Rd[flag],self.sfrdense[flag])
 
