@@ -1471,14 +1471,22 @@ class galaxies(lb.galaxies):
             mmatchflag = (eflag) & (abs(dlMstar) < dlMstarsel) & (self.s.NSAID[i] != self.s.NSAID)
 
             #compute the difference between the mass of each core
-            #galaxy and all external galaxies.  
-            self.diffmstar[jcore] = self.logstellarmass[i] - np.median(self.logstellarmass[mmatchflag])
-            self.diffoptdisksize[jcore] = log10(self.optdisksize[i]) - log10(np.median(self.optdisksize[mmatchflag]))
-            self.diffoptsize[jcore] = log10(self.optsize[i]) - log10(np.median(self.optsize[mmatchflag]))
-            self.diffSFR[jcore] = log10(self.SFR_BEST[i]) - log10(np.median(self.SFR_BEST[mmatchflag]))
-            self.diffSFRdense[jcore] = log10(self.sfrdense[i]) - log10(np.median(self.sfrdense[mmatchflag]))
-            self.diffsizeratio[jcore] = log10(self.sizeratio[i]) - log10(np.median(self.sizeratio[mmatchflag]))
-            self.diffmstardense[jcore] = log10(self.mstardense[i]) - log10(np.median(self.mstardense[mmatchflag]))
+            #galaxy and all external galaxies.
+
+            #test if there are any galaxies in mass-matched sample.
+            if mmatchflag.any():
+                self.diffmstar[jcore] = self.logstellarmass[i] - np.median(self.logstellarmass[mmatchflag])
+                self.diffoptdisksize[jcore] = log10(self.optdisksize[i]) - log10(np.median(self.optdisksize[mmatchflag]))
+                self.diffoptsize[jcore] = log10(self.optsize[i]) - log10(np.median(self.optsize[mmatchflag]))
+                self.diffSFR[jcore] = log10(self.SFR_BEST[i]) - log10(np.median(self.SFR_BEST[mmatchflag]))
+                self.diffSFRdense[jcore] = log10(self.sfrdense[i]) - log10(np.median(self.sfrdense[mmatchflag]))
+                self.diffsizeratio[jcore] = log10(self.sizeratio[i]) - log10(np.median(self.sizeratio[mmatchflag]))
+                self.diffmstardense[jcore] = log10(self.mstardense[i]) - log10(np.median(self.mstardense[mmatchflag]))
+
+            if np.isnan(self.diffsizeratio[jcore]):
+                print("*****NaN Detection******")
+                print(self.sizeratio[i],np.median(self.sizeratio[mmatchflag]),self.sizeratio[mmatchflag],mmatchflag)
+                print("***********")
             jcore += 1
 
             
@@ -1510,11 +1518,20 @@ class galaxies(lb.galaxies):
         ax=plt.gca()
 
         plt.plot(self.diffsizeratio,self.diffSFRdense,'ko')
+        #print(self.diffsizeratio)
+        #print(self.diffSFRdense)
 
+        #fit the relation
+        p = np.polyfit(self.diffsizeratio,self.diffSFRdense, 1.)
+        print("*********fit parameters",p)
+        xmod=arange(-3,3,0.1)
+        ymod=p[0] * xmod + p[1]
+        plt.plot(xmod,ymod,'b-',lw=3)
+        
         #plot line showing intrinsic correlation
-        x = arange(0.01,2.49,0.01)
-        y = log10(1/x**2) - 2.5
-        plt.plot(x,y,'r--',lw=3)
+        x = arange(0.001,20.,0.01)
+        y = -2 * log10(x) 
+        plt.plot(log10(x),y,'r--',lw=3)
 
         
         #plt.gca().set_yscale('log')
@@ -1527,10 +1544,10 @@ class galaxies(lb.galaxies):
         plt.ylabel('$ \Delta log(\Sigma_{SFR})$')
         #plt.ylabel('$ \Delta log(SFR)$')
 
-        plt.show()
-
-            
-
+        if savefig:
+            plt.savefig(figuredir + 'massmatch_mass.pdf')
+        else:
+            plt.show()
 
     def binitbinsbt(self,xmin,xmax,nbin,x,y):#use equally spaced bins
         #compute median values of a quantity for data binned by another quantity
