@@ -1580,6 +1580,7 @@ class galaxies(lb.galaxies):
 
         #initialize the differences of each mass-matched sample with
         #respect to the core galaxy
+        self.diffsersicn = np.zeros(len(cind[0]))     #MIPS sersic index
         self.diffoptsize = np.zeros(len(cind[0]))     #r-band size
         self.difflmipssize = np.zeros(len(cind[0]))     #MIPS size
         self.diffoptdisksize = np.zeros(len(cind[0]))     #r-band disk size
@@ -1611,6 +1612,7 @@ class galaxies(lb.galaxies):
 
             #test if there are any galaxies in mass-matched sample.
             if mmatchflag.any():
+                self.diffsersicn[jcore] = log10(self.s.fcnsersic1[i]) - np.median(log10(self.s.fcnsersic1[mmatchflag]))
                 self.difflmipssize[jcore] = log10(self.mipssize[i]) - np.median(log10(self.mipssize[mmatchflag]))
                 self.diffmstar[jcore] = self.logstellarmass[i] - np.median(self.logstellarmass[mmatchflag])
                 self.diffoptdisksize[jcore] = log10(self.optdisksize[i]) - log10(np.median(self.optdisksize[mmatchflag]))
@@ -1636,7 +1638,11 @@ class galaxies(lb.galaxies):
         plt.subplot(2,2,1)
         ax=plt.gca()
 
-        plt.plot(self.difflmipssize,self.diffSFR,'ko')
+        #plt.plot(self.difflmipssize,self.diffsersicn,'ko')
+        plt.scatter(self.difflmipssize,self.diffsersicn,c=self.diffSFR,vmin=-1.0,vmax=1.0,cmap='jet_r',s=60)
+        #c=colorbar(ax=bothax,fraction=.05,ticks=arange(-1.0, 1.0,.2),format='%.1f')
+        plt.colorbar()
+        #c.ax.text(2.2,.5,'$\Delta log(SFR)$',rotation=-90,verticalalignment='center',fontsize=20)
 
 
         
@@ -1648,7 +1654,7 @@ class galaxies(lb.galaxies):
         #plt.title('$SF \ Galaxies$',fontsize=22)
         plt.xlabel(r'$ \Delta log(R_{24})$')
         #plt.ylabel('$ \Delta log(\Sigma_{SFR})$')
-        plt.ylabel('$ \Delta log(SFR)$')
+        plt.ylabel('$ \Delta log(n_{24})$')
 
 
         plt.subplot(2,2,2)
@@ -1658,6 +1664,10 @@ class galaxies(lb.galaxies):
         #print(self.diffsizeratio)
         #print(self.diffSFRdense)
 
+        x=np.array([-1.0,1.0])
+        y=np.array([np.median(self.diffSFRdense),np.median(self.diffSFRdense)])
+        plt.plot(x,y,'g-',lw=3)
+        
         #fit the relation
         p = np.polyfit(self.difflmipssize,self.diffSFRdense, 1.)
         print("*********fit parameters",p)
