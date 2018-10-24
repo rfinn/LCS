@@ -1580,7 +1580,7 @@ class galaxies(lb.galaxies):
 
         #initialize the differences of each mass-matched sample with
         #respect to the core galaxy
-        self.diffsersicn = np.zeros(len(cind[0]))     #MIPS sersic index
+        self.difflsersicn = np.zeros(len(cind[0]))     #MIPS sersic index
         self.diffoptsize = np.zeros(len(cind[0]))     #r-band size
         self.difflmipssize = np.zeros(len(cind[0]))     #MIPS size
         self.diffoptdisksize = np.zeros(len(cind[0]))     #r-band disk size
@@ -1589,6 +1589,7 @@ class galaxies(lb.galaxies):
         self.diffsizeratio = np.zeros(len(cind[0]))      #R24/Rd
         self.diffmstardense = np.zeros(len(cind[0]))    #stellar mass surface density
         self.diffmstar = np.zeros(len(cind[0]))
+        self.diffID = np.zeros(len(cind[0]))
 
         #stellar mass surface density
         self.optsize = self.s.SERSIC_TH50 * self.DA
@@ -1612,7 +1613,7 @@ class galaxies(lb.galaxies):
 
             #test if there are any galaxies in mass-matched sample.
             if mmatchflag.any():
-                self.diffsersicn[jcore] = log10(self.s.fcnsersic1[i]) - np.median(log10(self.s.fcnsersic1[mmatchflag]))
+                self.difflsersicn[jcore] = log10(self.s.fcnsersic1[i]) - np.median(log10(self.s.fcnsersic1[mmatchflag]))
                 self.difflmipssize[jcore] = log10(self.mipssize[i]) - np.median(log10(self.mipssize[mmatchflag]))
                 self.diffmstar[jcore] = self.logstellarmass[i] - np.median(self.logstellarmass[mmatchflag])
                 self.diffoptdisksize[jcore] = log10(self.optdisksize[i]) - log10(np.median(self.optdisksize[mmatchflag]))
@@ -1621,6 +1622,7 @@ class galaxies(lb.galaxies):
                 self.diffSFRdense[jcore] = log10(self.sfrdense[i]) - log10(np.median(self.sfrdense[mmatchflag]))
                 self.diffsizeratio[jcore] = log10(self.sizeratio[i]) - log10(np.median(self.sizeratio[mmatchflag]))
                 self.diffmstardense[jcore] = log10(self.mstardense[i]) - log10(np.median(self.mstardense[mmatchflag]))
+                self.diffID[jcore] = self.s.NSAID[i]
 
             if np.isnan(self.diffsizeratio[jcore]):
                 print("*****NaN Detection******")
@@ -1639,11 +1641,19 @@ class galaxies(lb.galaxies):
         ax=plt.gca()
 
         #plt.plot(self.difflmipssize,self.diffsersicn,'ko')
-        plt.scatter(self.difflmipssize,self.diffsersicn,c=self.diffSFR,vmin=-1.0,vmax=1.0,cmap='jet_r',s=60)
+        plt.scatter(self.difflmipssize,self.difflsersicn,c=self.diffSFR,vmin=-1.0,vmax=1.0,cmap='jet_r',s=60)
         #c=colorbar(ax=bothax,fraction=.05,ticks=arange(-1.0, 1.0,.2),format='%.1f')
         plt.colorbar()
         #c.ax.text(2.2,.5,'$\Delta log(SFR)$',rotation=-90,verticalalignment='center',fontsize=20)
 
+        (rho,p) = st.spearmanr(self.difflmipssize,self.difflsersicn)
+        print("for the left panel")
+        print("rho = ",rho)
+        print("p = ",p)
+
+        print("Galaxies with low  R24, high n, and low Sigma SFR, all relative")
+        istrange = np.where((self.difflsersicn>0.45) & (self.diffSFR<-0.2))
+        print(self.diffID[istrange],self.difflsersicn[istrange],self.diffSFR[istrange],)
 
         
         #plt.gca().set_yscale('log')
@@ -1670,7 +1680,7 @@ class galaxies(lb.galaxies):
         
         #fit the relation
         p = np.polyfit(self.difflmipssize,self.diffSFRdense, 1.)
-        print("*********fit parameters",p)
+        print("*********fit parameters for the right panel",p)
         xmod=arange(-3,3,0.1)
         ymod=p[0] * xmod + p[1]
         plt.plot(xmod,ymod,'b-',lw=3)
