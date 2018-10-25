@@ -358,7 +358,7 @@ class galaxies(lb.galaxies):
 
         g.plotlims()
 
-    def plotSFRStellarmass_sizebin(self, savefig=False, btcutflag=True):
+    def plotSFRStellarmass_sizebin(self, savefig=False, btcutflag=True, specialpoi=False):
         #Make Mstar-SFR plots for exterior and core samples including
         #a binned plot
 
@@ -401,7 +401,11 @@ class galaxies(lb.galaxies):
         plt.plot(xmod,ymod/5.,'w--',lw=3)
         plt.plot(xmod,ymod/5.,'b--',lw=2)
 
-        
+        #plot a subset of points
+        if specialpoi:
+            spflag = (self.membflag & self.sampleflag) & ((self.s.NSAID==68305) |  (self.s.NSAID == 146606) | (self.s.NSAID == 72738) |  (self.s.NSAID == 166167) |  (self.s.NSAID == 103648)  | (self.s.NSAID == 103791))
+            plt.plot(self.logstellarmass[spflag],self.SFR_BEST[spflag],'kx',markersize=10,markeredgewidth=2)
+
         #core plot binned points
         plt.subplot(2,2,2)
         ax=plt.gca()
