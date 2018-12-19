@@ -30,6 +30,7 @@ from scipy.optimize import curve_fit
 from astropy.stats import bootstrap
 from astropy.utils import NumpyRNGContext
 import scipy.stats as st
+import scipy.special as scisp
 
 import argparse# here is min mass = 9.75
 
@@ -2133,7 +2134,82 @@ class galaxies(lb.galaxies):
     #plt.plot(xmod,ymod,'w-',lw=5)
     #plt.plot(xmod,ymod,'b-',lw=3)
 
-    
+    def sersicint(self, savefig=False):
+        #make a plot of how the fractional total luminosity of a
+        #sersic profile depends on the truncation radius, given in
+        #units of Re
+
+        #use
+        #https://ned.ipac.caltech.edu/level5/March05/Graham/Graham2.html
+        #for analytical integral of Sersic function
+
+        #set up figure
+        figure(figsize=(5.5,5.5))
+        bothax=[]
+        ax=gca()
+        limits=[0,7.0,0.0,1.0]
+        plt.axis(limits)
+        bothax.append(ax)
+        plt.xlabel('$R_{cut}/R_e$',fontsize=18)
+        plt.ylabel('$L(<R_{cut}) / L_{tot}$',fontsize=18)
+        #the colors for the lines
+        colstr = ['r-','b-','g-','k-']
+
+        #sersic index                                               
+        n = [1.0,2.0,3.0,4.0]
+        #For purposes of calculation, assume Re is unity.  All radii
+        #are therefore in fractions of Re
+        re = 1.0
+        #assume profile has central surface brightness of unity
+        cent_sb = 1.0
+        constterm =  2 * np.pi * cent_sb
+
+        #For a range in cutoff radii, integrate the profiel
+        #radial range in units of re
+        rcutmin = 0.0 * re
+        rcutmax = 7.0 * re
+        drcut = 0.1 * re
+        rcut = arange(rcutmin, rcutmax, drcut)
+        dxint = 0.01 * re #dx for integration
+        
+        #loop through sersic indices
+        iserc = 0
+        for nserc in n:
+            #constant in exponential
+            bn = 1.999 * nserc - 0.327
+
+            #analytical expression for total luminosity, ignoring the normalization
+            ltot = nserc* scisp.gamma(2*nserc) * re**2 / (bn**(2*nserc)) *  constterm
+            #integral of total luminosity out to the maximum radius
+            x = arange(rcutmin, rcutmax, dxint)
+            y = constterm * exp(-bn * (x/re)**(1/nserc)) * x
+            #calculate integral
+            ltotint = np.trapz(y,x)
+            
+            lcut = np.array([]) #the integral of the luminosity for a given cutoff radius
+
+            #loop through cutoff radii
+            for rc in rcut:
+                #set up x and y arrays for integration
+                x = arange(rcutmin, rc, dxint)
+                y = constterm * exp(-bn * (x/re)**(1/nserc)) * x
+                #calculate integral
+                integral = np.trapz(y,x)
+                lcut = np.append(lcut, integral)
+
+            lrat = lcut / ltotint # the ratio of the cutoff luminosity to the total luminosity
+        
+            #now plot results
+            plt.plot(rcut,lrat,colstr[iserc],lw=3,label='n='+str(nserc))
+            iserc = iserc + 1
+
+        #plt.title("Fractional change in total luminosity for cutoff radius")
+        plt.legend(loc='lower right',numpoints=1,scatterpoints=1, markerscale=0.7,fontsize='x-small')
+
+        if savefig:
+            plt.savefig(figuredir + 'lum_sersic_rcut.pdf')
+
+            
 if __name__ == '__main__':
     homedir = os.environ['HOME']
     g = galaxies(homedir+'/github/LCS/')
