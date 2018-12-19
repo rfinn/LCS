@@ -197,6 +197,20 @@ class galaxies:
         #this conversion comes from Salim+16.  
         self.SFR_BEST = self.SFR_BEST / 1.58
 
+    def get_UVIR_SFR(self):
+        print('nothing happening here')
+        # kennicutt and evans
+        # calibrations of integrated SFRs
+        # corrected FUV - LUV
+        # eqn 12
+        # log M˙∗(M⊙ yr−1) = log Lx − log Cx
+        # NUV - log Cx = 43.17
+        # 24um - logCx = 42.69
+        # Halpha - log Cx = 41.27
+
+
+        # corrected NUV luminosity
+        # L(NUV )corr = L(NUV )obs + 2.26L(25µm) 
         
     def setup(self):
         self.get_agn()
