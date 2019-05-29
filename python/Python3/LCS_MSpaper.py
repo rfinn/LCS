@@ -167,8 +167,8 @@ class galaxies(lb.galaxies):
         plt.plot(self.logstellarmass[csampflag],self.SFR_BEST[csampflag],'ro',label='final sample')
         #plt.xlabel(r'$ M_* \ (M_\odot/yr) $')
         plt.ylabel('$ SFR \ (M_\odot/yr) $')
-        g.plotsalim07()
-        g.plotelbaz()
+        #g.plotsalim07()
+        #g.plotelbaz()
         g.plotlims()
 
         #plot our own MS
@@ -196,8 +196,8 @@ class galaxies(lb.galaxies):
         
         plt.plot(self.logstellarmass[enosampflag],self.SFR_BEST[enosampflag],'ko',label='rejected')
         plt.plot(self.logstellarmass[esampflag],self.SFR_BEST[esampflag],'ro',label='final sample')
-        g.plotsalim07()
-        g.plotelbaz()
+        #g.plotsalim07()
+        #g.plotelbaz()
         g.plotlims()
         ax.set_yticklabels(([]))
         plt.title('$External$', fontsize=22)
@@ -214,6 +214,8 @@ class galaxies(lb.galaxies):
 
         if savefig:
             plt.savefig(figuredir + 'sfr_mstar_allsel_env.pdf')
+        else:
+            show()
 
 
     def plotSFRStellarmasssel(self,subsample='all'):
@@ -389,7 +391,8 @@ class galaxies(lb.galaxies):
             flag = (self.membflag & self.sampleflag) & (self.gim2d.B_T_r < btcut)
         else:
             flag = (self.membflag & self.sampleflag)
-        plt.scatter(self.logstellarmass[flag],self.SFR_BEST[flag],c=self.sizeratio[flag],vmin=minsize,vmax=maxsize,cmap='jet_r',s=60)
+        #plt.scatter(self.logstellarmass[flag],self.SFR_BEST[flag],c=self.sizeratio[flag],vmin=minsize,vmax=maxsize,cmap='jet_r',s=60, edgecolors='k')
+        plt.scatter(self.logstellarmass[flag],self.SFR_BEST[flag],c=self.sizeratio[flag],vmin=minsize,vmax=maxsize,cmap='inferno',s=60, edgecolors='k')
 
         
         plt.gca().set_yscale('log')
@@ -424,8 +427,8 @@ class galaxies(lb.galaxies):
         xbin,sbin,sbinerr = g.binitbins(xmin, xmax, nbin,self.logstellarmass[flag],self.sizeratio[flag])
         #print(xbin,sbin,sbinerr)
         errorbar(xbin,ybin,yerr=ybinerr,fmt=None,color='k',markersize=16,ecolor='k')
-        plt.scatter(xbin,ybin,c='k',s=300,cmap='jet_r',vmin=minsize,vmax=maxsize,marker='s')
-        plt.scatter(xbin,ybin,c=sbin,s=300,cmap='jet_r',vmin=minsize,vmax=maxsize,marker='s')
+        plt.scatter(xbin,ybin,c='k',s=300,cmap='inferno',vmin=minsize,vmax=maxsize,marker='s', edgecolors='k')
+        plt.scatter(xbin,ybin,c=sbin,s=300,cmap='inferno',vmin=minsize,vmax=maxsize,marker='s', edgecolors='k')
         gca().set_yscale('log')
         plt.axis(limits)
         ax=plt.gca()
@@ -454,7 +457,7 @@ class galaxies(lb.galaxies):
 
         #select non-members with B/T<btcut
         flag = (~self.membflag & self.sampleflag) & (self.gim2d.B_T_r < btcut)
-        plt.scatter(self.logstellarmass[flag],self.SFR_BEST[flag],c=self.sizeratio[flag],vmin=minsize,vmax=maxsize,cmap='jet_r',s=60)
+        plt.scatter(self.logstellarmass[flag],self.SFR_BEST[flag],c=self.sizeratio[flag],vmin=minsize,vmax=maxsize,cmap='inferno',s=60, edgecolors='k')
         plt.gca().set_yscale('log')
         plt.axis(limits)
         bothax.append(ax)
@@ -483,8 +486,8 @@ class galaxies(lb.galaxies):
         xbin,sbin,sbinerr = g.binitbins(xmin, xmax, nbin,self.logstellarmass[flag],self.sizeratio[flag])
         #print(xbin,sbin,sbinerr)
         errorbar(xbin,ybin,yerr=ybinerr,fmt=None,color='k',markersize=16,ecolor='k')
-        plt.scatter(xbin,ybin,c='k',s=300,cmap='jet_r',vmin=minsize,vmax=maxsize,marker='s')
-        plt.scatter(xbin,ybin,c=sbin,s=300,cmap='jet_r',vmin=minsize,vmax=maxsize,marker='s')
+        plt.scatter(xbin,ybin,c='k',s=300,cmap='inferno',vmin=minsize,vmax=maxsize,marker='s', edgecolors='k')
+        plt.scatter(xbin,ybin,c=sbin,s=300,cmap='inferno',vmin=minsize,vmax=maxsize,marker='s', edgecolors='k')
         gca().set_yscale('log')
         plt.axis(limits)
         ax=plt.gca()
@@ -507,6 +510,8 @@ class galaxies(lb.galaxies):
         
         if savefig:
             plt.savefig(figuredir + 'sfr_mstar_sizecolor.pdf')
+        else:
+            show()
         
     def plotSFRStellarmass_musfrbin(self, savefig=False, btcutflag=True):
         #Make Mstar-SFR plots for exterior and core samples including
@@ -1288,7 +1293,7 @@ class galaxies(lb.galaxies):
         lsfrdiffmin = -1.0
         lsfrdiffmax = 1.2
         mybins=np.arange(lsfrdiffmin, lsfrdiffmax, 0.1)
-        plt.hist(lsfrdiff[cflag],bins=mybins,histtype='stepfilled',color='r',label='$Core$',lw=1.5,alpha=1)#,normed=True)
+        plt.hist(lsfrdiff[cflag],bins=mybins,histtype='stepfilled',color='r',label='$Core$',lw=1.5,alpha=1,edgecolor='k')#,normed=True)
 
         #median SFR diff
         medlsfrdiff = np.median(lsfrdiff[cflag])
@@ -1358,7 +1363,7 @@ class galaxies(lb.galaxies):
         else:
             eflag = (~self.membflag & self.sampleflag) & (self.logstellarmass > logmassmin) & (self.logstellarmass < logmassmax)
 
-        hist(lsfrdiff[eflag],bins=mybins,histtype='stepfilled',color='b',label='$External$',lw=1.5,alpha=1)#,normed=True)
+        hist(lsfrdiff[eflag],bins=mybins,histtype='stepfilled',color='b',label='$External$',lw=1.5,alpha=1,edgecolor='k')#,normed=True)
 
         #median SFR diff
         medlsfrdiff = np.median(lsfrdiff[eflag])
@@ -1425,6 +1430,8 @@ class galaxies(lb.galaxies):
         
         if savefig:
             plt.savefig(figuredir + 'sfrdiff.pdf')
+        else:
+            plt.show()
 
     def matchsamp_mass(self,savefig=False,btcutflag=True):
         '''This create massmatched samples from the external population
@@ -1637,7 +1644,7 @@ class galaxies(lb.galaxies):
                 self.diffsizeratio[jcore] = log10(self.sizeratio[i]) - log10(np.median(self.sizeratio[mmatchflag]))
                 self.diffmstardense[jcore] = log10(self.mstardense[i]) - log10(np.median(self.mstardense[mmatchflag]))
                 self.diffID[jcore] = self.s.NSAID[i]
-                print(sum(mmatchflag))
+                #print(sum(mmatchflag))
 
             if np.isnan(self.diffsizeratio[jcore]):
                 print("*****NaN Detection******")
@@ -1646,7 +1653,7 @@ class galaxies(lb.galaxies):
             jcore += 1
 
             
-        figure(figsize=(10,8))
+        figure(figsize=(15,12))
         #subplots_adjust(left=.12,bottom=.15,wspace=.02,hspace=.02)
         subplots_adjust(left=.12,bottom=.15,wspace=.3,hspace=.3)
         bothax=[]
@@ -1656,7 +1663,7 @@ class galaxies(lb.galaxies):
         ax=plt.gca()
 
         #plt.plot(self.difflmipssize,self.diffsersicn,'ko')
-        plt.scatter(self.difflmipssize,self.difflsersicn,c=self.diffSFR,vmin=-1.0,vmax=1.0,cmap='jet_r',s=60)
+        plt.scatter(self.difflmipssize,self.difflsersicn,c=self.diffSFR,vmin=-1.0,vmax=1.0,cmap='inferno',s=60)
         #c=colorbar(ax=bothax,fraction=.05,ticks=arange(-1.0, 1.0,.2),format='%.1f')
         plt.colorbar()
         #c.ax.text(2.2,.5,'$\Delta log(SFR)$',rotation=-90,verticalalignment='center',fontsize=20)
