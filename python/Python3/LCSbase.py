@@ -228,7 +228,8 @@ class galaxies:
         self.nuFnu24 = flux*freq
         
         # multiply by 4 pi d_L**2 to get nu L_nu
-        self.nuLnu24 = self.nuFnu24 * 4 * np.pi * (cosmo.luminosity_distance(self.s.ZDIST))**2
+        self.nuLnu24_ZDIST = self.nuFnu24 * 4 * np.pi * (cosmo.luminosity_distance(self.s.ZDIST))**2
+        self.nuLnu24_ZCLUST = self.nuFnu24 * 4 * np.pi * (cosmo.luminosity_distance(self.s.CLUSTER_REDSHIFT))**2
 
         # NUV is 230 nm, according to Kennicutt & Evans
         wavelength_NUV = 230.e-9*u.m
@@ -241,10 +242,35 @@ class galaxies:
         dist = 10.*u.pc
         self.nuLnu_NUV = flux_10pc*4*np.pi*dist**2*freq_NUV
         
-        self.nuLnu_NUV_cor = self.nuLnu_NUV.cgs + 2.26*self.nuLnu24.cgs
+        self.nuLnu_NUV_cor = self.nuLnu_NUV.cgs + 2.26*self.nuLnu24_ZDIST.cgs
 
         self.logSFR_NUV = np.log10(self.nuLnu_NUV_cor.cgs.value) - 43.17
+
+
+        # repeating calculation using ZCLUSTER
+
+
         
+        # convert NSA NUV abs mag to nuLnu_NUV
+        #flux_10pc = 10.**((22.5-self.s.ABSMAG[:,1])/2.5)
+        # assume ABSMAG is in AB mag, with ZP = 3631 Jy
+        flux = 3.631e-6*self.s.NMGY[:,1]*u.Jy
+        distcl = cosmo.luminosity_distance(self.s.CLUSTER_REDSHIFT)
+        self.nuLnu_NUV_ZCLUST = flux*4*np.pi*distcl**2*freq_NUV
+        dist = cosmo.luminosity_distance(self.s.ZDIST)
+        self.nuLnu_NUV_ZDIST = flux*4*np.pi*dist**2*freq_NUV
+        
+        #self.nuLnu_NUV_cor_ZCLUST = self.nuLnu_NUV_ZCLUST.cgs + 2.26*self.nuLnu24_ZCLUST.cgs
+        #self.nuLnu_NUV_cor_ZDIST = self.nuLnu_NUV_ZDIST.cgs + 2.26*self.nuLnu24_ZDIST.cgs
+
+        # assuming that the ABSMAG is calculated based on ZDIST
+        # rescaling this for cluster redshift to use for members
+        self.nuLnu_NUV_cor_ZCLUST = self.nuLnu_NUV_cor*(distcl/dist)**2 
+        self.nuLnu_NUV_cor_ZDIST = self.nuLnu_NUV_cor
+
+        self.logSFR_NUV_ZCLUST = np.log10(self.nuLnu_NUV_cor_ZCLUST.cgs.value) - 43.17
+        self.logSFR_NUV_ZDIST = np.log10(self.nuLnu_NUV_cor_ZDIST.cgs.value) - 43.17
+        self.logSFR_NUV_BEST = self.logSFR_NUV_ZCLUST * np.array(self.membflag,'i') + np.array(~self.membflag,'i')*(self.logSFR_NUV_ZDIST)
 
     def setup(self):
         self.get_agn()

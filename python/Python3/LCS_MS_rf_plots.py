@@ -111,10 +111,44 @@ class galaxies(lb.galaxies):
         # denote galaxies with numerical
 
     def compare_SFR(self):
-        plt.figure(figsize=(8,6))
-        plot(self.logSFR_NUV,np.log10(self.s.SFR_ZDIST/1.58),'b.')
-        plt.ylabel('log10(SFR IR)')
-        plt.xlabel('log10(SFR NUV)')
+        plt.figure(figsize=(12,10))
+        plt.subplot(2,2,1)
+        plot(np.log10(self.s.SFR_ZDIST/1.58),self.logSFR_NUV_ZDIST,'b.')
+        plt.xlabel('log10(SFR IR ZDIST)')
+        plt.ylabel('log10(SFR NUV ZDIST)')
+        x1,x2 = plt.xlim()
+        xl = np.linspace(x1,x2,100)
+        plt.plot(xl,xl,'k-')
+        plt.plot(xl,xl-.3,'k--')
+        plt.plot(xl,xl+.3,'k--')
+        
+        #plt.figure(figsize=(8,6))
+        plt.subplot(2,2,2)
+        plot(np.log10(self.s.SFR_ZCLUST/1.58),self.logSFR_NUV_ZCLUST,'b.')
+        plt.xlabel('log10(SFR IR ZCLUST)')
+        plt.ylabel('log10(SFR NUV ZCLUST)')
+        x1,x2 = plt.xlim()
+        xl = np.linspace(x1,x2,100)
+        plt.plot(xl,xl,'k-')
+        plt.plot(xl,xl-.3,'k--')
+        plt.plot(xl,xl+.3,'k--')
+        
+        #plt.figure(figsize=(8,6))
+        plt.subplot(2,2,3)
+        plot(np.log10(self.SFR_BEST),self.logSFR_NUV_BEST,'b.')
+        plt.ylabel('log10(SFR NUV BEST)')
+        plt.xlabel('log10(SFR IR )')
+        x1,x2 = plt.xlim()
+        xl = np.linspace(x1,x2,100)
+        plt.plot(xl,xl,'k-')
+        plt.plot(xl,xl-.3,'k--')
+        plt.plot(xl,xl+.3,'k--')
+
+        #plt.figure(figsize=(8,6))
+        plt.subplot(2,2,4)
+        plot(np.log10(self.SFR_BEST),(self.logSFR_NUV),'b.')
+        plt.ylabel('log10(SFR NUV from ABSMAG)')
+        plt.xlabel('log10(SFR IR BEST)')
         x1,x2 = plt.xlim()
         xl = np.linspace(x1,x2,100)
         plt.plot(xl,xl,'k-')
@@ -122,17 +156,44 @@ class galaxies(lb.galaxies):
         plt.plot(xl,xl+.3,'k--')
 
         ## plt.figure(figsize=(8,6))
-        ## plot(self.logSFR_NUV,np.log10(self.s.SFR_ZDIST),'b.')
-        ## plt.ylabel('log10(SFR IR)')
-        ## plt.xlabel('log10(SFR NUV)')
+        ## plot(np.log10(self.SFR_BEST),np.log10(self.s.SFR_ZDIST/1.58),'b.')
+        ## plt.ylabel('log10(SFR BEST)')
+        ## plt.xlabel('log10(SFR ZDIST)')
         ## x1,x2 = plt.xlim()
         ## xl = np.linspace(x1,x2,100)
         ## plt.plot(xl,xl,'k-')
         ## plt.plot(xl,xl-.3,'k--')
         ## plt.plot(xl,xl+.3,'k--')
         
+        plt.figure(figsize=(6,8))
+        plt.subplot(3,1,1)
+        plt.subplots_adjust(hspace=.4)
+        plot(np.log10(self.SFR_BEST),(self.logSFR_NUV),'b.')
+        plt.text(-2.5,.2,'all',fontsize=12)
+        self.addSFRlabels('log10(SFR IR BEST)','log10(SFR NUV from ABSMAG)',1)
 
+        plt.subplot(3,1,2)
+        plot(np.log10(self.SFR_BEST[self.membflag]),(self.logSFR_NUV[self.membflag]),'b.')
+        plt.text(-2.5,.2,'core',fontsize=12)
+        self.addSFRlabels('log10(SFR IR BEST)','log10(SFR NUV from ABSMAG)',2)
+
+        plt.subplot(3,1,3)
+        plot(np.log10(self.SFR_BEST[~self.membflag]),(self.logSFR_NUV[~self.membflag]),'b.')
+        plt.text(-2.5,.2,'field',fontsize=12)
+        self.addSFRlabels('$log_{10}(SFR\_IR  \ BEST)$','$log_{10}(SFR\_NUV \ from \ ABSMAG)$',3)
+
+    def addSFRlabels(self,xlab,ylab,i):
+        if i == 2:
+            plt.ylabel(ylab,fontsize=12)
+        if i == 3:
+            plt.xlabel(xlab,fontsize=12)
+        x1,x2 = plt.xlim()
+        xl = np.linspace(x1,x2,100)
+        plt.plot(xl,xl,'k-')
+        plt.plot(xl,xl-.3,'k--')
+        plt.plot(xl,xl+.3,'k--')
+        plt.axis([-3.2,1.5,-3.2,1.5])
         
-
+        
 g = galaxies('/Users/rfinn/github/LCS/')
         
