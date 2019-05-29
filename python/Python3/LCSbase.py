@@ -25,6 +25,8 @@ May 2018
 '''
 
 from astropy.io import fits
+from astropy import constants as c 
+from astropy import units as u
 import os
 import sys
 from astropy.cosmology import WMAP9 as cosmo
@@ -211,16 +213,50 @@ class galaxies:
 
         # corrected NUV luminosity
         # L(NUV )corr = L(NUV )obs + 2.26L(25µm) 
+
+        # LCS_all_size has L_IR from Chary & Elbaz, and FLUX24
+        # will need to calculate L24 from FLUX24
+        # assuming L24 is close enough to L25 to be interchangeable
+        #
+        # The Kennicutt & Evans eqn needs L25 in units of ergs/s - nu L_nu
+        #
+        # the FLUX24 is probably in units of Jy or uJy.
+        # multiply by frequency at 24um to convert to nu F_v
+        wavelength = 24.e-6*u.m
+        freq = c.c/wavelength
+        flux = self.s.FLUX24*1.e-6*u.Jy
+        self.nuFnu24 = flux*freq
         
+        # multiply by 4 pi d_L**2 to get nu L_nu
+        self.nuLnu24 = self.nuFnu24 * 4 * np.pi * (cosmo.luminosity_distance(self.s.ZDIST))**2
+
+        # NUV is 230 nm, according to Kennicutt & Evans
+        wavelength_NUV = 230.e-9*u.m
+        freq_NUV = c.c/wavelength_NUV
+        
+        # convert NSA NUV abs mag to nuLnu_NUV
+        #flux_10pc = 10.**((22.5-self.s.ABSMAG[:,1])/2.5)
+        # assume ABSMAG is in AB mag, with ZP = 3631 Jy
+        flux_10pc = 3631.*10**(-1.*self.s.ABSMAG[:,1]/2.5)*u.Jy
+        dist = 10.*u.pc
+        self.nuLnu_NUV = flux_10pc*4*np.pi*dist**2*freq_NUV
+        
+        self.nuLnu_NUV_cor = self.nuLnu_NUV.cgs + 2.26*self.nuLnu24.cgs
+
+        self.logSFR_NUV = np.log10(self.nuLnu_NUV_cor.cgs.value) - 43.17
+        
+
     def setup(self):
         self.get_agn()
         self.get_gim2d_flag()
         self.get_galfit_flag()
         self.get_memb()
         self.make_SFR()
+        self.get_UVIR_SFR()
         self.get_size_flag()
         self.calculate_sizeratio()
         self.select_sample()
+
 
 if __name__ == '__main__':
     g = galaxies(lcspath)
