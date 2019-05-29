@@ -110,6 +110,28 @@ class galaxies(lb.galaxies):
         plt.subplots_adjust(bottom=.15)
         # denote galaxies with numerical
 
+    def compare_SFR(self):
+        plt.figure(figsize=(8,6))
+        plot(self.logSFR_NUV,np.log10(self.s.SFR_ZDIST/1.58),'b.')
+        plt.ylabel('log10(SFR IR)')
+        plt.xlabel('log10(SFR NUV)')
+        x1,x2 = plt.xlim()
+        xl = np.linspace(x1,x2,100)
+        plt.plot(xl,xl,'k-')
+        plt.plot(xl,xl-.3,'k--')
+        plt.plot(xl,xl+.3,'k--')
+
+        ## plt.figure(figsize=(8,6))
+        ## plot(self.logSFR_NUV,np.log10(self.s.SFR_ZDIST),'b.')
+        ## plt.ylabel('log10(SFR IR)')
+        ## plt.xlabel('log10(SFR NUV)')
+        ## x1,x2 = plt.xlim()
+        ## xl = np.linspace(x1,x2,100)
+        ## plt.plot(xl,xl,'k-')
+        ## plt.plot(xl,xl-.3,'k--')
+        ## plt.plot(xl,xl+.3,'k--')
+        
+
         
 
 g = galaxies('/Users/rfinn/github/LCS/')
