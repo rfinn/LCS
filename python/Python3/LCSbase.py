@@ -70,7 +70,12 @@ class galaxies:
         self.NUVr=self.s.ABSMAG[:,1] - self.s.ABSMAG[:,4]
         self.upperlimit=self.s['RE_UPPERLIMIT'] # converts this to proper boolean array
 
-
+        self.MAG24 = 2.5*np.log10(3631./(self.s.FLUX24*1.e-6))
+        
+        self.dL = cosmo.luminosity_distance(self.s.ZDIST)
+        self.distmod_ZDIST = 5*np.log10(self.dL.value*1.e6)-5
+        self.ABSMAG24 = self.MAG24 - self.distmod_ZDIST
+        self.NUV24 = self.s.ABSMAG[:,1] - self.ABSMAG24
         if __name__ != '__main__':
             self.setup()
     def get_agn(self):
@@ -151,7 +156,9 @@ class galaxies:
         self.dvflag = abs(self.dv) < 3.
 
         self.sampleflag = self.galfitflag    & self.lirflag   & self.sizeflag & ~self.agnflag & self.sbflag & self.gim2dflag#& self.massflag#& self.gim2dflag#& self.blueflag2
+        self.agnsampleflag = self.galfitflag    & self.lirflag   & self.sizeflag & self.agnflag & self.sbflag & self.gim2dflag#& self.massflag#& self.gim2dflag#& self.blueflag2
         self.sfsampleflag = self.sizeflag & self.massflag & self.lirflag & ~self.badfits
+        self.irsampleflag = self.lirflag & self.sizeflag & ~self.agnflag
         self.HIflag = self.s.HIMASS > 0.
     def calculate_sizeratio(self):
         self.SIZE_RATIO_DISK = np.zeros(len(self.gim2dflag))
@@ -198,6 +205,7 @@ class galaxies:
         #(which Chary+Elbaz 2001 use) to Chabrier
         #this conversion comes from Salim+16.  
         self.SFR_BEST = self.SFR_BEST / 1.58
+        self.LIR_BEST = self.s.LIR_ZCLUST * np.array(self.membflag,'i') + np.array(~self.membflag,'i')*(self.s.LIR_ZDIST)
 
     def get_UVIR_SFR(self):
         print('nothing happening here')
