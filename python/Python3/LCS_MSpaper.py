@@ -374,7 +374,7 @@ class galaxies(lb.galaxies):
         btcut = 0.3
 
         #set up the figure and the subplots
-        figure(figsize=(10,8))
+        figure(figsize=(15,12))
         subplots_adjust(left=.12,bottom=.15,wspace=.02,hspace=.02)
         bothax=[]
         limits=[8.8,11.2,3e-2,15.]
@@ -412,7 +412,7 @@ class galaxies(lb.galaxies):
         #plot a subset of points
         if specialpoi:
             spflag = (self.membflag & self.sampleflag) & ((self.s.NSAID==68305) |  (self.s.NSAID == 146606) | (self.s.NSAID == 72738) |  (self.s.NSAID == 166167) |  (self.s.NSAID == 103648)  | (self.s.NSAID == 103791))
-            plt.plot(self.logstellarmass[spflag],self.SFR_BEST[spflag],'kx',markersize=10,markeredgewidth=2)
+            plt.plot(self.logstellarmass[spflag],self.SFR_BEST[spflag],'gx',markersize=10,markeredgewidth=2)
 
         #core plot binned points
         plt.subplot(2,2,2)
@@ -1565,12 +1565,11 @@ class galaxies(lb.galaxies):
         else:
             plt.show()
 
-    def matchsamp_masssize(self,savefig=False,btcutflag=True):
+    def matchsamp_masssize(self,btcutflag=True):
         '''This create mass and size-matched samples from the external population
         for every galaxy in the core population.  It will compute how
         each galaxy in the core deviates from the median of the
-        mass-matched sample along various axes.  It will plot these
-        deviations against each other.
+        mass-matched sample along various axes.  
 
         '''
         #what is the B/T cut
@@ -1652,7 +1651,14 @@ class galaxies(lb.galaxies):
                 print("***********")
             jcore += 1
 
-            
+    def plot_n24diff_mipssizediff(self, savefig=False):
+        '''Create matched samples in mass and optical size and then plot how
+sersic indices, 24um sizes, SFRs, and SFR surface densities compare among these matched samples.
+
+        '''
+
+        self.matchsamp_masssize()
+
         figure(figsize=(15,12))
         #subplots_adjust(left=.12,bottom=.15,wspace=.02,hspace=.02)
         subplots_adjust(left=.12,bottom=.15,wspace=.3,hspace=.3)
@@ -1664,9 +1670,9 @@ class galaxies(lb.galaxies):
 
         #plt.plot(self.difflmipssize,self.diffsersicn,'ko')
         plt.scatter(self.difflmipssize,self.difflsersicn,c=self.diffSFR,vmin=-1.0,vmax=1.0,cmap='inferno',s=60)
-        #c=colorbar(ax=bothax,fraction=.05,ticks=arange(-1.0, 1.0,.2),format='%.1f')
-        plt.colorbar()
-        #c.ax.text(2.2,.5,'$\Delta log(SFR)$',rotation=-90,verticalalignment='center',fontsize=20)
+        c=colorbar(ax=ax,fraction=.05,ticks=arange(-1.0, 1.0,.2),format='%.1f')
+        #plt.colorbar()
+        c.ax.text(3.2,.5,'$\Delta log(SFR)$',rotation=-90,verticalalignment='center',fontsize=20)
 
         (rho,p) = st.spearmanr(self.difflmipssize,self.difflsersicn)
         print("for the left panel")
@@ -1688,7 +1694,7 @@ class galaxies(lb.galaxies):
         #plt.ylabel('$ \Delta log(\Sigma_{SFR})$')
         plt.ylabel('$ \Delta log(n_{24})$')
 
-
+#    def test():
         plt.subplot(2,2,2)
         ax=plt.gca()
 
@@ -1731,6 +1737,158 @@ class galaxies(lb.galaxies):
             plt.savefig(figuredir + 'matchsamp_masssize.pdf')
         else:
             plt.show()
+
+    def plotSFRStellarmass_matchsamp(self, savefig=False, btcutflag=True):
+        ''' Select galaxies with a range of 24um micro  
+
+        '''
+        
+        
+        self.matchsamp_masssize()
+
+        minsize=.4
+        maxsize=1.5
+        btcut = 0.3
+
+        #set up the figure and the subplots
+        figure(figsize=(15,12))
+        subplots_adjust(left=.12,bottom=.15,wspace=.02,hspace=.02)
+        bothax=[]
+        limits=[8.8,11.2,3e-2,15.]
+
+        #core galaxies - individual points
+        plt.subplot(2,2,1)
+        ax=plt.gca()
+
+        #determine MS fit and output fit results
+        xmod,ymod,param = g.MSfit()
+
+        #select members with B/T<btcut
+        if btcutflag:
+            flag = (self.membflag & self.sampleflag) & (self.gim2d.B_T_r < btcut)
+        else:
+            flag = (self.membflag & self.sampleflag)
+        #plt.scatter(self.logstellarmass[flag],self.SFR_BEST[flag],c=self.sizeratio[flag],vmin=minsize,vmax=maxsize,cmap='jet_r',s=60, edgecolors='k')
+        plt.scatter(self.logstellarmass[flag],self.SFR_BEST[flag],c=self.sizeratio[flag],vmin=minsize,vmax=maxsize,cmap='inferno',s=60, edgecolors='k')
+
+        
+        plt.gca().set_yscale('log')
+        plt.axis(limits)
+        bothax.append(ax)
+        ax.set_xticklabels(([]))
+        #g.plotelbaz()
+        text(0.1,0.9,'$Core$',transform=ax.transAxes,horizontalalignment='left',fontsize=20)
+        plt.title('$SF \ Galaxies$',fontsize=22)
+
+        #plot our MS fit
+        plt.plot(xmod,ymod,'w-',lw=3)
+        plt.plot(xmod,ymod,'b-',lw=2)
+        plt.plot(xmod,ymod/5.,'w--',lw=3)
+        plt.plot(xmod,ymod/5.,'b--',lw=2)
+
+        #plot a subset of points
+        if specialpoi:
+            spflag = (self.membflag & self.sampleflag) & ((self.s.NSAID==68305) |  (self.s.NSAID == 146606) | (self.s.NSAID == 72738) |  (self.s.NSAID == 166167) |  (self.s.NSAID == 103648)  | (self.s.NSAID == 103791))
+            plt.plot(self.logstellarmass[spflag],self.SFR_BEST[spflag],'gx',markersize=10,markeredgewidth=2)
+
+        #core plot binned points
+        plt.subplot(2,2,2)
+        ax=plt.gca()
+        xmin = 9.7
+        xmax = 10.9
+        nbin = (xmax - xmin) / 0.2
+        #median SFR  in bins of mass
+        xbin,ybin,ybinerr=g.binitbins(xmin, xmax, nbin ,self.logstellarmass[flag],self.SFR_BEST[flag])
+
+        #median size ratio  in bins of mass
+        xbin,sbin,sbinerr = g.binitbins(xmin, xmax, nbin,self.logstellarmass[flag],self.sizeratio[flag])
+        #print(xbin,sbin,sbinerr)
+        errorbar(xbin,ybin,yerr=ybinerr,fmt=None,color='k',markersize=16,ecolor='k')
+        plt.scatter(xbin,ybin,c='k',s=300,cmap='inferno',vmin=minsize,vmax=maxsize,marker='s', edgecolors='k')
+        plt.scatter(xbin,ybin,c=sbin,s=300,cmap='inferno',vmin=minsize,vmax=maxsize,marker='s', edgecolors='k')
+        gca().set_yscale('log')
+        plt.axis(limits)
+        ax=plt.gca()
+        bothax.append(ax)
+        ax.set_yticklabels(([]))
+        ax.set_xticklabels(([]))
+        plt.title('$Median $',fontsize=22)
+
+        #plot our MS fit
+        plt.plot(xmod,ymod,'w-',lw=3)
+        plt.plot(xmod,ymod,'b-',lw=2)
+        plt.plot(xmod,ymod/5.,'w--',lw=3)
+        plt.plot(xmod,ymod/5.,'b--',lw=2)
+
+        #g.plotelbaz()
+        legend(loc='upper left',numpoints=1)
+
+        if btcutflag:
+            s = '$B/T \ <  \  %.2f$'%(btcut)
+            text(-0.15,1.1,s,transform=ax.transAxes,horizontalalignment='left',fontsize=20)
+
+
+        ###############
+        plt.subplot(2,2,3)
+        ax=plt.gca()
+
+        #select non-members with B/T<btcut
+        flag = (~self.membflag & self.sampleflag) & (self.gim2d.B_T_r < btcut)
+        plt.scatter(self.logstellarmass[flag],self.SFR_BEST[flag],c=self.sizeratio[flag],vmin=minsize,vmax=maxsize,cmap='inferno',s=60, edgecolors='k')
+        plt.gca().set_yscale('log')
+        plt.axis(limits)
+        bothax.append(ax)
+
+        #plot our MS fit
+        plt.plot(xmod,ymod,'w-',lw=3)
+        plt.plot(xmod,ymod,'b-',lw=2)
+        plt.plot(xmod,ymod/5.,'w--',lw=3)
+        plt.plot(xmod,ymod/5.,'b--',lw=2)
+        #g.plotelbaz()
+
+        text(-0.2,1.,'$SFR \ (M_\odot/yr)$',transform=ax.transAxes,rotation=90,horizontalalignment='center',verticalalignment='center',fontsize=24)
+        text(0.1,0.9,'$External$',transform=ax.transAxes,horizontalalignment='left',fontsize=20)
+
+        #external plot binned points
+        plt.subplot(2,2,4)
+        ax=plt.gca()
+        xmin = 9.7
+        xmax = 10.9
+        nbin = (xmax - xmin) / 0.2
+
+        #median SFR  in bins of mass
+        xbin,ybin,ybinerr=g.binitbins(xmin, xmax, nbin ,self.logstellarmass[flag],self.SFR_BEST[flag])
+
+        #median size ratio  in bins of mass
+        xbin,sbin,sbinerr = g.binitbins(xmin, xmax, nbin,self.logstellarmass[flag],self.sizeratio[flag])
+        #print(xbin,sbin,sbinerr)
+        errorbar(xbin,ybin,yerr=ybinerr,fmt=None,color='k',markersize=16,ecolor='k')
+        plt.scatter(xbin,ybin,c='k',s=300,cmap='inferno',vmin=minsize,vmax=maxsize,marker='s', edgecolors='k')
+        plt.scatter(xbin,ybin,c=sbin,s=300,cmap='inferno',vmin=minsize,vmax=maxsize,marker='s', edgecolors='k')
+        gca().set_yscale('log')
+        plt.axis(limits)
+        ax=plt.gca()
+        bothax.append(ax)
+        ax.set_yticklabels(([]))
+
+        #plot our MS fit
+        plt.plot(xmod,ymod,'w-',lw=3)
+        plt.plot(xmod,ymod,'b-',lw=2)
+        plt.plot(xmod,ymod/5.,'w--',lw=3)
+        plt.plot(xmod,ymod/5.,'b--',lw=2)
+        #g.plotelbaz()
+
+
+        text(-0.02,-.2,'$log_{10}(M_*/M_\odot)$',transform=ax.transAxes,horizontalalignment='center',fontsize=24)
+
+        c=colorbar(ax=bothax,fraction=.05,ticks=arange(minsize,maxsize,.1),format='%.1f')
+        c.ax.text(2.2,.5,'$R_e(24)/R_e(r)$',rotation=-90,verticalalignment='center',fontsize=20)
+
+        
+        if savefig:
+            plt.savefig(figuredir + 'sfr_mstar_sizecolor.pdf')
+        else:
+            show()
 
     def phasespace_matchsamp_masssize(self,savefig=False,btcutflag=True):
         '''This create mass and size-matched samples from the external
