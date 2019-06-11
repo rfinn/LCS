@@ -279,6 +279,7 @@ class galaxies:
         self.logSFR_NUV_ZCLUST = np.log10(self.nuLnu_NUV_cor_ZCLUST.cgs.value) - 43.17
         self.logSFR_NUV_ZDIST = np.log10(self.nuLnu_NUV_cor_ZDIST.cgs.value) - 43.17
         self.logSFR_NUV_BEST = self.logSFR_NUV_ZCLUST * np.array(self.membflag,'i') + np.array(~self.membflag,'i')*(self.logSFR_NUV_ZDIST)
+        self.SFR_NUV_BEST = 10**self.logSFR_NUV_BEST
 
     def setup(self):
         self.get_agn()
