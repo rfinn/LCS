@@ -1645,6 +1645,8 @@ class galaxies(lb.galaxies):
             #galaxy and all external galaxies.
 
             #test if there are any galaxies in mass-matched sample.
+            #print(cind[0])
+            #print('number in matched sample for gal', i, 'is', np.sum(mmatchflag))
             if mmatchflag.any():
                 self.difflsersicn[jcore] = log10(self.s.fcnsersic1[i]) - np.median(log10(self.s.fcnsersic1[mmatchflag]))
                 self.difflmipssize[jcore] = log10(self.mipssize[i]) - np.median(log10(self.mipssize[mmatchflag]))
@@ -1664,13 +1666,18 @@ class galaxies(lb.galaxies):
                 print("***********")
             jcore += 1
 
-    def plot_n24diff_mipssizediff(self, savefig=False):
+        #print(self.difflmipssize)
+        return cflag
+        
+    def plot_n24diff_mipssizediff(self, savefig=False, btcutflag=True):
         '''Create matched samples in mass and optical size and then plot how
 sersic indices, 24um sizes, SFRs, and SFR surface densities compare among these matched samples.
 
         '''
 
-        self.matchsamp_masssize()
+        btcut = 0.3
+
+        self.matchsamp_masssize(btcutflag=btcutflag)
 
         figure(figsize=(15,12))
         #subplots_adjust(left=.12,bottom=.15,wspace=.02,hspace=.02)
@@ -1707,6 +1714,11 @@ sersic indices, 24um sizes, SFRs, and SFR surface densities compare among these 
         #plt.ylabel('$ \Delta log(\Sigma_{SFR})$')
         plt.ylabel('$ \Delta log(n_{24})$')
 
+        if btcutflag:
+            s2 = '$B/T \ <  \  %.2f$'%(btcut)
+            text(0.9,1.18,s2,transform=ax.transAxes,horizontalalignment='left',fontsize=20)
+
+        
 #    def test():
         plt.subplot(2,2,2)
         ax=plt.gca()
@@ -1752,23 +1764,29 @@ sersic indices, 24um sizes, SFRs, and SFR surface densities compare among these 
             plt.show()
 
     def plotSFRStellarmass_matchsamp(self, savefig=False, btcutflag=True):
-        ''' Select galaxies with a range of 24um micro  
+        '''Plot SFR vs. Mstar color coded by 24um size of each galaxy compared to
+its field comparison sample that is matched in stellar mass and size.
+
+        This code is limited to the subsample of galaxies that is
+        selected in matchsamp_masssize()
 
         '''
         
         
-        self.matchsamp_masssize()
+        cflag = self.matchsamp_masssize(btcutflag=btcutflag)
 
-        minsize=.4
-        maxsize=1.5
+        minsizediff=-0.5
+        maxsizediff=0.5
         btcut = 0.3
 
         #set up the figure and the subplots
-        figure(figsize=(15,12))
+        figure(figsize=(10,10))
         subplots_adjust(left=.12,bottom=.15,wspace=.02,hspace=.02)
         bothax=[]
         limits=[8.8,11.2,3e-2,15.]
 
+        ##############################
+        #mipssize difference
         #core galaxies - individual points
         plt.subplot(2,2,1)
         ax=plt.gca()
@@ -1776,13 +1794,7 @@ sersic indices, 24um sizes, SFRs, and SFR surface densities compare among these 
         #determine MS fit and output fit results
         xmod,ymod,param = g.MSfit()
 
-        #select members with B/T<btcut
-        if btcutflag:
-            flag = (self.membflag & self.sampleflag) & (self.gim2d.B_T_r < btcut)
-        else:
-            flag = (self.membflag & self.sampleflag)
-        #plt.scatter(self.logstellarmass[flag],self.SFR_USE[flag],c=self.sizeratio[flag],vmin=minsize,vmax=maxsize,cmap='jet_r',s=60, edgecolors='k')
-        plt.scatter(self.logstellarmass[flag],self.SFR_USE[flag],c=self.sizeratio[flag],vmin=minsize,vmax=maxsize,cmap='inferno',s=60)
+        plt.scatter(self.logstellarmass[cflag],self.SFR_USE[cflag],c=self.difflmipssize,vmin=minsizediff,vmax=maxsizediff,cmap='inferno',s=60)
         
         plt.gca().set_yscale('log')
         plt.axis(limits)
@@ -1798,6 +1810,9 @@ sersic indices, 24um sizes, SFRs, and SFR surface densities compare among these 
         plt.plot(xmod,ymod/5.,'w--',lw=3)
         plt.plot(xmod,ymod/5.,'b--',lw=2)
 
+        plt.ylabel('$ SFR \ (M_\odot/yr) $')
+        
+#############################
         #core plot binned points
         plt.subplot(2,2,2)
         ax=plt.gca()
@@ -1805,14 +1820,14 @@ sersic indices, 24um sizes, SFRs, and SFR surface densities compare among these 
         xmax = 10.9
         nbin = (xmax - xmin) / 0.2
         #median SFR  in bins of mass
-        xbin,ybin,ybinerr=g.binitbins(xmin, xmax, nbin ,self.logstellarmass[flag],self.SFR_USE[flag])
+        xbin,ybin,ybinerr=g.binitbins(xmin, xmax, nbin ,self.logstellarmass[cflag],self.SFR_USE[cflag])
 
         #median size ratio  in bins of mass
-        xbin,sbin,sbinerr = g.binitbins(xmin, xmax, nbin,self.logstellarmass[flag],self.sizeratio[flag])
+        xbin,sbin,sbinerr = g.binitbins(xmin, xmax, nbin,self.logstellarmass[cflag],self.difflmipssize)
         #print(xbin,sbin,sbinerr)
-        errorbar(xbin,ybin,yerr=ybinerr,fmt=None,color='k',markersize=16,ecolor='k')
-        plt.scatter(xbin,ybin,c='k',s=300,cmap='inferno',vmin=minsize,vmax=maxsize,marker='s', edgecolors='k')
-        plt.scatter(xbin,ybin,c=sbin,s=300,cmap='inferno',vmin=minsize,vmax=maxsize,marker='s', edgecolors='k')
+        errorbar(xbin,ybin,yerr=ybinerr,fmt="none",color='k',markersize=16,ecolor='k')
+        #plt.scatter(xbin,ybin,c='k',s=300,cmap='inferno',vmin=minsizediff,vmax=maxsizediff,marker='s', edgecolors='k')
+        plt.scatter(xbin,ybin,c=sbin,s=300,cmap='inferno',vmin=minsizediff,vmax=maxsizediff,marker='s', edgecolors='k')
         gca().set_yscale('log')
         plt.axis(limits)
         ax=plt.gca()
@@ -1828,72 +1843,88 @@ sersic indices, 24um sizes, SFRs, and SFR surface densities compare among these 
         plt.plot(xmod,ymod/5.,'b--',lw=2)
 
         #g.plotelbaz()
-        legend(loc='upper left',numpoints=1)
+        #legend(loc='upper left',numpoints=1)
 
         if btcutflag:
             s = '$B/T \ <  \  %.2f$'%(btcut)
             text(-0.15,1.1,s,transform=ax.transAxes,horizontalalignment='left',fontsize=20)
 
+        #c=colorbar(ax=bothax,fraction=.05,ticks=arange(minsizediff,maxsizediff,.1),format='%.1f')
+        c=colorbar(fraction=.05,ticks=arange(minsizediff,maxsizediff,.1),format='%.1f')
+        c.ax.text(3.0,.5,'$ \Delta log(R_{24})$',rotation=-90,verticalalignment='center',fontsize=20)
 
-        ###############
+        ########################
+        #sersic index difference
+        #core galaxies - individual points
+
+        minndiff = -1.2
+        maxndiff = 1.0
+
         plt.subplot(2,2,3)
-        ax=plt.gca()
+        #ax=plt.gca()
 
-        #select non-members with B/T<btcut
-        flag = (~self.membflag & self.sampleflag) & (self.gim2d.B_T_r < btcut)
-        plt.scatter(self.logstellarmass[flag],self.SFR_USE[flag],c=self.sizeratio[flag],vmin=minsize,vmax=maxsize,cmap='inferno',s=60)
+        #determine MS fit and output fit results
+        xmod,ymod,param = g.MSfit()
+
+        plt.scatter(self.logstellarmass[cflag],self.SFR_USE[cflag],c=self.difflsersicn,vmin=minndiff,vmax=maxndiff,cmap='inferno',s=60)
+        
         plt.gca().set_yscale('log')
         plt.axis(limits)
         bothax.append(ax)
+        #ax.set_xticklabels(([]))
+        #g.plotelbaz()
+        #text(0.1,0.9,'$Core$',transform=ax.transAxes,horizontalalignment='left',fontsize=20)
+        #plt.title('$SF \ Galaxies$',fontsize=22)
 
         #plot our MS fit
         plt.plot(xmod,ymod,'w-',lw=3)
         plt.plot(xmod,ymod,'b-',lw=2)
         plt.plot(xmod,ymod/5.,'w--',lw=3)
         plt.plot(xmod,ymod/5.,'b--',lw=2)
-        #g.plotelbaz()
 
-        text(-0.2,1.,'$SFR \ (M_\odot/yr)$',transform=ax.transAxes,rotation=90,horizontalalignment='center',verticalalignment='center',fontsize=24)
-        text(0.1,0.9,'$External$',transform=ax.transAxes,horizontalalignment='left',fontsize=20)
-
-        #external plot binned points
+        plt.ylabel('$ SFR \ (M_\odot/yr) $')
+        
+#############################
+        #core plot binned points
         plt.subplot(2,2,4)
-        ax=plt.gca()
+        #ax=plt.gca()
         xmin = 9.7
         xmax = 10.9
         nbin = (xmax - xmin) / 0.2
-
         #median SFR  in bins of mass
-        xbin,ybin,ybinerr=g.binitbins(xmin, xmax, nbin ,self.logstellarmass[flag],self.SFR_USE[flag])
+        xbin,ybin,ybinerr=g.binitbins(xmin, xmax, nbin ,self.logstellarmass[cflag],self.SFR_USE[cflag])
 
         #median size ratio  in bins of mass
-        xbin,sbin,sbinerr = g.binitbins(xmin, xmax, nbin,self.logstellarmass[flag],self.sizeratio[flag])
+        xbin,sbin,sbinerr = g.binitbins(xmin, xmax, nbin,self.logstellarmass[cflag],self.difflsersicn)
         #print(xbin,sbin,sbinerr)
-        errorbar(xbin,ybin,yerr=ybinerr,fmt=None,color='k',markersize=16,ecolor='k')
-        plt.scatter(xbin,ybin,c='k',s=300,cmap='inferno',vmin=minsize,vmax=maxsize,marker='s', edgecolors='k')
-        plt.scatter(xbin,ybin,c=sbin,s=300,cmap='inferno',vmin=minsize,vmax=maxsize,marker='s', edgecolors='k')
+        errorbar(xbin,ybin,yerr=ybinerr,fmt="none",color='k',markersize=16,ecolor='k')
+        #plt.scatter(xbin,ybin,c='k',s=300,cmap='inferno',vmin=minsizediff,vmax=maxsizediff,marker='s', edgecolors='k')
+        plt.scatter(xbin,ybin,c=sbin,s=300,cmap='inferno',vmin=minndiff,vmax=maxndiff,marker='s', edgecolors='k')
         gca().set_yscale('log')
         plt.axis(limits)
         ax=plt.gca()
         bothax.append(ax)
         ax.set_yticklabels(([]))
+        #ax.set_xticklabels(([]))
+       # plt.title('$Median $',fontsize=22)
 
         #plot our MS fit
         plt.plot(xmod,ymod,'w-',lw=3)
         plt.plot(xmod,ymod,'b-',lw=2)
         plt.plot(xmod,ymod/5.,'w--',lw=3)
         plt.plot(xmod,ymod/5.,'b--',lw=2)
-        #g.plotelbaz()
 
+        #g.plotelbaz()
+        #legend(loc='upper left',numpoints=1)
 
         text(-0.02,-.2,'$log_{10}(M_*/M_\odot)$',transform=ax.transAxes,horizontalalignment='center',fontsize=24)
 
-        c=colorbar(ax=bothax,fraction=.05,ticks=arange(minsize,maxsize,.1),format='%.1f')
-        c.ax.text(2.2,.5,'$R_e(24)/R_e(r)$',rotation=-90,verticalalignment='center',fontsize=20)
+        #c=colorbar(ax=bothax,fraction=.05,ticks=arange(minsizediff,maxsizediff,.1),format='%.1f')
+        c=colorbar(fraction=.05,ticks=arange(minndiff,maxndiff,.1),format='%.1f')
+        c.ax.text(3.0,.5,'$ \Delta log(n_{24})$',rotation=-90,verticalalignment='center',fontsize=20)
 
-        
         if savefig:
-            plt.savefig(figuredir + 'sfr_mstar_sizecolor.pdf')
+            plt.savefig(figuredir + 'sfr_mstar_matchsamp_masssize.pdf')
         else:
             show()
 
@@ -2295,7 +2326,8 @@ sersic indices, 24um sizes, SFRs, and SFR surface densities compare among these 
         #fit M-S from own data. Use all galaxies above IR limits that
         #aren't AGN.  Also limit ourselves to things were we are
         #reasonably mass complete and to galaxies with SFR>SFR_Ms(Mstar)/X
-        fitflag = self.lirflag & ~self.agnflag & (self.logstellarmass > 9.5) & (self.SFR_USE >=  (.08e-9/6.)*10**self.logstellarmass)
+        SFR_MSthresh = 0.1
+        fitflag = self.lirflag & ~self.agnflag & (self.logstellarmass > 9.5) & (self.SFR_USE >=  (.08e-9 * SFR_MSthresh)*10**self.logstellarmass)
 
         #popt, pcov = curve_fit(self.linefunc, self.logstellarmass[fitflag], log10(self.SFR_USE[fitflag]), p0=(1.0,-10.5), bounds=([0.,-12.],[3., -5.])
         p = np.polyfit(self.logstellarmass[fitflag], log10(self.SFR_USE[fitflag]), 1.)
