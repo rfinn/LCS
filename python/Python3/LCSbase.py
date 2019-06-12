@@ -157,7 +157,7 @@ class galaxies:
 
         self.sampleflag = self.galfitflag    & self.lirflag   & self.sizeflag & ~self.agnflag & self.sbflag & self.gim2dflag#& self.massflag#& self.gim2dflag#& self.blueflag2
         self.agnsampleflag = self.galfitflag    & self.lirflag   & self.sizeflag & self.agnflag & self.sbflag & self.gim2dflag#& self.massflag#& self.gim2dflag#& self.blueflag2
-        self.sfsampleflag = self.sizeflag & self.massflag & self.lirflag & ~self.badfits
+        self.sfsampleflag = self.sizeflag & self.lirflag & ~self.agnflag # & ~self.badfits
         self.irsampleflag = self.lirflag & self.sizeflag & ~self.agnflag
         self.HIflag = self.s.HIMASS > 0.
     def calculate_sizeratio(self):
@@ -280,6 +280,32 @@ class galaxies:
         self.logSFR_NUV_ZDIST = np.log10(self.nuLnu_NUV_cor_ZDIST.cgs.value) - 43.17
         self.logSFR_NUV_BEST = self.logSFR_NUV_ZCLUST * np.array(self.membflag,'i') + np.array(~self.membflag,'i')*(self.logSFR_NUV_ZDIST)
 
+    def fitms(self):
+        flag = self.sampleflag & ~self.membflag & (self.logstellarmass > 9.5) & (self.logstellarmass < 10.5)
+        c = np.polyfit(self.logstellarmass[flag],self.logSFR_NUV_BEST[flag],1)
+        self.msline = c
+        self.msx = np.linspace(8.75,11.25,10)
+        self.msy = np.polyval(c,self.msx)
+
+        # calculate distance of points from MS line
+
+        # slope of line connecting point to MS is -1*1/slope of MS
+        # so we can get an equation of the line connecting a point to MS using point-slope formula
+        # then we need to know where they intersect
+        # then calculate the distance b/w point and the point of intersection
+
+        self.msperpdist = 1./np.sqrt(1+self.msline[0]**2) * (self.logSFR_NUV_BEST - np.polyval(self.msline,self.logstellarmass))
+        self.msdist = self.logSFR_NUV_BEST - np.polyval(self.msline,self.logstellarmass)
+
+    def calcssfr(self):
+        self.logsSFR = self.logSFR_NUV_BEST - self.logstellarmass
+        flag = self.sampleflag & ~self.membflag & (self.logstellarmass > 9.5) & (self.logstellarmass < 10.5)
+        c = np.polyfit(self.logstellarmass[flag],self.logsSFR[flag],1)
+        self.sSFRline = c
+        self.sSFRx = np.linspace(8.75,11.25,10)
+        self.sSFRy = np.polyval(c,self.sSFRx)
+        self.sSFRdist = self.logsSFR - np.polyval(self.sSFRline,self.logstellarmass)
+        
     def setup(self):
         self.get_agn()
         self.get_gim2d_flag()
@@ -290,7 +316,8 @@ class galaxies:
         self.get_size_flag()
         self.calculate_sizeratio()
         self.select_sample()
-
+        self.fitms()
+        self.calcssfr()
 
 if __name__ == '__main__':
     g = galaxies(lcspath)
