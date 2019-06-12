@@ -213,14 +213,14 @@ class galaxies:
         # calibrations of integrated SFRs
         # corrected FUV - LUV
         # eqn 12
-        # log M˙∗(M⊙ yr−1) = log Lx − log Cx
+        # log SFR(Msun/yr) = log Lx - log Cx
         # NUV - log Cx = 43.17
         # 24um - logCx = 42.69
         # Halpha - log Cx = 41.27
 
 
         # corrected NUV luminosity
-        # L(NUV )corr = L(NUV )obs + 2.26L(25µm) 
+        # L(NUV)corr = L(NUV)obs + 2.26L(25um) 
 
         # LCS_all_size has L_IR from Chary & Elbaz, and FLUX24
         # will need to calculate L24 from FLUX24
