@@ -84,7 +84,7 @@ figuredir='/Users/grudnick/Work/Local_cluster_survey/Papers/Finn_MS/Plots/'
 ########################################
 
 test_statistics = lambda x: (np.mean(x), np.var(x), MAD(x), st.skew(x), st.kurtosis(x))
-
+stat_cols = ['mean','var','MAD','skew','kurt']
 ###########################
 ##### START OF GALAXIES CLASS
 ###########################
@@ -364,7 +364,10 @@ class galaxies(lb.galaxies):
                 print(names[i]+' STATS')
                 print('##################################\n')
                 ks(myvara,myvarb)
-                print(results)
+                print('##################################\n')
+                #print('the array below prints statistics for ')
+                #print(results)
+                # columns are (np.mean(x), np.var(x), MAD(x), st.skew(x), st.kurtosis(x))
                 # save results
                 if i == 0:
                     self.msdist_stats = results
@@ -372,7 +375,14 @@ class galaxies(lb.galaxies):
                     self.msperpdist_stats = results
                 elif i == 2:
                     self.sSFRdist_stats = results
+                #cols = ['mean','var','MAD','skew','kurt']                    
+                for j in range(results.shape[1]):
+                    print(stat_cols[j]+' (conf interval = {:.1f} %)'.format(percentile))
+                    print('CORE: {:.3f} - {:.3f} - {:3f}'.format(results[0,j],results[1,j],results[2,j]))
+                    print('EXT : {:.3f} - {:.3f} - {:3f}'.format(results[3,j],results[4,j],results[5,j]))
+                    print('')
+                print("")
+                print("")
 
-                    
 g = galaxies('/Users/rfinn/github/LCS/')
 
