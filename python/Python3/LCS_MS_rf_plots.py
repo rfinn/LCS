@@ -364,6 +364,7 @@ class galaxies(lb.galaxies):
                 print(names[i]+' STATS')
                 print('##################################\n')
                 ks(myvara,myvarb)
+                print(results)
                 # save results
                 if i == 0:
                     self.msdist_stats = results
