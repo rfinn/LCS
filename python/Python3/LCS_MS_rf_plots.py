@@ -15,7 +15,7 @@ from scipy.optimize import curve_fit
 from astropy.stats import bootstrap
 from astropy.utils import NumpyRNGContext
 import scipy.stats as st
-
+from astropy.stats import median_absolute_deviation as MAD
 import argparse# here is min mass = 9.75
 
 ###########################
@@ -79,6 +79,12 @@ figuredir='/Users/grudnick/Work/Local_cluster_survey/Papers/Finn_MS/Plots/'
 
 #colors = dict(mcolors.BASE_COLORS, **mcolors.CSS4_COLORS)
 
+########################################
+##### STATISTICS TO COMPARE CORE VS EXTERNAL
+########################################
+
+test_statistics = lambda x: (np.mean(x), np.var(x), MAD(x), st.skew(x), st.kurtosis(x))
+stat_cols = ['mean','var','MAD','skew','kurt']
 ###########################
 ##### START OF GALAXIES CLASS
 ###########################
@@ -207,6 +213,9 @@ class galaxies(lb.galaxies):
         ye=(.08e-9)*xe
         plot(log10(xe),(ye),'k-',lw=1,label='$Elbaz+2011$')
         plot(log10(xe),(2*ye),'k:',lw=1,label='$2 \ SFR_{MS}$')
+        # using our own MS fit for field galaxies
+        # use stellar mass between 9.5 and 10.5
+
 
 
     def plotSFRStellarmassSize(self,clustername=None,BTcutflag = False):
@@ -227,8 +236,12 @@ class galaxies(lb.galaxies):
             for i in range(len(point_flags)):
                 point_flags[i] = point_flags[i] & (self.s.B_T_r < 0.3)
         bothax=[]
-        y=(self.SFR_BEST)*1.58 # convert from salpeter to chabrier IMF according to Salim+07
-        y=10.**(self.logSFR_NUV_BEST)*1.58 # convert from salpeter to chabrier IMF according to Salim+07
+        
+        #y=(self.SFR_BEST)*1.58 # convert from salpeter to chabrier IMF according to Salim+07
+        #y=10.**(self.logSFR_NUV_BEST)*1.58 # convert from salpeter to chabrier IMF according to Salim+07
+        #y=(self.SFR_BEST)*1.58 # convert from salpeter to chabrier IMF according to Salim+07
+        self.fitms()
+        y=(self.logSFR_NUV_BEST)
         for i in range(len(x_flags)):
             plt.subplot(2,2,i+1)
             if (i == 0) | (i == 2):
@@ -238,13 +251,13 @@ class galaxies(lb.galaxies):
                 flag = point_flags[i] & self.massflag
                 xbin,ybin,ybinerr=binxycolor(self.logstellarmass[flag],y[flag],self.sizeratio[flag],6, use_median=True)
                 plt.scatter(xbin,ybin,c=ybinerr,s=300,vmin=.3,vmax=1,marker='s',edgecolor='k')
-            plt.axis([8,11.75,4.e-2,18])
-            self.plotelbaz()
-            gca().set_yscale('log')
+            plt.axis([8,11.75,-1.5,1.5])
+            plt.plot(self.msx,self.msy,'k-')
+            #gca().set_yscale('log')
             a=plt.gca()
             bothax.append(a)
             axvline(x=minmass,c='k',ls='--')
-            axhline(y=.086,c='k',ls='--')
+            axhline(y=np.log10(.086/1.58),c='k',ls='--')
             #if i > 2:
             #    xlabel('$log_{10}(M_* (M_\odot)) $',fontsize=22)
             if i == 0:
@@ -265,5 +278,111 @@ class galaxies(lb.galaxies):
 
         savefig(homedir+'research/LocalClusters/SamplePlots/SFRStellarmassSize.png')
         savefig(homedir+'research/LocalClusters/SamplePlots/SFRStellarmassSize.eps')
-g = galaxies('/Users/rfinn/github/LCS/')
+
+    def plotmsperpdist(self,allgals = False,normed=True, plotsingle=True):
+        if plotsingle:
+            plt.figure(figsize=(8,6))
+        #plt.subplot(1,2,1)
+        if allgals:
+            sampleflag = self.sfsampleflag
+        else:
+            sampleflag = self.sampleflag
+        myvar = self.msperdist
+        mybins = np.linspace(min(myvar[sampleflag]),max(myvar[sampleflag]),20)
+        plt.hist(myvar[self.membflag & sampleflag],bins=mybins,histtype='step',color='red',hatch='//',label='core',lw=2,normed=normed)
+        #plt.subplot(1,2,2)
+        plt.hist(myvar[~self.membflag & sampleflag],bins = mybins,histtype='step',color='blue',hatch='\\',label='external',lw=2,normed=normed)
+        ks(myvar[self.membflag & sampleflag],myvar[~self.membflag & sampleflag])
+        plt.legend()
+        plt.xlabel('Perpendicular Distance from Main Sequence')
+        if normed:
+            plt.ylabel('Normalized Frequency')
+        else:
+            plt.ylabel('Frequency')
+        plt.axvline(x=0,color='k')
+
+        # calculate mean, skew, kurtosis
+        myvarsub = myvar[self.membflag & sampleflag]
+        print('Core : mean={:.3f}, MAD={:.3f}, skew={:.3f}, kurtosis={:.3f}'.format(np.mean(myvarsub),MAD(myvarsub), st.skew(myvarsub),st.kurtosis(myvarsub)))
+        myvarsub = myvar[~self.membflag & sampleflag]
+        print('External : mean={:.3f}, MAD={:.3f}, skew={:.3f}, kurtosis={:.3f}'.format(np.mean(myvarsub),MAD(myvarsub),st.skew(myvarsub),st.kurtosis(myvarsub)))
+
+    def plotssfrmass(self,plotsingle=True):
+        if plotsingle:
+            plt.figure(figsize=(8,6))
+        self.ssfr = self.logSFR_NUV_BEST - self.logstellarmass
+        sample = self.sfsampleflag & (self.logstellarmass > 9.5) & ~self.membflag
+
+        plt.plot(self.logstellarmass[sample], self.ssfr[sample],'bo',alpha=.5)
         
+        self.ssfrmstarline = np.polyfit(self.logstellarmass[sample], self.ssfr[sample],1)
+        xl = np.linspace(8,11,10)
+        yl = np.polyval(self.ssfrmstarline,xl)
+        plt.plot(xl,yl,'k-')
+        
+
+    def calcstats(self,allgals=True,nboot=100, percentile = 68.):
+        if allgals:
+            sampleflag = self.sfsampleflag
+        else:
+            sampleflag = self.sampleflag
+
+        # calc mean, errormean, median_absolute_deviation, skew, kurtosis
+
+        # SFR relative to main sequence
+        # perpendicular distance from SF main sequence
+        # offset in sSFR relative to best-fit sSFR, as a function of mass
+
+        # errors - bootstrap resampling, calculate mean and 68% confidence interval
+        #plt.figure(12,4)
+        #plt.subplot(1,3,1)
+        # hist of
+        
+        # keep seed of random generator constant, so numbers are the same each time
+        with NumpyRNGContext(1):
+            test_variables = [self.msdist, self.msperpdist, self.sSFRdist]
+            names = ['MS DISTANCE', 'MS PERPENDICULAR DISTANCE', 'SSFR DISTANCE']
+            for i in range(len(test_variables)):
+
+                # core sample
+                myvara = test_variables[i][self.membflag & sampleflag]
+                test = bootstrap(myvara, bootnum=nboot, bootfunc = test_statistics)
+                results = np.zeros((6,test.shape[1]),'f')
+                results[1] = np.mean(test, axis=0)
+                results[0] = scoreatpercentile(test, (50.-percentile/2.), axis=0)
+                results[2] = scoreatpercentile(test, (50.+percentile/2.), axis=0)
+    
+                # external sample
+                myvarb = test_variables[i][~self.membflag & sampleflag]
+                test = bootstrap(myvarb, bootnum=nboot, bootfunc = test_statistics)
+                results[4] = np.mean(test, axis=0)
+                results[3] = scoreatpercentile(test, (50.-percentile/2.), axis=0)
+                results[5] = scoreatpercentile(test, (50.+percentile/2.), axis=0)
+
+                # print K-S test
+                print('##################################')
+                print(names[i]+' STATS')
+                print('##################################\n')
+                ks(myvara,myvarb)
+                print('##################################\n')
+                #print('the array below prints statistics for ')
+                #print(results)
+                # columns are (np.mean(x), np.var(x), MAD(x), st.skew(x), st.kurtosis(x))
+                # save results
+                if i == 0:
+                    self.msdist_stats = results
+                elif i == 1:
+                    self.msperpdist_stats = results
+                elif i == 2:
+                    self.sSFRdist_stats = results
+                #cols = ['mean','var','MAD','skew','kurt']                    
+                for j in range(results.shape[1]):
+                    print(stat_cols[j]+' (conf interval = {:.1f} %)'.format(percentile))
+                    print('CORE: {:.3f} - {:.3f} - {:3f}'.format(results[0,j],results[1,j],results[2,j]))
+                    print('EXT : {:.3f} - {:.3f} - {:3f}'.format(results[3,j],results[4,j],results[5,j]))
+                    print('')
+                print("")
+                print("")
+
+g = galaxies('/Users/rfinn/github/LCS/')
+
