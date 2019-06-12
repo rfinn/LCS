@@ -361,7 +361,7 @@ class galaxies(lb.galaxies):
 
                 # print K-S test
                 print('##################################')
-                print(names[i])
+                print(names[i]+' STATS')
                 print('##################################\n')
                 ks(myvara,myvarb)
                 # save results
@@ -372,10 +372,6 @@ class galaxies(lb.galaxies):
                 elif i == 2:
                     self.sSFRdist_stats = results
 
-                print('##################################')
-                print(names[i]+' STATS')
-                print('##################################\n')
-                print
                     
 g = galaxies('/Users/rfinn/github/LCS/')
 
