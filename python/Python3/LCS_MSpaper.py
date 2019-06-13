@@ -1272,7 +1272,7 @@ class galaxies(lb.galaxies):
         if savefig:
             plt.savefig(figuredir + 'size_musfr_masscolor.pdf')
 
-    def sfr_offset(self,savefig=False,btcutflag=True,logmassmin=9.7, logmassmax=12.0):
+    def sfr_offset(self,savefig=False,btcutflag=True,logmassmin=9.7, logmassmax=12.0,morphsamp=False):
         #compares the distribution w.r.t. the main sequence for both
         #the core and external galaxies
         
@@ -1284,7 +1284,7 @@ class galaxies(lb.galaxies):
         figure(figsize=(10,4))
         subplots_adjust(left=.12,bottom=.15,wspace=.02,hspace=.02)
         bothax=[]
-        limits=[-1,1.3,0, 22]
+        limits=[-1.9,1.3,0, 22]
 
         #determine offsets w.r.t. main sequence
         #determine MS fit and output fit results
@@ -1297,14 +1297,18 @@ class galaxies(lb.galaxies):
         plt.subplot(2,1,1)
         ax=plt.gca()
 
+        #choose samples based on morphological cuts or not.
+        if morphsamp:
         #select members with B/T<btcut
-        if btcutflag:
-            cflag = (self.membflag & self.sampleflag) & (self.gim2d.B_T_r < btcut) & (self.logstellarmass > logmassmin) & (self.logstellarmass < logmassmax)
+            if btcutflag:
+                cflag = (self.membflag & self.sampleflag) & (self.gim2d.B_T_r < btcut) & (self.logstellarmass > logmassmin) & (self.logstellarmass < logmassmax)
+            else:
+                    cflag = (self.membflag & self.sampleflag) & (self.logstellarmass > logmassmin) & (self.logstellarmass < logmassmax)
         else:
-            cflag = (self.membflag & self.sampleflag) & (self.logstellarmass > logmassmin) & (self.logstellarmass < logmassmax)
-
-        lsfrdiffmin = -1.0
-        lsfrdiffmax = 1.2
+            cflag = (self.membflag & self.sfsampleflag) & (self.logstellarmass > logmassmin) & (self.logstellarmass < logmassmax)
+        
+        lsfrdiffmin = limits[0]
+        lsfrdiffmax = limits[1]
         mybins=np.arange(lsfrdiffmin, lsfrdiffmax, 0.1)
         plt.hist(lsfrdiff[cflag],bins=mybins,histtype='stepfilled',color='r',label='$Core$',lw=1.5,alpha=1,edgecolor='k')#,normed=True)
 
@@ -1356,7 +1360,7 @@ class galaxies(lb.galaxies):
         plt.ylabel('$N_{gal}$',fontsize=18)
         plt.legend(loc='upper right')
 
-        if btcutflag:
+        if morphsamp and btcutflag:
             s = '$B/T \ <  \  %.2f$'%(btcut)
             #text(0.5,1.05,s,transform=ax.transAxes,horizontalalignment='left',fontsize=20)
             plt.title(s,fontsize=20)
@@ -1370,11 +1374,16 @@ class galaxies(lb.galaxies):
         plt.subplot(2,1,2)
         ax=plt.gca()
 
-        #select external galaxies with B/T<btcut
-        if btcutflag:
-            eflag = (~self.membflag & self.sampleflag) & (self.gim2d.B_T_r < btcut) & (self.logstellarmass > logmassmin) & (self.logstellarmass < logmassmax)
+        #choose samples based on morphological cuts or not.
+        if morphsamp:
+            #select external galaxies with B/T<btcut
+            if btcutflag:
+                eflag = (~self.membflag & self.sampleflag) & (self.gim2d.B_T_r < btcut) & (self.logstellarmass > logmassmin) & (self.logstellarmass < logmassmax)
+            else:
+                eflag = (~self.membflag & self.sampleflag) & (self.logstellarmass > logmassmin) & (self.logstellarmass < logmassmax)
+
         else:
-            eflag = (~self.membflag & self.sampleflag) & (self.logstellarmass > logmassmin) & (self.logstellarmass < logmassmax)
+            eflag = (~self.membflag & self.sfsampleflag) & (self.logstellarmass > logmassmin) & (self.logstellarmass < logmassmax)
 
         hist(lsfrdiff[eflag],bins=mybins,histtype='stepfilled',color='b',label='$External$',lw=1.5,alpha=1,edgecolor='k')#,normed=True)
 
@@ -1443,6 +1452,267 @@ class galaxies(lb.galaxies):
         
         if savefig:
             plt.savefig(figuredir + 'sfrdiff.pdf')
+        else:
+            plt.show()
+
+    def sfr_offset_matchsamp(self,savefig=False,btcutflag=True,logmassmin=9.7, logmassmax=12.0):
+        #compares the distribution w.r.t. the main sequence for core`
+        #galaxies that have different size offsets w.r.t. field
+        
+        matchflag, matchind = self.matchsamp_masssize(btcutflag=btcutflag)
+                
+        btcut = 0.3
+
+        #set up the figure and the subplots
+        figure(figsize=(10,8))
+        subplots_adjust(left=.12,bottom=.15,wspace=.02,hspace=.02)
+        bothax=[]
+        limits=[-1.9,1.3,0, 22]
+
+        #determine offsets w.r.t. main sequence
+        #determine MS fit and output fit results
+        xmod,ymod,param = g.MSfit()
+        
+        sfrpred = 10**(param[0] * self.logstellarmass + param[1])
+        lsfrdiff  = log10(self.SFR_USE) - log10(sfrpred)
+
+        ################################################
+        #first, just select members with SFRs, with no extra selection on morphology
+        plt.subplot(4,1,1)
+        ax=plt.gca()
+
+        cflag =  (self.membflag & self.sfsampleflag) & (self.logstellarmass > logmassmin) & (self.logstellarmass < logmassmax)
+
+        
+        # #matchflag = cflag & (self.logstellarmass > logmassmin) & (self.logstellarmass < logmassmax)
+        # #choose samples based on morphological cuts or not.
+        # if morphsamp:
+        # #select members with B/T<btcut
+        #     if btcutflag:
+        #         cflag = (self.membflag & self.sampleflag) & (self.gim2d.B_T_r < btcut) & (self.logstellarmass > logmassmin) & (self.logstellarmass < logmassmax)
+        #     else:
+        #             cflag = (self.membflag & self.sampleflag) & (self.logstellarmass > logmassmin) & (self.logstellarmass < logmassmax)
+        # else:
+        #     cflag = (self.membflag & self.sfsampleflag) & (self.logstellarmass > logmassmin) & (self.logstellarmass < logmassmax)
+
+        lsfrdiff_sfsamp = lsfrdiff[cflag]
+        lsfrdiffmin = limits[0]
+        lsfrdiffmax = limits[1]
+        mybins=np.arange(lsfrdiffmin, lsfrdiffmax, 0.1)
+        plt.hist(lsfrdiff_sfsamp,bins=mybins,histtype='stepfilled',color='r',label='$All$',lw=1.5,alpha=1,edgecolor='k')#,normed=True)
+
+        #median SFR diff
+        medlsfrdiff = np.median(lsfrdiff_sfsamp)
+        plt.axvline(x=medlsfrdiff,c='k',ls='-',lw=3)
+
+        #68% confidence intervals on SFRdiff
+        lsfrdiffsort = sort(lsfrdiff_sfsamp)
+        confint1 = 0.68                           #confidence interval
+        lowind1 = int(round((1 - confint1) / 2 * len(lsfrdiffsort),2))
+        highind1 = int(round((1-((1 - confint1) / 2)) * len(lsfrdiffsort),2))
+        
+        plt.axvline(x=lsfrdiffsort[lowind1],c='k',ls='--',lw=3)
+        plt.axvline(x=lsfrdiffsort[highind1],c='k',ls='--',lw=3)
+                
+        confint2 = 0.90                           #confidence interval
+        lowind2 = int(round((1 - confint2) / 2 * len(lsfrdiffsort),2))
+        highind2 = int(round((1-((1 - confint2) / 2)) * len(lsfrdiffsort),2))
+        
+        plt.axvline(x=lsfrdiffsort[lowind2],c='k',ls=':',lw=3)
+        plt.axvline(x=lsfrdiffsort[highind2],c='k',ls=':',lw=3)
+        plt.legend(loc='upper right')
+
+        plt.ylabel('$N_{gal}$',fontsize=18)
+
+        if btcutflag:
+            s = '$B/T \ <  \  %.2f$'%(btcut)
+            #text(0.5,1.05,s,transform=ax.transAxes,horizontalalignment='left',fontsize=20)
+            plt.title(s,fontsize=20)
+            
+        ###############################
+        #select morphological subset of galaxies
+
+        plt.subplot(4,1,2)
+        ax=plt.gca()
+
+        cflag =  matchflag & (self.logstellarmass > logmassmin) & (self.logstellarmass < logmassmax)
+
+        lsfrdiff_morphsamp = lsfrdiff[cflag]
+        lsfrdiffmin = limits[0]
+        lsfrdiffmax = limits[1]
+        mybins=np.arange(lsfrdiffmin, lsfrdiffmax, 0.1)
+        plt.hist(lsfrdiff_morphsamp,bins=mybins,histtype='stepfilled',color='r',label='$Morph$',lw=1.5,alpha=1,edgecolor='k')#,normed=True)
+
+        #median SFR diff
+        medlsfrdiff = np.median(lsfrdiff_morphsamp)
+        plt.axvline(x=medlsfrdiff,c='k',ls='-',lw=3)
+
+        #68% confidence intervals on SFRdiff
+        lsfrdiffsort = sort(lsfrdiff_morphsamp)
+        confint1 = 0.68                           #confidence interval
+        lowind1 = int(round((1 - confint1) / 2 * len(lsfrdiffsort),2))
+        highind1 = int(round((1-((1 - confint1) / 2)) * len(lsfrdiffsort),2))
+        
+        plt.axvline(x=lsfrdiffsort[lowind1],c='k',ls='--',lw=3)
+        plt.axvline(x=lsfrdiffsort[highind1],c='k',ls='--',lw=3)
+                
+        confint2 = 0.90                           #confidence interval
+        lowind2 = int(round((1 - confint2) / 2 * len(lsfrdiffsort),2))
+        highind2 = int(round((1-((1 - confint2) / 2)) * len(lsfrdiffsort),2))
+        
+        plt.axvline(x=lsfrdiffsort[lowind2],c='k',ls=':',lw=3)
+        plt.axvline(x=lsfrdiffsort[highind2],c='k',ls=':',lw=3)
+        plt.legend(loc='upper right')
+
+
+        plt.ylabel('$N_{gal}$',fontsize=18)
+
+        ###############################
+        #select morphological subset of galaxies that have same 24um
+        #size as matched field
+
+        lsizediffthresh = -0.2
+        
+        plt.subplot(4,1,3)
+        ax=plt.gca()
+
+        #I need to redo these because my matched sample only includes
+        #cluster members with good profile fits.
+        sfrpred = 10**(param[0] * self.diffsamplmstar + param[1])
+        lsfrdiff = log10(self.diffsampSFR) - log10(sfrpred)
+
+
+        cflag = (self.diffsamplmstar > logmassmin) & (self.diffsamplmstar < logmassmax) & (self.difflmipssize > lsizediffthresh)
+
+        lsfrdiff_normsize = lsfrdiff[cflag]
+        lsfrdiffmin = limits[0]
+        lsfrdiffmax = limits[1]
+        labstr = '$\Delta log R_{24}> \ %0.2f$'%(lsizediffthresh)
+        mybins=np.arange(lsfrdiffmin, lsfrdiffmax, 0.1)
+        plt.hist(lsfrdiff_normsize,bins=mybins,histtype='stepfilled',color='r',label=labstr,lw=1.5,alpha=1,edgecolor='k')#,normed=True)
+
+        #median SFR diff
+        medlsfrdiff = np.median(lsfrdiff_normsize)
+        plt.axvline(x=medlsfrdiff,c='k',ls='-',lw=3)
+
+        #68% confidence intervals on SFRdiff
+        lsfrdiffsort = sort(lsfrdiff_normsize)
+        confint1 = 0.68                           #confidence interval
+        lowind1 = int(round((1 - confint1) / 2 * len(lsfrdiffsort),2))
+        highind1 = int(round((1-((1 - confint1) / 2)) * len(lsfrdiffsort),2))
+        
+        plt.axvline(x=lsfrdiffsort[lowind1],c='k',ls='--',lw=3)
+        plt.axvline(x=lsfrdiffsort[highind1],c='k',ls='--',lw=3)
+                
+        confint2 = 0.90                           #confidence interval
+        lowind2 = int(round((1 - confint2) / 2 * len(lsfrdiffsort),2))
+        highind2 = int(round((1-((1 - confint2) / 2)) * len(lsfrdiffsort),2))
+        
+        plt.axvline(x=lsfrdiffsort[lowind2],c='k',ls=':',lw=3)
+        plt.axvline(x=lsfrdiffsort[highind2],c='k',ls=':',lw=3)
+        plt.legend(loc='upper right')
+
+        plt.ylabel('$N_{gal}$',fontsize=18)
+
+        ###############################
+        #select morphological subset of galaxies that have  24um
+        #size significantly less than the matched field
+
+        plt.subplot(4,1,4)
+        ax=plt.gca()
+
+        cflag = (self.diffsamplmstar > logmassmin) & (self.diffsamplmstar < logmassmax) & (self.difflmipssize <= lsizediffthresh)
+        
+        lsfrdiff_smallsize = lsfrdiff[cflag]
+        lsfrdiffmin = limits[0]
+        lsfrdiffmax = limits[1]
+        labstr = '$\Delta log R_{24}\leq \ %0.2f$'%(lsizediffthresh)
+        mybins=np.arange(lsfrdiffmin, lsfrdiffmax, 0.1)
+        plt.hist(lsfrdiff_smallsize,bins=mybins,histtype='stepfilled',color='r',label=labstr,lw=1.5,alpha=1,edgecolor='k')#,normed=True)
+
+        #median SFR diff
+        medlsfrdiff = np.median(lsfrdiff_smallsize)
+        plt.axvline(x=medlsfrdiff,c='k',ls='-',lw=3)
+
+        #68% confidence intervals on SFRdiff
+        lsfrdiffsort = sort(lsfrdiff_smallsize)
+        confint1 = 0.68                           #confidence interval
+        lowind1 = int(round((1 - confint1) / 2 * len(lsfrdiffsort),2))
+        highind1 = int(round((1-((1 - confint1) / 2)) * len(lsfrdiffsort),2))
+        
+        plt.axvline(x=lsfrdiffsort[lowind1],c='k',ls='--',lw=3)
+        plt.axvline(x=lsfrdiffsort[highind1],c='k',ls='--',lw=3)
+                
+        confint2 = 0.90                           #confidence interval
+        lowind2 = int(round((1 - confint2) / 2 * len(lsfrdiffsort),2))
+        highind2 = int(round((1-((1 - confint2) / 2)) * len(lsfrdiffsort),2))
+        
+        plt.axvline(x=lsfrdiffsort[lowind2],c='k',ls=':',lw=3)
+        plt.axvline(x=lsfrdiffsort[highind2],c='k',ls=':',lw=3)
+
+
+        # #bootstrap the sample to determine the robustness of the lower
+        # #SFR tail to sampling issues
+        # niter = 1000
+        # with NumpyRNGContext(1):    #assures reproducibility of monte carlo
+        #     btlsfrdiff = bootstrap(lsfrdiff[cflag],bootnum=niter)
+
+        # btconflimlowc1 = np.zeros(niter)        #bootstrap 68% lower limits
+        # btconflimlowc2 = np.zeros(niter)        #bootstrap 90% lower limits
+        # for iter in range(niter):
+        #     btlsfrdiffsort = sort(btlsfrdiff[iter,:])
+        #     confint1 = 0.68                           #confidence interval
+        #     lowind1 = int(round((1 - confint1) / 2 * len(lsfrdiffsort),2))
+        #     btconflimlowc1[iter] = btlsfrdiffsort[lowind1]
+
+        #     confint2 = 0.90                           #confidence interva
+        #     lowind2 = int(round((1 - confint2) / 2 * len(lsfrdiffsort),2))
+        #     btconflimlowc2[iter] = btlsfrdiffsort[lowind2]
+
+        # print("Core")
+        # print("median lower 68% SFRdiff confidence interval",np.median(btconflimlowc1))
+        # print("median lower 90% SFRdiff confidence interval",np.median(btconflimlowc2))
+                
+        plt.axis(limits)
+        bothax.append(ax)
+        #ax.set_xticklabels(([]))
+        plt.ylabel('$N_{gal}$',fontsize=18)
+        plt.legend(loc='upper right')
+
+
+        if logmassmin>9.7:
+            s = '$%.2f < log(M_\star/M_\odot) < %.2f$'%(logmassmin, logmassmax)
+            text(0.4,0.8,s,transform=ax.transAxes,horizontalalignment='left',fontsize=20)
+        
+        #K-S test morph sample and SF sample
+        print("##############")
+        print("SF compared to morphological sample")
+        a,b=ks(lsfrdiff_sfsamp, lsfrdiff_morphsamp)
+
+        print("##############")
+        print("morphological sample compared to normal sizes")
+        a,b=ks(lsfrdiff_morphsamp, lsfrdiff_normsize)
+
+        print("##############")
+        print("morphological sample compared to small sizes")
+        a,b=ks(lsfrdiff_morphsamp, lsfrdiff_smallsize)
+
+        print("##############")
+        print("normal sizes  compared to small sizes")
+        a,b=ks(lsfrdiff_normsize, lsfrdiff_smallsize)
+
+        
+        plt.axis(limits)
+        bothax.append(ax)
+        #ax.set_xticklabels(([]))
+        plt.text(-.2,1,'$N_{gal}$',transform=gca().transAxes,verticalalignment='center',rotation=90,fontsize=24)
+        plt.legend(loc='upper right')
+
+        plt.ylabel('$N_{gal}$',fontsize=18)
+        plt.xlabel('log(SFR) - log(SFR$_{MS}$)',fontsize=18)
+        
+        if savefig:
+            plt.savefig(figuredir + 'sfrdiff_matchsamp.pdf')
         else:
             plt.show()
 
@@ -1613,6 +1883,8 @@ class galaxies(lb.galaxies):
 
         #initialize the differences of each mass-matched sample with
         #respect to the core galaxy
+        self.diffsamplmstar = self.logstellarmass[cind[0]]     #masses of cluster sample
+        self.diffsampSFR = self.SFR_USE[cind[0]]     #SFRs of cluster sample
         self.difflsersicn = np.zeros(len(cind[0]))     #MIPS sersic index
         self.diffoptsize = np.zeros(len(cind[0]))     #r-band size
         self.difflmipssize = np.zeros(len(cind[0]))     #MIPS size
@@ -1667,7 +1939,7 @@ class galaxies(lb.galaxies):
             jcore += 1
 
         #print(self.difflmipssize)
-        return cflag
+        return cflag,cind
         
     def plot_n24diff_mipssizediff(self, savefig=False, btcutflag=True):
         '''Create matched samples in mass and optical size and then plot how
@@ -1677,7 +1949,7 @@ sersic indices, 24um sizes, SFRs, and SFR surface densities compare among these 
 
         btcut = 0.3
 
-        self.matchsamp_masssize(btcutflag=btcutflag)
+        cflag,cind = self.matchsamp_masssize(btcutflag=btcutflag)
 
         figure(figsize=(15,12))
         #subplots_adjust(left=.12,bottom=.15,wspace=.02,hspace=.02)
@@ -1773,7 +2045,7 @@ its field comparison sample that is matched in stellar mass and size.
         '''
         
         
-        cflag = self.matchsamp_masssize(btcutflag=btcutflag)
+        cflag,cind = self.matchsamp_masssize(btcutflag=btcutflag)
 
         minsizediff=-0.5
         maxsizediff=0.5
@@ -2327,7 +2599,8 @@ its field comparison sample that is matched in stellar mass and size.
         #aren't AGN.  Also limit ourselves to things were we are
         #reasonably mass complete and to galaxies with SFR>SFR_Ms(Mstar)/X
         SFR_MSthresh = 0.1
-        fitflag = self.lirflag & ~self.agnflag & (self.logstellarmass > 9.5) & (self.SFR_USE >=  (.08e-9 * SFR_MSthresh)*10**self.logstellarmass)
+        #fitflag = self.lirflag & ~self.agnflag & (self.logstellarmass > 9.5) & (self.SFR_USE >=  (.08e-9 * SFR_MSthresh)*10**self.logstellarmass)
+        fitflag = self.sampleflag & (self.logstellarmass > 9.5) & (self.logstellarmass < 10.7) & ~self.membflag
 
         #popt, pcov = curve_fit(self.linefunc, self.logstellarmass[fitflag], log10(self.SFR_USE[fitflag]), p0=(1.0,-10.5), bounds=([0.,-12.],[3., -5.])
         p = np.polyfit(self.logstellarmass[fitflag], log10(self.SFR_USE[fitflag]), 1.)
