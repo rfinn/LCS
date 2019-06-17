@@ -1716,6 +1716,73 @@ class galaxies(lb.galaxies):
         else:
             plt.show()
 
+    def r24_re_msdist(self,savefig=False,btcutflag=True):
+
+        '''plot r24/re vs. distance from the main sequence
+        '''
+        
+        #matchflag, matchind = self.matchsamp_mass(btcutflag=btcutflag)
+                
+        logmassmin = 9.7
+        logmassmax = 10.9
+        btcut = 0.3
+
+        #set up the figure and the subplots
+        figure(figsize=(14,8))
+        subplots_adjust(left=.12,bottom=.15,wspace=.02,hspace=.02)
+        bothax=[]
+        limits=[-1.3,1.0,0.0, 1.6]
+
+        #determine offsets w.r.t. main sequence
+        #determine MS fit and output fit results
+        xmod,ymod,param = g.MSfit()
+        
+        sfrpred = 10**(param[0] * self.logstellarmass + param[1])
+        lsfrdiff  = log10(self.SFR_USE) - log10(sfrpred)
+
+        if btcutflag:
+             cflag =  (self.membflag & self.sampleflag) & (self.logstellarmass > logmassmin) & (self.logstellarmass < logmassmax) & (self.gim2d.B_T_r < btcut)
+             eflag =  (~self.membflag & self.sampleflag) & (self.logstellarmass > logmassmin) & (self.logstellarmass < logmassmax) & (self.gim2d.B_T_r < btcut)
+        else:
+             cflag =  (self.membflag & self.sampleflag) & (self.logstellarmass > logmassmin) & (self.logstellarmass < logmassmax)
+             eflag =  (~self.membflag & self.sampleflag) & (self.logstellarmass > logmassmin) & (self.logstellarmass < logmassmax)
+
+        ################################################
+        ##core galaxies
+        plt.subplot(1,2,1)
+        ax=plt.gca()
+
+        plt.plot(lsfrdiff[cflag],self.sizeratio[cflag],'ko')
+
+        plt.text(-1,1.45,'Core',fontsize=24,color='r')
+        plt.ylabel('$R_{24}/R_d $')
+        plt.xlabel('log(SFR) - log(SFR$_{MS}$)',fontsize=18)
+        plt.axis(limits)
+
+        #######################
+        #external galaxies
+        plt.subplot(1,2,2)
+        ax=plt.gca()
+
+        plt.plot(lsfrdiff[eflag],self.sizeratio[eflag],'ko')
+
+        plt.text(-1,1.45,'External',fontsize=24,color='r')
+        plt.xlabel('log(SFR) - log(SFR$_{MS}$)',fontsize=18)
+        ax.set_yticklabels(([]))
+        
+        plt.axis(limits)
+        bothax.append(ax)
+        
+        if btcutflag:
+            s = '$B/T \ <  \  %.2f$'%(btcut)
+            text(-0.15,1.1,s,transform=ax.transAxes,horizontalalignment='left',fontsize=20)
+
+        if savefig:
+            plt.savefig(figuredir + 'r24_re_msdist.pdf')
+        else:
+            plt.show()
+        
+            
     def matchsamp_mass(self,savefig=False,btcutflag=True):
         '''This create massmatched samples from the external population
         for every galaxy in the core population.  It will compute how
@@ -1847,6 +1914,9 @@ class galaxies(lb.galaxies):
             plt.savefig(figuredir + 'matchsamp_mass.pdf')
         else:
             plt.show()
+
+
+        return cflag
 
     def matchsamp_masssize(self,btcutflag=True):
         '''This create mass and size-matched samples from the external population
