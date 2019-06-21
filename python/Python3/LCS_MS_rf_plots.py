@@ -323,9 +323,9 @@ class galaxies(lb.galaxies):
 
     def calcstats(self,allgals=True,nboot=100, percentile = 68.):
         if allgals:
-            sampleflag = self.sfsampleflag
+            sampleflag = self.sfsampleflag & (self.logstellarmass > 9.7)
         else:
-            sampleflag = self.sampleflag
+            sampleflag = self.sampleflag & (self.logstellarmass > 9.7)
 
         # calc mean, errormean, median_absolute_deviation, skew, kurtosis
 
@@ -377,12 +377,20 @@ class galaxies(lb.galaxies):
                     self.sSFRdist_stats = results
                 #cols = ['mean','var','MAD','skew','kurt']                    
                 for j in range(results.shape[1]):
-                    print(stat_cols[j]+' (conf interval = {:.1f} %)'.format(percentile))
+                    print(stat_cols[j]+' (conf interval = {:.1f} %'.format(percentile))
                     print('CORE: {:.3f} - {:.3f} - {:3f}'.format(results[0,j],results[1,j],results[2,j]))
                     print('EXT : {:.3f} - {:.3f} - {:3f}'.format(results[3,j],results[4,j],results[5,j]))
                     print('')
                 print("")
                 print("")
+    def plotsizevsmsdist(self):
+        plt.figure()
+        flag = self.sampleflag & self.membflag
+        plt.plot(self.msdist[flag],self.sizeratio[flag],'ro',label='Core')
+        flag = self.sampleflag & ~self.membflag
+        plt.plot(self.msdist[flag],self.sizeratio[flag],'bo',label='External')
+        plt.xlabel('Main Sequence Distance')
+        plt.ylabel('Re(24)/Re(r)')
 
 g = galaxies('/Users/rfinn/github/LCS/')
 

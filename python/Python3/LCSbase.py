@@ -47,7 +47,7 @@ if not(os.path.exists(lcspath)):
     sys.exit()
 
 Mpcrad_kpcarcsec = 2. * np.pi/360./3600.*1000.
-minmass=9.
+minmass=9.7
 
 mipspixelscale=2.45
 
@@ -160,6 +160,7 @@ class galaxies:
         self.sfsampleflag = self.sizeflag & self.lirflag & ~self.agnflag # & ~self.badfits
         self.irsampleflag = self.lirflag & self.sizeflag & ~self.agnflag
         self.HIflag = self.s.HIMASS > 0.
+
     def calculate_sizeratio(self):
         self.SIZE_RATIO_DISK = np.zeros(len(self.gim2dflag))
         print((len(self.s.fcre1),len(self.gim2dflag)))
