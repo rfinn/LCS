@@ -78,6 +78,8 @@ class galaxies:
         self.NUV24 = self.s.ABSMAG[:,1] - self.ABSMAG24
         if __name__ != '__main__':
             self.setup()
+        self.logstellarmass = self.s.MSTAR_50
+        self.clusterflag = (self.s.CLUSTER == b'Coma')| (self.s.CLUSTER == b'A2063')# | (self.s.CLUSTER == b'Hercules') | (self.s.CLUSTER == b'A1367')  # | (self.s.CLUSTER == b'A2052')
     def get_agn(self):
         self.AGNKAUFF=self.s['AGNKAUFF'] & (self.s.HAEW > 0.)
         self.AGNKEWLEY=self.s['AGNKEWLEY']& (self.s.HAEW > 0.)
@@ -254,8 +256,17 @@ class galaxies:
         self.nuLnu_NUV_cor = self.nuLnu_NUV.cgs + 2.26*self.nuLnu24_ZDIST.cgs
 
         self.logSFR_NUV = np.log10(self.nuLnu_NUV_cor.cgs.value) - 43.17
-
-
+        # need relation for calculating SFR from UV only
+        #
+        # eqn 12
+        # log SFR(Msun/yr) = log Lx - log Cx
+        # NUV - log Cx = 43.17
+        # 24um - logCx = 42.69
+        # Halpha - log Cx = 41.27
+        
+        self.logSFR_NUV_KE = np.log10(self.nuLnu_NUV.cgs.value) - 43.17
+        self.logSFR_IR_KE = np.log10(self.nuLnu24_ZDIST.cgs.value)-42.69
+        self.logSFR_NUVIR_KE = np.log10(self.nuLnu_NUV_cor.cgs.value) - 43.17
         # repeating calculation using ZCLUSTER
 
 
@@ -328,6 +339,8 @@ if __name__ == '__main__':
     g.get_galfit_flag()
     g.get_memb()
     g.make_SFR()
+    g.get_UVIR_SFR()
+    #g.calcssfr()
     g.get_size_flag()
     g.calculate_sizeratio()
     g.select_sample()
