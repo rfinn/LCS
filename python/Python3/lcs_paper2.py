@@ -14,6 +14,10 @@ import scipy.stats as st
 from scipy.stats import ks_2samp
 import argparse# here is min mass = 9.75
 
+from urllib.parse import urlencode
+from urllib.request import urlretrieve
+
+
 from astropy.io import fits, ascii
 from astropy.cosmology import WMAP9 as cosmo
 from scipy.optimize import curve_fit
@@ -21,10 +25,12 @@ from astropy.stats import bootstrap
 from astropy.utils import NumpyRNGContext
 from astropy.table import Table
 from astropy.coordinates import SkyCoord
-
+from astropy.visualization import simple_norm
+from astropy.wcs import WCS
 from astropy import units as u
 from astropy.stats import median_absolute_deviation as MAD
 
+from PIL import Image
 
 ###########################
 ##### SET UP ARGPARSE
@@ -187,6 +193,58 @@ def plotelbaz():
     #plot(log10(xe),(2*ye),'k:',lw=2,label='$2 \ SFR_{MS}$')
     plt.plot(log10(xe),np.log10(ye/5.),'w--',lw=4)
     plt.plot(log10(xe),np.log10(ye/5.),'k--',lw=2,label='$SFR_{MS}/5$')
+
+def getlegacy(ra1,dec1,jpeg=True,imsize=None):
+    '''
+    imsize is size of desired cutout in arcmin
+    '''
+    default_image_size = 60
+    gra = '%.5f'%(ra1) # accuracy is of order .1"
+    gdec = '%.5f'%(dec1)
+    galnumber = gra+'-'+gdec
+    if imsize is not None:
+        image_size=imsize
+    else:
+        image_size=default_image_size
+    cwd = os.getcwd()
+    if not(os.path.exists(cwd+'/cutouts/')):
+        os.mkdir(cwd+'/cutouts')
+    rootname = 'cutouts/legacy-im-'+str(galnumber)+'-'+str(image_size)
+    jpeg_name = rootname+'.jpg'
+
+    fits_name = rootname+'.fits'
+
+    # check if images already exist
+    # if not download images
+    if not(os.path.exists(jpeg_name)):
+        print('downloading image ',jpeg_name)
+        url='http://legacysurvey.org/viewer/jpeg-cutout?ra='+str(ra1)+'&dec='+str(dec1)+'&layer=dr8&size='+str(image_size)+'&pixscale=1.00'
+        urlretrieve(url, jpeg_name)
+    if not(os.path.exists(fits_name)):
+        print('downloading image ',fits_name)
+        url='http://legacysurvey.org/viewer/cutout.fits?ra='+str(ra1)+'&dec='+str(dec1)+'&layer=dr8&size='+str(image_size)+'&pixscale=1.00'
+        urlretrieve(url, fits_name)
+            
+    try:
+        t,h = fits.getdata(fits_name,header=True)
+    except IndexError:
+        print('problem accessing image')
+        print(fits_name)
+        url='http://legacysurvey.org/viewer/cutout.fits?ra='+str(ra1)+'&dec='+str(dec1)+'&layer=dr8&size='+str(image_size)+'&pixscale=1.00'
+        print(url)
+        return None
+    
+    if np.mean(t[1]) == 0:
+        return None
+    norm = simple_norm(t[1],stretch='asinh',percent=99.5)
+    if jpeg:
+        t = Image.open(jpeg_name)
+        plt.imshow(t,origin='lower')
+    else:
+        plt.imshow(t[1],origin='upper',cmap='gray_r', norm=norm)
+    w = WCS(fits_name,naxis=2)        
+    
+    return t,w
 
 ###########################
 ##### Plot parameters
@@ -356,6 +414,7 @@ class lcsgsw(gswlc_base):
         self.cluster = self.cat['CLUSTER_SIGMA'] > sigma_split
         #lcspath = homedir+'/github/LCS/'
         #self.lcsbase = lb.galaxies(lcspath)
+        
     def get_mstar_limit(self,rlimit=17.7):
         
         print(rlimit,zmax)
@@ -438,10 +497,9 @@ class comp_lcs_gsw():
         self.gsw = gsw
         self.masscut = minmstar
         self.ssfrcut = minssfr
+        self.lowssfr_flag = (self.lcs.cat['logMstar']> self.masscut)  &\
+            (self.lcs.ssfr > self.ssfrcut) & (self.lcs.ssfr < -11.)
     
-    def plot_ssfr_mstar(self):
-
-        pass
 
     def plot_sfr_mstar(self,lcsflag=None,outfile1=None,outfile2=None):
         if lcsflag is None:
@@ -490,8 +548,39 @@ class comp_lcs_gsw():
         else:
             plt.savefig(outfile2)
 
+    def print_lowssfr_nsaids(self,lcsflag=None,ssfrmin=None,ssfrmax=-11):
+        if ssfrmin is not None:
+            ssfrmin=ssfrmin
+        else:
+            ssfrmin = -11.5
+        lowssfr_flag = (self.lcs.cat['logMstar']> self.masscut)  &\
+            (self.lcs.ssfr > ssfrmin) & (self.lcs.ssfr < ssfrmax)
 
-    
+        
+        if lcsflag is None:
+            lcsflag = self.lcs.cat['membflag']
+        flag = lcsflag & lowssfr_flag        
+        nsaids = self.lcs.cat['NSAID'][flag]
+        for n in nsaids:
+            print(n)
+            
+    def get_legacy_images(self,lcsflag=None,ssfrmin=None,ssfrmax=-11):
+        if ssfrmin is not None:
+            ssfrmin=ssfrmin
+        lowssfr_flag = (self.lcs.cat['logMstar']> self.masscut)  &\
+            (self.lcs.ssfr > ssfrmin) & (self.lcs.ssfr < ssfrmax)
+        if lcsflag is None:
+            lcsflag = self.lcs.cat['membflag']
+        
+        flag = lowssfr_flag & lcsflag
+        ids = np.arange(len(self.lowssfr_flag))[flag]
+        for i in ids:
+            # open figure
+            plt.figure()
+            # get legacy image
+            d, w = getlegacy(self.lcs.cat['RA_1'][i],self.lcs.cat['DEC_2'][i])
+            plt.title("NSID {0}, sSFR={1:.1f}".format(self.lcs.cat['NSAID'][i],self.lcs.ssfr[i]))
+                                  
 if __name__ == '__main__':
     trimgswlc = True
     if trimgswlc:
