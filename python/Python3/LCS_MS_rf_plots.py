@@ -22,7 +22,7 @@ import argparse# here is min mass = 9.75
 ##### SET UP ARGPARSE
 ###########################
 
-parser = argparse.ArgumentParser(description ='Run sextractor, scamp, and swarp to determine WCS solution and make mosaics')
+parser = argparse.ArgumentParser(description ='Program to run analysis for LCS paper 2')
 parser.add_argument('--minmass', dest = 'minmass', default = 9., help = 'minimum stellar mass for sample.  default is log10(M*) > 7.9')
 parser.add_argument('--diskonly', dest = 'diskonly', default = 1, help = 'True/False (enter 1 or 0). normalize by Simard+11 disk size rather than Re for single-component sersic fit.  Default is true.  ')
 
@@ -46,6 +46,10 @@ ssfrmax=-9
 spiralcut=0.8
 truncation_ratio=0.5
 
+
+zmin = 0.0137
+zmax = 0.0433
+
 exterior=.68
 colors=['k','b','c','g','m','y','r','sienna','0.5']
 shapes=['o','*','p','d','s','^','>','<','v']
@@ -54,7 +58,54 @@ shapes=['o','*','p','d','s','^','>','<','v']
 truncated=np.array([113107,140175,79360,79394,79551,79545,82185,166185,166687,162832,146659,99508,170903,18236,43796,43817,43821,70634,104038,104181],'i')
 
 ###########################
-##### Plot defaults
+##### Functions
+###########################
+
+def plotsalim07():
+    #plot the main sequence from Salim+07 for a Chabrier IMF
+
+    lmstar=np.arange(8.5,11.5,0.1)
+
+    #use their equation 11 for pure SF galaxies
+    lssfr = -0.35*(lmstar - 10) - 9.83
+
+    #use their equation 12 for color-selected galaxies including
+    #AGN/SF composites.  This is for log(Mstar)>9.4
+    #lssfr = -0.53*(lmstar - 10) - 9.87
+
+    lsfr = lmstar + lssfr -.3
+    sfr = 10.**lsfr
+
+    plt.plot(lmstar, lsfr, 'w-', lw=4)
+    plt.plot(lmstar, lsfr, c='salmon',ls='-', lw=2, label='$Salim+07$')
+    plt.plot(lmstar, lsfr-np.log10(5.), 'w--', lw=4)
+    plt.plot(lmstar, lsfr-np.log10(5.), c='salmon',ls='--', lw=2)
+        
+def plotelbaz():
+    #plot the main sequence from Elbaz+13
+        
+    xe=np.arange(8.5,11.5,.1)
+    xe=10.**xe
+
+    #I think that this comes from the intercept of the
+    #Main-sequence curve in Fig. 18 of Elbaz+11.  They make the
+    #assumption that galaxies at a fixed redshift have a constant
+    #sSFR=SFR/Mstar.  This is the value at z=0.  This is
+    #consistent with the value in their Eq. 13
+
+    #This is for a Salpeter IMF
+    ye=(.08e-9)*xe   
+        
+        
+    plt.plot(log10(xe),np.log19(ye),'w-',lw=3)
+    plt.plot(log10(xe),np.log10(ye),'k-',lw=2,label='$Elbaz+2011$')
+    #plot(log10(xe),(2*ye),'w-',lw=4)
+    #plot(log10(xe),(2*ye),'k:',lw=2,label='$2 \ SFR_{MS}$')
+    plt.plot(log10(xe),np.log10(ye/5.),'w--',lw=4)
+    plt.plot(log10(xe),np.log10(ye/5.),'k--',lw=2,label='$SFR_{MS}/5$')
+
+###########################
+##### Plot parameters
 ###########################
 
 # figure setup
@@ -392,5 +443,26 @@ class galaxies(lb.galaxies):
         plt.xlabel('Main Sequence Distance')
         plt.ylabel('Re(24)/Re(r)')
 
-g = galaxies('/Users/rfinn/github/LCS/')
+class gswlc():
+    def __init__(self,catalog):
+        self.gsw = fits.get
+    def cut_redshift(self):
+        z1 = zmin
+        z2 = zmax
+        zflag = (self.gsw['Z'] > z1) & (self.gsw['Z'] < z2)
+        self.gsw = self.gsw[zflag]
+    def plot_ms(self,plotsingle=True):
+        if plotsingle:
+            plt.figure(figsize=(8,6))
+        x = self.gsw['logMstar']
+        y = self.gsw['logSFR']
+        plt.plot(x,y,'k.',alpha=.1)
+        #plt.hexbin(x,y,gridsize=30,vmin=5,cmap='gray_r')
+        #plt.colorbar()
+        xl=np.linspace(8,12,50)
+        ssfr_limit = -10
+        #plt.plot(xl,xl+ssfr_limit,'r-')
+        plotsalim07()
+        plt.xlabel('logMstar',fontsize=16)
+        plt.ylabel('logSFR',fontsize=16)
 

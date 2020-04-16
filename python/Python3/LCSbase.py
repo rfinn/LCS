@@ -27,6 +27,7 @@ May 2018
 from astropy.io import fits
 from astropy import constants as c 
 from astropy import units as u
+from astropy.table import Table, Column
 import os
 import sys
 from astropy.cosmology import WMAP9 as cosmo
@@ -249,6 +250,7 @@ class galaxies:
         # convert NSA NUV abs mag to nuLnu_NUV
         #flux_10pc = 10.**((22.5-self.s.ABSMAG[:,1])/2.5)
         # assume ABSMAG is in AB mag, with ZP = 3631 Jy
+        # ******* NSA ABSMAG IS FOR H0=100 *********
         flux_10pc = 3631.*10**(-1.*self.s.ABSMAG[:,1]/2.5)*u.Jy
         dist = 10.*u.pc
         self.nuLnu_NUV = flux_10pc*4*np.pi*dist**2*freq_NUV
@@ -293,6 +295,18 @@ class galaxies:
         self.logSFR_NUV_BEST = self.logSFR_NUV_ZCLUST * np.array(self.membflag,'i') + np.array(~self.membflag,'i')*(self.logSFR_NUV_ZDIST)
         self.SFR_NUV_BEST = 10**self.logSFR_NUV_BEST
 
+    def update_table(self):
+        
+        # append Kennicutt & Evans SFRs at end of table
+        t = Table(self.s)
+        newcolumns = [self.membflag, self.lirflag, self.sampleflag,self.logSFR_NUV_KE, self.logSFR_IR_KE, self.logSFR_NUVIR_KE]
+        newnames = ['membflag','lirflag','sampleflag','logSFR_NUV_KE','logSFR_IR_KE','logSFR_NUVIR_KE']
+        for i in range(len(newcolumns)):
+            col = Column(newcolumns[i],name=newnames[i])
+            t.add_column(col)
+        print('updating table')
+        t.write('/home/rfinn/research/LCS/tables/LCS_all_size_KE_SFR.fits',format='fits',overwrite=True)
+
     def fitms(self):
         flag = self.sampleflag & ~self.membflag & (self.logstellarmass > 9.5) & (self.logstellarmass < 10.5)
         c = np.polyfit(self.logstellarmass[flag],self.logSFR_NUV_BEST[flag],1)
@@ -318,7 +332,11 @@ class galaxies:
         self.sSFRx = np.linspace(8.75,11.25,10)
         self.sSFRy = np.polyval(c,self.sSFRx)
         self.sSFRdist = self.logsSFR - np.polyval(self.sSFRline,self.logstellarmass)
-        
+    def write_sizes_for_sim(self):
+        # write out sizes.txt
+        # size_ratio, size_err, core_fla
+        t = Table([self.sizeratio,self.sizeratioERR, np.array(self.membflag,'i')])
+        t.write('/home/rfinn/research/LCS/tables/sizes.txt',format='ascii',overwrite=True)
     def setup(self):
         self.get_agn()
         self.get_gim2d_flag()
@@ -326,11 +344,26 @@ class galaxies:
         self.get_memb()
         self.make_SFR()
         self.get_UVIR_SFR()
+
         self.get_size_flag()
         self.calculate_sizeratio()
         self.select_sample()
         self.fitms()
         self.calcssfr()
+        self.update_table()        
+        #self.write_sizes_for_sim()
+def write_out_sizes():
+    outfile = open(homedir+'/research/LCS/tables/sizes.txt','w')
+    size = g.sizeratio[g.sampleflag]
+    sizerr = g.sizeratioERR[g.sampleflag]
+    myflag = g.membflag[g.sampleflag]
+    bt = g.gim2d.B_T_r[g.sampleflag]
+    ra = g.s.RA[g.sampleflag]
+    dec = g.s.DEC[g.sampleflag]
+    outfile.write('#R24/Rd size_err  core_flag   B/T RA DEC \n')
+    for i in range(len(size)):
+        outfile.write('%6.2f  %6.2f  %i   %.2f %10.9e %10.9e \n'%(size[i],sizerr[i],myflag[i],bt[i],ra[i],dec[i]))
+    outfile.close()        
 
 if __name__ == '__main__':
     g = galaxies(lcspath)
@@ -344,4 +377,4 @@ if __name__ == '__main__':
     g.get_size_flag()
     g.calculate_sizeratio()
     g.select_sample()
-
+    g.update_table()

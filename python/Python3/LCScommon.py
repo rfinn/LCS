@@ -282,7 +282,7 @@ def spearman_with_errors(x,y,yerr,Nmc=1000,plotflag=False,verbose=False):
         plt.xlabel(r'$\log_{10}(p \ value)$')
     return rhosim,psim
 
-def ks_boot(x,y,N=1000,conf_int=68.):
+def ks_boot(x,y,N=100,conf_int=68.):
     boot_p=zeros(N,'f')
     boot_D=zeros(N,'f')
     for i in range(N):

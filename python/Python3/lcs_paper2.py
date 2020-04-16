@@ -31,7 +31,7 @@ from astropy.stats import median_absolute_deviation as MAD
 ###########################
 
 parser = argparse.ArgumentParser(description ='Program to run analysis for LCS paper 2')
-parser.add_argument('--minmass', dest = 'minmass', default = 9., help = 'minimum stellar mass for sample.  default is log10(M*) > 7.9')
+parser.add_argument('--minmass', dest = 'minmass', default = 10., help = 'minimum stellar mass for sample.  default is log10(M*) > 7.9')
 parser.add_argument('--diskonly', dest = 'diskonly', default = 1, help = 'True/False (enter 1 or 0). normalize by Simard+11 disk size rather than Re for single-component sersic fit.  Default is true.  ')
 
 args = parser.parse_args()
@@ -125,7 +125,7 @@ def colormass(x1,y1,x2,y2,name1,name2, figname, hexbinflag=False,contourflag=Fal
     t = plt.hist(x1, normed=True, bins=nhistbin,color=color1,histtype='step',lw=1.5, label=name1)
     t = plt.hist(x2, normed=True, bins=nhistbin,color=color2,histtype='step',lw=1.5, label=name2)
     #plt.legend()
-    ax2.legend(fontsize=10,loc='upper left')
+    ax2.legend(fontsize=10,loc='upper right')
     ax2.xaxis.tick_top()
     ax3 = plt.subplot2grid((nrow,ncol),(1,ncol-1),rowspan=nrow-1,colspan=1, fig=fig, sharey = ax1, xticks=[])
     t=plt.hist(y1, normed=True, orientation='horizontal',bins=nhistbin,color=color1,histtype='step',lw=1.5, label=name1)
@@ -227,18 +227,27 @@ stat_cols = ['mean','var','MAD','skew','kurt']
 
 class gswlc_full():
     def __init__(self,catalog):
-        self.gsw = ascii.read(catalog)
+        if catalog.find('.fits') > -1:
+            self.gsw = Table(fits.getdata(catalog))
+            self.redshift_field = 'zobs'
+            self.outfile = catalog.split('.fits')[0]+'-LCS-Zoverlap.fits'                        
+        else:
+            self.gsw = ascii.read(catalog)
+            self.redshift_field = 'Z'
+            self.outfile = catalog.split('.dat')[0]+'-LCS-Zoverlap.fits'            
         self.cut_redshift()
         self.save_trimmed_cat()
+
     def cut_redshift(self):
         z1 = zmin
         z2 = zmax
-        zflag = (self.gsw['Z'] > z1) & (self.gsw['Z'] < z2)
+        zflag = (self.gsw[self.redshift_field] > z1) & (self.gsw[self.redshift_field] < z2)
         massflag = self.gsw['logMstar'] > 0
         self.gsw = self.gsw[zflag & massflag]
     def save_trimmed_cat(self):
         t = Table(self.gsw)
-        t.write('/home/rfinn/research/LCS/tables/GSWLC-X2-LCS-Zoverlap.fits',format='fits',overwrite=True)
+
+        t.write(self.outfile,format='fits',overwrite=True)
         
 # functions that will be applied to LCS-GSWLC catalog and GSWLC catalog
 class gswlc_base():
@@ -248,7 +257,7 @@ class gswlc_base():
     def calc_ssfr(self):
         self.ssfr = self.cat['logSFR'] - self.cat['logMstar']
         
-    def plot_ms(self,plotsingle=True):
+    def plot_ms(self,plotsingle=True,outfile1=None,outfile2=None):
         if plotsingle:
             plt.figure(figsize=(8,6))
         x = self.cat['logMstar']
@@ -257,11 +266,19 @@ class gswlc_base():
         #plt.hexbin(x,y,gridsize=30,vmin=5,cmap='gray_r')
         #plt.colorbar()
         xl=np.linspace(8,12,50)
-        ssfr_limit = -10
-        #plt.plot(xl,xl+ssfr_limit,'r-')
+        ssfr_limit = -11.5
+        plt.plot(xl,xl+ssfr_limit,'c-')
         plotsalim07()
-        plt.xlabel('logMstar',fontsize=16)
-        plt.ylabel('logSFR',fontsize=16)
+        plt.xlabel('logMstar',fontsize=20)
+        plt.ylabel('logSFR',fontsize=20)
+        if outfile1 is None:
+            plt.savefig(homedir+'/research/LCS/plots/sfms-ssfr-cut.pdf')
+        else:
+            plt.savefig(outfile1)
+        if outfile2 is None:
+            plt.savefig(homedir+'/research/LCS/plots/sfms-ssfr-cut.png')
+        else:
+            plt.savefig(outfile2)
         
     def plot_positions(self,plotsingle=True, filename=None):
         if plotsingle:
@@ -336,25 +353,28 @@ class lcsgsw(gswlc_base):
         self.cat = fits.getdata(catalog)
         self.base_init()
         self.group = self.cat['CLUSTER_SIGMA'] < sigma_split
-        self.cluster = self.cat['CLUSTER_SIGMA'] > sigma_split        
-    def get_mstar_limit(self):
-        print(zmax)
+        self.cluster = self.cat['CLUSTER_SIGMA'] > sigma_split
+        #lcspath = homedir+'/github/LCS/'
+        #self.lcsbase = lb.galaxies(lcspath)
+    def get_mstar_limit(self,rlimit=17.7):
+        
+        print(rlimit,zmax)
         # assume hubble flow
+        
         dmax = zmax*3.e5/70
-        r_limit = 18.
         # abs r
         # m - M = 5logd_pc - 5
         # M = m - 5logd_pc + 5
         ## r = 22.5 - np.log10(lcsgsw['NMGY'][:,4])
-        Mr = r_limit - 5*np.log10(dmax*1.e6) +5
+        Mr = rlimit - 5*np.log10(dmax*1.e6) +5
         print(Mr)
         ssfr = self.cat['logSFR'] - self.cat['logMstar']
         flag = (self.cat['logMstar'] > 0) & (ssfr > -11.5)
         Mr = self.cat['ABSMAG'][:,4]
         plt.figure()
         plt.plot(Mr[flag],self.cat['logMstar'][flag],'bo',alpha=.2,markersize=3)
-        plt.axvline(x=-18.33)
-        plt.axhline(y=9.8)
+        plt.axvline(x=-18.6)
+        plt.axhline(y=10)
         plt.xlabel('Mr')
         plt.ylabel('logMstar GSWLC')
         plt.grid(True)        
@@ -388,11 +408,32 @@ class lcsgsw(gswlc_base):
         if figname1 is not None:
             plt.savefig(figname1)
         if figname2 is not None:
-            plt.savefig(figname2)
+            plt.savefig(figname2)            
+    def compare_sfrs(self,shift=None,masscut=None,nbins=20):
+        '''
+        plot distribution of LCS external and core SFRs
 
+        '''
+        if masscut is None:
+            masscut = minmass
+        flag = (self.cat['logSFR'] > -99) & (self.cat['logSFR']-self.cat['logMstar'] > -11.5) & (self.cat['logMstar'] > masscut)
+        sfrcore = self.cat['logSFR'][self.cat['membflag'] & flag] 
+        sfrext = self.cat['logSFR'][~self.cat['membflag']& flag]
+        plt.figure()
+        mybins = np.linspace(-2.5,1.5,nbins)
+
+        plt.hist(sfrext,bins=mybins,histtype='step',label='External',lw=3)
+        if shift is not None:
+            plt.hist(sfrext+np.log10(1-shift),bins=mybins,histtype='step',label='Shifted External',lw=3)
+        plt.hist(sfrcore,bins=mybins,histtype='step',label='Core',lw=3)            
+        plt.legend()
+        plt.xlabel('SFR')
+        plt.ylabel('Normalized Counts')
+        print('CORE VS EXTERNAL')
+        t = ks(sfrcore,sfrext,run_anderson=False)
 
 class comp_lcs_gsw():
-    def __init__(self,lcs,gsw,minmstar = 9.8, minssfr = -11.5):
+    def __init__(self,lcs,gsw,minmstar = 10, minssfr = -11.5):
         self.lcs = lcs
         self.gsw = gsw
         self.masscut = minmstar
@@ -407,7 +448,9 @@ class comp_lcs_gsw():
             lcsflag = self.lcs.cat['membflag']
         
         flag1 = lcsflag &  (self.lcs.cat['logMstar']> self.masscut)  & (self.lcs.ssfr > self.ssfrcut)
-        flag2 = (self.gsw.cat['logMstar'] > self.masscut) & (self.gsw.ssfr > self.ssfrcut)  & self.gsw.field1
+        # removing field1 cut because we are now using Tempel catalog that only
+        # includes galaxies in halo masses logM < 12.5
+        flag2 = (self.gsw.cat['logMstar'] > self.masscut) & (self.gsw.ssfr > self.ssfrcut)  #& self.gsw.field1
         print('number in core sample = ',sum(flag1))
         print('number in external sample = ',sum(flag2))
         x1 = self.lcs.cat['logMstar'][flag1]
@@ -429,7 +472,7 @@ class comp_lcs_gsw():
             lcsflag = self.lcs.cat['membflag']
         
         flag1 = lcsflag &  (self.lcs.cat['logMstar']> self.masscut)  & (self.lcs.ssfr > self.ssfrcut)
-        flag2 = (self.gsw.cat['logMstar'] > self.masscut) & (self.gsw.ssfr > self.ssfrcut)  & self.gsw.field1
+        flag2 = (self.gsw.cat['logMstar'] > self.masscut) & (self.gsw.ssfr > self.ssfrcut)  #& self.gsw.field1
         print('number in core sample = ',sum(flag1))
         print('number in external sample = ',sum(flag2))
         x1 = self.lcs.cat['logMstar'][flag1]
@@ -437,7 +480,7 @@ class comp_lcs_gsw():
         x2 = self.gsw.cat['logMstar'][flag2]
         y2 = self.gsw.ssfr[flag2]
         
-        colormass(x1,y1,x2,y2,'LCS core','GSWLC','sfr-mstar-gswlc-field.pdf',ymin=-11.6,ymax=-8.75,xmin=9.75,xmax=11.5,nhistbin=10,ylabel='$\log_{10}(sSFR)$',contourflag=False,alphagray=.8)
+        colormass(x1,y1,x2,y2,'LCS core','GSWLC','sfr-mstar-gswlc-field.pdf',ymin=-11.6,ymax=-8.75,xmin=9.75,xmax=11.5,nhistbin=20,ylabel='$\log_{10}(sSFR)$',contourflag=False,alphagray=.8)
         if outfile1 is None:
             plt.savefig(homedir+'/research/LCS/plots/lcscore-gsw-ssfrmstar.pdf')
         else:
@@ -447,16 +490,20 @@ class comp_lcs_gsw():
         else:
             plt.savefig(outfile2)
 
+
+    
 if __name__ == '__main__':
-    trimgswlc = False
+    trimgswlc = True
     if trimgswlc:
-        g = gswlc_full('/home/rfinn/research/GSWLC/GSWLC-X2.dat')
+        #g = gswlc_full('/home/rfinn/research/GSWLC/GSWLC-X2.dat')
+        g = gswlc_full('/home/rfinn/research/LCS/tables/GSWLC-Tempel-12.5.fits')
         g.cut_redshift()
         g.save_trimmed_cat()
 
-    g = gswlc('/home/rfinn/research/LCS/tables/GSWLC-X2-LCS-Zoverlap.fits')    
+    #g = gswlc('/home/rfinn/research/LCS/tables/GSWLC-X2-LCS-Zoverlap.fits')
+    g = gswlc('/home/rfinn/research/LCS/tables/GSWLC-Tempel-12.5-LCS-Zoverlap.fits')        
     #g.plot_ms()
     #g.plot_field1()
     lcs = lcsgsw('/home/rfinn/research/LCS/tables/lcs-gswlc-x2-match.fits')
-
+    #lcs.compare_sfrs()
     b = comp_lcs_gsw(lcs,g)
