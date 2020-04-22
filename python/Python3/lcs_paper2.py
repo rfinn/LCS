@@ -291,9 +291,13 @@ class gswlc_full():
             self.outfile = catalog.split('.fits')[0]+'-LCS-Zoverlap.fits'                        
         else:
             self.gsw = ascii.read(catalog)
-            self.redshift_field = 'Z'
+            if catalog.find('v2') > -1:
+                self.redshift_field = 'Z_1'
+            else:
+                self.redshift_field = 'Z'                
             self.outfile = catalog.split('.dat')[0]+'-LCS-Zoverlap.fits'            
         self.cut_redshift()
+        self.cut_BT()
         self.save_trimmed_cat()
 
     def cut_redshift(self):
@@ -302,6 +306,11 @@ class gswlc_full():
         zflag = (self.gsw[self.redshift_field] > z1) & (self.gsw[self.redshift_field] < z2)
         massflag = self.gsw['logMstar'] > 0
         self.gsw = self.gsw[zflag & massflag]
+
+    def cut_BT(self):
+        btflag = self.gsw['(B/T)r'] < 0.3
+        self.gsw = self.gsw[btflag]
+        
     def save_trimmed_cat(self):
         t = Table(self.gsw)
 
@@ -362,7 +371,11 @@ class gswlc(gswlc_base):
         self.get_field1()
         
     def calc_local_density(self,NN=10):
-        pos = SkyCoord(ra=self.cat['RA']*u.deg,dec=self.cat['DEC']*u.deg, distance=self.cat['Z']*3.e5/70*u.Mpc,frame='icrs')
+        try:
+            redshift = self.cat['Z']
+        except KeyError:
+            redshift = self.cat['Z_1']
+        pos = SkyCoord(ra=self.cat['RA']*u.deg,dec=self.cat['DEC']*u.deg, distance=redshift*3.e5/70*u.Mpc,frame='icrs')
 
         idx, d2d, d3d = pos.match_to_catalog_3d(pos,nthneighbor=NN)
         self.densNN = NN/d3d
@@ -410,11 +423,16 @@ class lcsgsw(gswlc_base):
         # read in catalog of LCS matched to GSWLC
         self.cat = fits.getdata(catalog)
         self.base_init()
+        self.cut_BT()
         self.group = self.cat['CLUSTER_SIGMA'] < sigma_split
         self.cluster = self.cat['CLUSTER_SIGMA'] > sigma_split
         #lcspath = homedir+'/github/LCS/'
         #self.lcsbase = lb.galaxies(lcspath)
-        
+
+    def cut_BT(self):
+        btflag = (self.cat['B_T_r'] < 0.3) & (self.cat['matchflag'])
+        self.cat = self.cat[btflag]
+        self.ssfr = self.ssfr[btflag]
     def get_mstar_limit(self,rlimit=17.7):
         
         print(rlimit,zmax)
@@ -548,6 +566,30 @@ class comp_lcs_gsw():
         else:
             plt.savefig(outfile2)
 
+    def plot_ssfr_mstar_lcs(self,lcsflag=None,outfile1=None,outfile2=None):
+        if lcsflag is None:
+            lcsflag = self.lcs.cat['membflag']
+        baseflag = (self.lcs.cat['logMstar']> self.masscut)  & (self.lcs.ssfr > self.ssfrcut)
+        flag1 = baseflag & self.lcs.cat['membflag'] 
+        flag2 = baseflag & ~self.lcs.cat['membflag']  & (self.lcs.cat['DELTA_V'] < 3.)
+        print('number in core sample = ',sum(flag1))
+        print('number in external sample = ',sum(flag2))
+        x1 = self.lcs.cat['logMstar'][flag1]
+        y1 = self.lcs.ssfr[flag1]
+        x2 = self.lcs.cat['logMstar'][flag2]
+        y2 = self.lcs.ssfr[flag2]
+        
+        colormass(x1,y1,x2,y2,'LCS core','LCS infall','sfr-mstar-lcs-core-field.pdf',ymin=-11.6,ymax=-8.75,xmin=9.75,xmax=11.5,nhistbin=20,ylabel='$\log_{10}(sSFR)$',contourflag=False,alphagray=.8)
+        if outfile1 is None:
+            plt.savefig(homedir+'/research/LCS/plots/lcscore-gsw-ssfrmstar.pdf')
+        else:
+            plt.savefig(outfile1)
+        if outfile2 is None:
+            plt.savefig(homedir+'/research/LCS/plots/lcscore-gsw-ssfrmstar.png')
+        else:
+            plt.savefig(outfile2)
+
+
     def print_lowssfr_nsaids(self,lcsflag=None,ssfrmin=None,ssfrmax=-11):
         if ssfrmin is not None:
             ssfrmin=ssfrmin
@@ -585,12 +627,14 @@ if __name__ == '__main__':
     trimgswlc = True
     if trimgswlc:
         #g = gswlc_full('/home/rfinn/research/GSWLC/GSWLC-X2.dat')
-        g = gswlc_full('/home/rfinn/research/LCS/tables/GSWLC-Tempel-12.5.fits')
+        # 10 arcsec match b/s GSWLC-X2 and Tempel-12.5_v_2 in topcat, best, symmetric
+        #g = gswlc_full('/home/rfinn/research/LCS/tables/GSWLC-Tempel-12.5-v2.fits')
+        g = gswlc_full('/home/rfinn/research/GSWLC/GSWLC-Tempel-12.5-v2-Simard2011.fits')        
         g.cut_redshift()
         g.save_trimmed_cat()
 
     #g = gswlc('/home/rfinn/research/LCS/tables/GSWLC-X2-LCS-Zoverlap.fits')
-    g = gswlc('/home/rfinn/research/LCS/tables/GSWLC-Tempel-12.5-LCS-Zoverlap.fits')        
+    g = gswlc('/home/rfinn/research/GSWLC/GSWLC-Tempel-12.5-v2-Simard2011-LCS-Zoverlap.fits')        
     #g.plot_ms()
     #g.plot_field1()
     lcs = lcsgsw('/home/rfinn/research/LCS/tables/lcs-gswlc-x2-match.fits')
