@@ -22,16 +22,42 @@ Written by Rose A. Finn, 2/21/18
 
 
 from astropy.io import fits,ascii
+from astropy.table import Table
 import numpy as np
 from matplotlib import pyplot as plt
 from scipy.stats import ks_2samp
+# the incomplete gamma function, for integrating the sersic profile
+from scipy.special import gammainc
 #from astropy.table import Table
 
 #from anderson import *
 
 #R24/Rd err  core_flag   B/T 
+
+'''
 infile = '/Users/rfinn/research/LocalClusters/catalogs/sizes.txt'
 infile = '/home/rfinn/research/LCS/tables/sizes.txt'
+sizes = np.loadtxt(infile)
+size_ratio = np.array(sizes[:,0],'f')
+size_err = np.array(sizes[:,1],'f')
+core_flag= np.array(sizes[:,2],'bool')
+bt = np.array(sizes[:,3],'f')
+'''
+
+# updated input file to include SFR, n
+#infile = '/home/rfinn/research/LCS/tables/LCS-simulation-data.fits'
+infile = '/home/rfinn/research/LCS/tables/LCS_all_size_KE_SFR.fits'
+sizes = Table.read(infile)
+# keep only galaxies in paper 1 sample
+sizes = sizes[sizes['sampleflag']]
+              
+size_ratio = sizes['sizeratio']
+size_err = sizes['sizeratio_err']
+core_flag= sizes['membflag']
+bt = sizes['B_T_r']
+logSFR = sizes['logSFR_NUVIR_KE']
+nsersic = sizes['ng'] # simard sersic index
+Re = sizes['Re']
 
 '''
 sizes = ascii.read(infile)
@@ -41,21 +67,34 @@ core_flag = np.array(sizes['col2'],'bool')
 #bt = np.array(sizes[:,3],'f')
 '''
 
-sizes = np.loadtxt(infile)
-size_ratio = np.array(sizes[:,0],'f')
-size_err = np.array(sizes[:,1],'f')
-core_flag= np.array(sizes[:,2],'bool')
-bt = np.array(sizes[:,3],'f')
 
 ## split sizes
 core = size_ratio[core_flag]
 external = size_ratio[~core_flag]
 
+core_logsfr = logSFR[core_flag]
+external_logsfr = logSFR[~core_flag]
+
+core_nsersic = nsersic[core_flag]
+external_nsersic = nsersic[~core_flag]
+
 ## infall rates
 # uniform distribution between 0 and tmax Gyr
 tmax = 2. # max infall time in Gyr
 
+def get_frac_flux_retained(n,ratio_before,ratio_after):
+    # ratio_before = the initial value of R/Re
+    # ratio_after = the final value of R/Re
+    # n = sersic index of profile
 
+    # L(<R) = Ie Re^2 2 pi n e^{b_n}/b_n^2n incomplete_gamma(2n, x)
+    
+    # calculate the loss in light
+    bn = 1.999*n-0.327
+    x_before = bn*(ratio_before)**(1./n)
+    x_after = bn*(ratio_after)**(1./n)    
+    frac_retained = gammainc(2*n,x_after)/gammainc(2*n,x_before) 
+    return frac_retained
 
 def run_sim(tmax = 2.,nrandom=100,drdt_step=.1,plotsingle=True):
     ks_D_min = 0
@@ -65,6 +104,7 @@ def run_sim(tmax = 2.,nrandom=100,drdt_step=.1,plotsingle=True):
     drdtmin=-2
     drdtmax=0
     all_p = np.zeros(int(nrandom*(drdtmax-drdtmin)/drdt_step))
+    all_p_sfr = np.zeros(int(nrandom*(drdtmax-drdtmin)/drdt_step))    
     all_drdt = np.zeros(int(nrandom*(drdtmax - drdtmin)/drdt_step))
     i=0
     for drdt in np.arange(drdtmin,drdtmax,drdt_step):
@@ -72,9 +112,29 @@ def run_sim(tmax = 2.,nrandom=100,drdt_step=.1,plotsingle=True):
         for j in range(nrandom):
             #sim_core = np.random.choice(external,size=len(core)) + drdt*np.random.uniform(low=0, high=tmax, size=len(core))
             infall_times = np.linspace(0,tmax,len(external))
-            sim_core = external + drdt*np.random.choice(infall_times, len(infall_times)) 
+            actual_infall_times = np.random.choice(infall_times, len(infall_times))
+            sim_core = external + drdt*actual_infall_times
+
+            # to implement SFR decrease
+            # need SFR, sersic index, and Re for all galaxies
+            # greg has equation for integral of sersic profile
+            # create function that gives flux/flux_0 for sersic profile that
+            # has Re shrink by some factor
+            frac_retained = get_frac_flux_retained(external_nsersic,external,sim_core)
+            ########################################################
+            # get predicted SFR of core galaxies by multiplying the
+            # distribution of SFRs from the external samples by the
+            # flux ratio you would expect from shrinking the
+            # external sizes to the sim_core sizes
+            # SFRs are logged
+            sim_core_logsfr = np.log10(frac_retained) + external_logsfr
+
+            # not sure what this statement does...
             if sum(sim_core > 0.)*1./len(sim_core) < .2:
                 continue
+
+            # compare distribution of sizes between core (measured)
+            # and the simulated core
             D,p=ks_2samp(core,sim_core[sim_core > 0.])
             #D,t,p=anderson_ksamp([core,sim_core[sim_core > 0.]])
             #print D,p
@@ -85,10 +145,12 @@ def run_sim(tmax = 2.,nrandom=100,drdt_step=.1,plotsingle=True):
                 best_drdt = drdt
                 drdt_multiple = []
             elif abs(p - ks_p_max) < 1.e-5:
-                print('found an equally good model at drdt = ',drdt,p)
+                #print('found an equally good model at drdt = ',drdt,p)
                 drdt_multiple.append(drdt)
+            D2,p2 = ks_2samp(core_logsfr,sim_core_logsfr)
             all_p[i] = p
             all_drdt[i] = drdt
+            all_p_sfr[i] = p2
             i += 1
     print('best dr/dt = ',best_drdt)
     print('disk is quenched in %.1f Gyr'%(1./abs(best_drdt)))
@@ -102,7 +164,7 @@ def run_sim(tmax = 2.,nrandom=100,drdt_step=.1,plotsingle=True):
             print('\t disk is quenched in %.1f Gyr'%(1./abs(drdt_multiple[i])))
     #plot_results(core,external,best_sim_core,best_drdt,tmax)
     plot_hexbin(all_drdt,all_p,best_drdt,tmax,gridsize = int(1./drdt_step),plotsingle=plotsingle)
-    return best_drdt, best_sim_core,ks_p_max,all_drdt,all_p
+    return best_drdt, best_sim_core,ks_p_max,all_drdt,all_p,all_p_sfr
 
 
 def plot_hexbin(all_drdt,all_p,best_drdt,tmax,gridsize=10,plotsingle=True):

@@ -23,7 +23,7 @@ from astropy.cosmology import WMAP9 as cosmo
 from scipy.optimize import curve_fit
 from astropy.stats import bootstrap
 from astropy.utils import NumpyRNGContext
-from astropy.table import Table
+from astropy.table import Table, Column
 from astropy.coordinates import SkyCoord
 from astropy.visualization import simple_norm
 from astropy.wcs import WCS
@@ -63,6 +63,8 @@ truncation_ratio=0.5
 
 zmin = 0.0137
 zmax = 0.0433
+Mpcrad_kpcarcsec = 2. * np.pi/360./3600.*1000.
+mipspixelscale=2.45
 
 exterior=.68
 colors=['k','b','c','g','m','y','r','sienna','0.5']
@@ -422,12 +424,60 @@ class lcsgsw(gswlc_base):
     def __init__(self,catalog,sigma_split=600):
         # read in catalog of LCS matched to GSWLC
         self.cat = fits.getdata(catalog)
+        self.write_file_for_simulation()        
         self.base_init()
         self.cut_BT()
         self.group = self.cat['CLUSTER_SIGMA'] < sigma_split
         self.cluster = self.cat['CLUSTER_SIGMA'] > sigma_split
+
         #lcspath = homedir+'/github/LCS/'
         #self.lcsbase = lb.galaxies(lcspath)
+    def get_DA(self):
+        # stole this from LCSbase.py
+        self.DA=np.zeros(len(self.cat))
+        for i in range(len(self.DA)):
+            if self.cat['membflag'][i]:
+                self.DA[i] = cosmo.angular_diameter_distance(self.cat.CLUSTER_REDSHIFT[i]).value*Mpcrad_kpcarcsec
+            else:
+                self.DA[i] = cosmo.angular_diameter_distance(self.cat.ZDIST[i]).value*Mpcrad_kpcarcsec
+        
+    def calculate_sizeratio(self):
+        self.gim2dflag = self.cat['matchflag']
+        # stole this from LCSbase.py
+        self.SIZE_RATIO_DISK = np.zeros(len(self.cat))
+        a =  self.cat.fcre1[self.gim2dflag]*mipspixelscale # fcre1 = 24um half-light radius in mips pixels
+        b = self.DA[self.gim2dflag]
+        c = self.cat['Rd'][self.gim2dflag] # gim2d half light radius for disk in kpc
+
+        # this is the size ratio we use in paper 1
+        self.SIZE_RATIO_DISK[self.gim2dflag] =a*b/c
+        self.SIZE_RATIO_DISK_ERR = np.zeros(len(self.gim2dflag))
+        self.SIZE_RATIO_DISK_ERR[self.gim2dflag] = self.cat.fcre1err[self.gim2dflag]*mipspixelscale*self.DA[self.gim2dflag]/self.cat['Rd'][self.gim2dflag]
+
+        self.sizeratio = self.SIZE_RATIO_DISK
+        self.sizeratioERR=self.SIZE_RATIO_DISK_ERR
+        # size ratio corrected for inclination 
+        #self.size_ratio_corr=self.sizeratio*(self.cat.faxisratio1/self.cat.SERSIC_BA)
+        
+    def write_file_for_simulation(self):
+        # need to calculate size ratio
+        # for some reason, I don't have this in my table
+        # what was I thinking???
+
+        # um, nevermind - looks like it's in the file afterall
+        self.get_DA()
+        self.calculate_sizeratio()
+        # write a file that contains the
+        # sizeratio, error, SFR, sersic index, membflag
+        # we are using GSWLC SFR
+        c1 = Column(self.sizeratio,name='sizeratio')
+        c2 = Column(self.sizeratioERR,name='sizeratio_err')
+        # using all simard values of sersic fit
+        tabcols = [c1,c2,self.cat['membflag'],self.cat['B_T_r'],self.cat['Re'],self.cat['ng'],self.cat['logSFR']]
+        tabnames = ['sizeratio','sizeratio_err','membflag','BT','Re','nsersic','logSFR']
+        newtable = Table(data=tabcols,names=tabnames)
+        newtable = newtable[self.cat['sampleflag']]
+        newtable.write(homedir+'/research/LCS/tables/LCS-simulation-data.fits',format='fits',overwrite=True)
 
     def cut_BT(self):
         btflag = (self.cat['B_T_r'] < 0.3) & (self.cat['matchflag'])
