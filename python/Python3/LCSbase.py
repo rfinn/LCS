@@ -255,8 +255,16 @@ class galaxies:
         dist = 10.*u.pc
         self.nuLnu_NUV = flux_10pc*4*np.pi*dist**2*freq_NUV
         
-        self.nuLnu_NUV_cor = self.nuLnu_NUV.cgs + 2.26*self.nuLnu24_ZDIST.cgs
 
+
+
+        ## CALCULATING AGAIN USING THE CORRECT DISTANCE
+        nuv_mag = 22.5 - np.log10(self.s['NMGY'][:,1])
+        fnu_nuv = 3631*10**(-1*nuv_mag/2.5)*u.Jy
+        self.nuLnu_NUV = fnu_nuv*4*np.pi*(cosmo.luminosity_distance(self.s.ZDIST))**2*freq_NUV
+
+        self.nuLnu_NUV_cor = self.nuLnu_NUV.cgs + 2.26*self.nuLnu24_ZDIST.cgs
+        
         self.logSFR_NUV = np.log10(self.nuLnu_NUV_cor.cgs.value) - 43.17
         # need relation for calculating SFR from UV only
         #

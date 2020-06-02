@@ -25,12 +25,28 @@ from astropy.io import fits,ascii
 from astropy.table import Table
 import numpy as np
 from matplotlib import pyplot as plt
+import argparse
 from scipy.stats import ks_2samp
 # the incomplete gamma function, for integrating the sersic profile
 from scipy.special import gammainc
 #from astropy.table import Table
 
 #from anderson import *
+###########################
+##### SET UP ARGPARSE
+###########################
+
+parser = argparse.ArgumentParser(description ='Program to run simulation for LCS paper 2')
+parser.add_argument('--use24', dest = 'use24', default = False, action='store_true',help = 'use 24um profile parameters when calculating expected SFR of sim galaxies (should set this).')
+#parser.add_argument('--diskonly', dest = 'diskonly', default = 1, help = 'True/False (enter 1 or 0). normalize by Simard+11 disk size rather than Re for single-component sersic fit.  Default is true.  ')
+
+args = parser.parse_args()
+
+###########################
+##### DEFINITIONS
+###########################
+
+mipspixelscale=2.45
 
 #R24/Rd err  core_flag   B/T 
 
@@ -43,6 +59,10 @@ size_err = np.array(sizes[:,1],'f')
 core_flag= np.array(sizes[:,2],'bool')
 bt = np.array(sizes[:,3],'f')
 '''
+###########################
+##### READ IN DATA FILE
+##### WITH FITTED PARAMETERS
+###########################
 
 # updated input file to include SFR, n
 #infile = '/home/rfinn/research/LCS/tables/LCS-simulation-data.fits'
@@ -57,8 +77,14 @@ core_flag= sizes['membflag']
 bt = sizes['B_T_r']
 logSFR = sizes['logSFR_NUVIR_KE']
 nsersic = sizes['ng'] # simard sersic index
-Re = sizes['Re']
+Re = sizes['Re'] # rband disk scale length from simard
+Re24 = sizes['fcre1']*mipspixelscale # 24um Re in arcsec
+nsersic24 = sizes['fcnsersic1']*mipspixelscale # 24um Re in arcsec
 
+if args.use24:
+    Re = Re24
+    nsersic = nsersic24
+    
 '''
 sizes = ascii.read(infile)
 size_ratio = np.array(sizes['col0'],'f')
@@ -96,6 +122,33 @@ def get_frac_flux_retained(n,ratio_before,ratio_after):
     frac_retained = gammainc(2*n,x_after)/gammainc(2*n,x_before) 
     return frac_retained
 
+'''
+I think the right way to do the integration (inspiration during my jog today) is to integrate
+the sersic profile of the external profile(Re24, n24) from zero to inf.
+
+for sim core galaxy, integrate sersic profile with new Re from zero to inf.  
+Don't know what to do with sersic index.  As a first attempt, leave it 
+the same as for the external galaxy.
+
+gammainc = 1 when integrating to infinity
+
+'''
+def get_frac_flux_retained0(n,ratio_before,ratio_after):
+    # ratio_before = the initial value of R24/Re_r
+    # ratio_after = the final value of R24/Re_r
+    # n = sersic index of profile
+
+    # L(<R) = Ie Re^2 2 pi n e^{b_n}/b_n^2n incomplete_gamma(2n, x)
+    
+    # calculate the loss in light
+    bn = 1.999*n-0.327
+    x_before = bn*(ratio_before)**(1./n)
+    x_after = bn*(ratio_after)**(1./n)
+
+    # everything is the same except for Re(24)
+    frac_retained = (ratio_before/ratio_after)**2
+    return frac_retained
+
 def run_sim(tmax = 2.,nrandom=100,drdt_step=.1,plotsingle=True):
     ks_D_min = 0
     ks_p_max = 0
@@ -120,7 +173,8 @@ def run_sim(tmax = 2.,nrandom=100,drdt_step=.1,plotsingle=True):
             # greg has equation for integral of sersic profile
             # create function that gives flux/flux_0 for sersic profile that
             # has Re shrink by some factor
-            frac_retained = get_frac_flux_retained(external_nsersic,external,sim_core)
+            #frac_retained = get_frac_flux_retained(external_nsersic,external,sim_core)
+            frac_retained = get_frac_flux_retained0(external_nsersic,external,sim_core)            
             ########################################################
             # get predicted SFR of core galaxies by multiplying the
             # distribution of SFRs from the external samples by the
