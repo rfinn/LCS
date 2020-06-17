@@ -218,6 +218,7 @@ def run_sim(tmax = 2.,nrandom=100,drdt_step=.1,plotsingle=True):
             print('\t disk is quenched in %.1f Gyr'%(1./abs(drdt_multiple[i])))
     #plot_results(core,external,best_sim_core,best_drdt,tmax)
     plot_hexbin(all_drdt,all_p,best_drdt,tmax,gridsize = int(1./drdt_step),plotsingle=plotsingle)
+
     return best_drdt, best_sim_core,ks_p_max,all_drdt,all_p,all_p_sfr
 
 
@@ -239,10 +240,27 @@ def plot_hexbin(all_drdt,all_p,best_drdt,tmax,gridsize=10,plotsingle=True):
     output = 'sim_infall_tmax_%.1f.png'%(tmax)
     plt.savefig(output)
 
+def plot_sfr_size(all_p,all_p_sfr,all_drdt,tmax,plotsingle=True):
+    if plotsingle:
+        plt.figure(figsize=(8,6))
+    plt.scatter(all_p,all_p_sfr,c=all_drdt,s=10,vmin=-1,vmax=0)
+    plt.xlabel('$p-value \ size$',fontsize=18)
+    plt.ylabel('$p-value \ SFR$',fontsize=18)
+
+    plt.axhline(y=.05,ls='--')
+    plt.axvline(x=.05,ls='--')
+    plt.axis([-.09,1,-.09,1])
+    ax = plt.gca()
+    #ax.set_yscale('log')
+    if plotsingle:
+        plt.colorbar(label='$dr/dt$')        
+        plt.savefig('pvalue-SFR-size-tmax'+str(tmax)+'Gyr-shrink0.png')
+
 def plot_multiple_tmax(nrandom=100):
-    plt.figure(figsize=(10,8))
+    plt.figure(figsize=(10,6))
     plt.subplot(2,2,1)
-    run_sim(tmax=1,drdt_step=.05,nrandom=nrandom,plotsingle=False)
+    best_drdt, best_sim_core,ks_p_max,all_drdt,all_p,all_p_sfr=run_sim(tmax=1,drdt_step=.05,nrandom=nrandom,plotsingle=False)
+    plot_sfr_size(all_p,all_p_sfr,all_drdt,tmax)    
     plt.subplot(2,2,2)
     run_sim(tmax=2,drdt_step=.05,nrandom=nrandom,plotsingle=False)
     plt.subplot(2,2,3)
@@ -252,6 +270,26 @@ def plot_multiple_tmax(nrandom=100):
     plt.subplots_adjust(hspace=.5,bottom=.1)
     plt.savefig('sim_infall_multiple_tmax.pdf')
     plt.savefig('fig18.pdf')
+
+def plot_multiple_tmax_wsfr(nrandom=100):
+    plt.figure(figsize=(12,6))
+    mytmax = [1,2,3,4]
+    allax = []
+    for i,tmax in enumerate(mytmax):
+        plt.subplot(2,4,i+1)
+        best_drdt, best_sim_core,ks_p_max,all_drdt,all_p,all_p_sfr=run_sim(tmax=tmax,drdt_step=.05,nrandom=nrandom,plotsingle=False)
+        allax.append(plt.gca())
+        plt.subplot(2,4,i+5)    
+        plot_sfr_size(all_p,all_p_sfr,all_drdt,tmax,plotsingle=False)    
+        allax.append(plt.gca())
+
+
+    plt.subplots_adjust(hspace=.5,wspace=.7,bottom=.1)
+    cb = plt.colorbar(ax=allax,label='$dr/dt$')    
+    plt.savefig('sim_infall_multiple_tmax_wsfr.pdf')
+    plt.savefig('sim_infall_multiple_tmax_wsfr.png')    
+    #plt.savefig('fig18.pdf')
+
 def plot_results(core,external,sim_core,best_drdt,tmax):
     plt.figure()
     mybins = np.arange(0,2,.2)

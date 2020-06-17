@@ -135,7 +135,7 @@ class simsample():
             try:
                 g.fit_sersic_profile()
                 self.output[i,4],self.output[i,5],self.output[i,6] = g.get_results()
-                #g.plot_profiles()
+                g.plot_profiles()
                 self.save_input(i)
                 i += 1
             except ValueError:
