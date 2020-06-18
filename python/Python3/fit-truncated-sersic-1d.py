@@ -32,12 +32,17 @@ args = parser.parse_args()
 
 mipspixelscale=2.45
 
+###########################
+##### FUNCTIONS
+###########################
+
+
 def sersic(x,Ie,n,Re):
     bn = 1.999*n - 0.327
     return Ie*np.exp(-1*bn*((x/Re)**(1./n)-1))
     
 def truncfunc(x,a,b,c):
-    return a-b*np.exp(c*x)
+    return a+b*np.exp(c*x)
     
 
 class simgal():
@@ -241,7 +246,7 @@ class simsample():
         x1,x2 = plt.xlim()
         xl = np.linspace(x1,x2,100)
         popt,pcov = curve_fit(truncfunc,d['Rtrunc'],d['Re_fit']/d['Re'],p0=[1,1,.833])        
-        print('fitting R/Re vs truncation radius with y = a-b*exp(-c*x/d): ',popt)
+        print('fitting R/Re vs truncation radius with y = a+b*exp(c*x): ',popt)
         yl = truncfunc(xl,popt[0],popt[1],popt[2])
         plt.plot(xl,yl)
         k=2      
@@ -268,7 +273,7 @@ class simsample():
         plt.subplot(1,3,2)
         y = d['Re_fit']/d['Re']
         plt.scatter(x,y,label='Re_fit/Re',c=d['n'],s=ptsize)
-        plt.xlabel('Rtrunc (Re)')
+        plt.xlabel('Rtrunc')
         plt.ylabel('Re_fit/Re')
         self.fit_curve(x,y,p0=[1,1,-.8])
         allax.append(plt.gca())
@@ -291,7 +296,7 @@ class simsample():
             popt,pcov = curve_fit(truncfunc,x,y)
         else:
             popt,pcov = curve_fit(truncfunc,x,y,p0=p0)        
-        print('fitting vs truncation radius with y = a-b*exp(c*x): ',popt)
+        print('fitting vs truncation radius with y = a+b*exp(c*x): ',popt)
         yl = truncfunc(xl,popt[0],popt[1],popt[2])
         plt.plot(xl,yl)
         return popt,pcov

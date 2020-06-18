@@ -39,30 +39,34 @@ from scipy.special import gammainc
 parser = argparse.ArgumentParser(description ='Program to run simulation for LCS paper 2')
 parser.add_argument('--use24', dest = 'use24', default = False, action='store_true',help = 'use 24um profile parameters when calculating expected SFR of sim galaxies (should set this).')
 parser.add_argument('--model', dest = 'model', default = 1, help = 'infall model to use.  default is 1.  \n\tmodel 1 is shrinking 24um effective radius \n\tmodel 2 is truncatingthe 24um emission')
-parser.add_argument('--tmax', dest = 'tmax', default = 3., help = 'maximum infall time.  default is 3 Gyr.  ')
+parser.add_argument('--sfrint', dest = 'sfrint', default = 1, help = 'method for integrating the SFR in model 2.  \n\tmethod 1 = integrate external sersic profile out to truncation radius.\n\tmethod 2 = integrate fitted sersic profile out to rmax.')
+parser.add_argument('--pvalue', dest = 'pvalue', default = .005, help = 'pvalue threshold to use when plotting fraction of trials below this pvalue.  Default is 0.05 (2sigma).  For ref, 3sigma is .003.')parser.add_argument('--tmax', dest = 'tmax', default = 3., help = 'maximum infall time.  default is 3 Gyr.  ')
+
 parser.add_argument('--rmax', dest = 'rmax', default = 6., help = 'maximum size of SF disk in terms of Re.  default is 6.  ')
 #parser.add_argument('--diskonly', dest = 'diskonly', default = 1, help = 'True/False (enter 1 or 0). normalize by Simard+11 disk size rather than Re for single-component sersic fit.  Default is true.  ')
 
 args = parser.parse_args()
 args.model = int(args.model)
+args.sfrint = int(args.sfrint)
 args.tmax = float(args.tmax)
+args.pvalue = float(args.pvalue)
+
 ###########################
 ##### DEFINITIONS
 ###########################
+
 mycolors = plt.rcParams['axes.prop_cycle'].by_key()['color']
 mipspixelscale=2.45
 
-#R24/Rd err  core_flag   B/T 
+sersicN_fit = [ 1.00321952, -1.33892353, -1.58502679]
+sersicRe_fit = [ 1.0051858,  -1.6640543,  -1.43415337]
+sersicIe_fit = [ 1.03890568, 30.02634861, -3.38602545]
 
-'''
-infile = '/Users/rfinn/research/LocalClusters/catalogs/sizes.txt'
-infile = '/home/rfinn/research/LCS/tables/sizes.txt'
-sizes = np.loadtxt(infile)
-size_ratio = np.array(sizes[:,0],'f')
-size_err = np.array(sizes[:,1],'f')
-core_flag= np.array(sizes[:,2],'bool')
-bt = np.array(sizes[:,3],'f')
-'''
+## infall rates
+# uniform distribution between 0 and tmax Gyr
+tmax = 2. # max infall time in Gyr
+
+
 ###########################
 ##### READ IN DATA FILE
 ##### WITH FITTED PARAMETERS
@@ -114,13 +118,21 @@ external_Re24 = Re24[~core_flag]
 core_nsersic24 = nsersic24[core_flag]
 external_nsersic24 = nsersic24[~core_flag]
 
-## infall rates
-# uniform distribution between 0 and tmax Gyr
-tmax = 2. # max infall time in Gyr
 
-def model2_get_Re_from_rtrunc(rtrunc):
+
+###########################
+##### FUNCTIONS
+###########################
+
+
+def model2_get_fitted_param(input,coeff):
     # here rtrunc is the truncation radius/Re
-    return 1.0043-1.614*np.exp(-1.4125*rtrunc)
+    return coeff[0]+coeff[1]*np.exp(coeff[2]*input)
+
+def integrate_sersic(n,Re,Ie,rmax=6):
+    bn = 1.999*n-0.327
+    x = bn*(rmax/Re)**(1./n)    
+    return Ie*Re**2*2*np.pi*n*np.exp(bn)/bn**(2*n)*gammainc(2*n, x)
 
 def get_frac_flux_retained(n,ratio_before,ratio_after):
     # ratio_before = the initial value of R/Re
@@ -164,26 +176,46 @@ def get_frac_flux_retained0(n,ratio_before,ratio_after):
     return frac_retained
 
 
-def get_frac_flux_retained_model2(n,Re,rtrunc=1,rmax=6):
-    # sersic index of profile
-    # Re = effective radius of profile
-    # n = sersic index of profile
-    # rmax = multiple of Re to use a max radius of integration in the "before" integral
-    # rtrunc = max radius to integrate to in "after" integral
+def get_frac_flux_retained_model2(n,Re,rtrunc=1,rmax=6,version=1):
+    if version == 1:
+        # sersic index of profile
+        # Re = effective radius of profile
+        # n = sersic index of profile
+        # rmax = multiple of Re to use a max radius of integration in the "before" integral
+        # rtrunc = max radius to integrate to in "after" integral
+        
+        # L(<R) = Ie Re^2 2 pi n e^{b_n}/b_n^2n incomplete_gamma(2n, x)
+        
+        # calculate the loss in light
+        
+        # this should simplify to the ratio of the incomplete gamma functions
+        # ... I think ...
+        
+        bn = 1.999*n-0.327
+        x_after = bn*(rtrunc/Re)**(1./n)
+        x_before = bn*(rmax)**(1./n)
+        frac_retained = gammainc(2*n,x_after)/gammainc(2*n,x_before)
+        
+    elif version == 2:
+        # use fitted values of model to get integrated flux after
+        # integral of input sersic profile with integral of fitted sersic profile
+        Ie = 1
+        sfr_before = integrate_sersic(n,Re,Ie,rmax=rmax)
+        
+        n2 = n*model2_get_fitted_param(rtrunc/Re,sersicN_fit)
+        Re2 = Re*model2_get_fitted_param(rtrunc/Re,sersicRe_fit)
+        Ie2 = Ie*model2_get_fitted_param(rtrunc/Re,sersicIe_fit)
+        sfr_after = integrate_sersic(n2,Re2,Ie2,rmax=rmax)        
+        
+        frac_retained = sfr_after/sfr_before
 
-    # L(<R) = Ie Re^2 2 pi n e^{b_n}/b_n^2n incomplete_gamma(2n, x)
-    
-    # calculate the loss in light
-
-    # this should simplify to the ratio of the incomplete gamma functions
-    # ... I think ...
-    
-    bn = 1.999*n-0.327
-    x_after = bn*(rtrunc/Re)**(1./n)
-    x_before = bn*(rmax)**(1./n)
-    frac_retained = gammainc(2*n,x_after)/gammainc(2*n,x_before)     
+        
     return frac_retained
 
+
+###########################
+##### MAIN SIMULATION FUNCTION
+###########################
 
 
 def run_sim(tmax = 2.,nrandom=100,drdt_step=.1,plotsingle=True,plotflag=True):
@@ -228,9 +260,12 @@ def run_sim(tmax = 2.,nrandom=100,drdt_step=.1,plotsingle=True,plotflag=True):
                 sim_core_Re24 = (rmax + drdt*actual_infall_times)*external_Re24
 
                 # new size ratio
-                sim_core = model2_get_Re_from_rtrunc(sim_core_Re24/external_Re24)*external
+                sim_core = model2_get_fitted_param(sim_core_Re24/external_Re24,sersicRe_fit)*external
                 # get the SFR by integrating profile to truncation radius
-                frac_retained = get_frac_flux_retained_model2(external_nsersic24,external_Re24,rtrunc=sim_core_Re24,rmax=rmax)
+                if args.sfrint == 1:
+                    frac_retained = get_frac_flux_retained_model2(external_nsersic24,external_Re24,rtrunc=sim_core_Re24,rmax=rmax)
+                elif args.sfrint == 2:
+                    frac_retained = get_frac_flux_retained_model2(external_nsersic24,external_Re24,rtrunc=sim_core_Re24,rmax=rmax,version=2)
                 sim_core_logsfr = np.log10(frac_retained) + external_logsfr                
             # not sure what this statement does...
             if sum(sim_core > 0.)*1./len(sim_core) < .2:
@@ -271,6 +306,10 @@ def run_sim(tmax = 2.,nrandom=100,drdt_step=.1,plotsingle=True,plotflag=True):
 
     return best_drdt, best_sim_core,ks_p_max,all_drdt,all_p,all_p_sfr
 
+###########################
+##### PLOT FUNCTIONS
+###########################
+
 
 def plot_hexbin(all_drdt,all_p,best_drdt,tmax,gridsize=10,plotsingle=True):
     if plotsingle:
@@ -290,7 +329,8 @@ def plot_hexbin(all_drdt,all_p,best_drdt,tmax,gridsize=10,plotsingle=True):
     output = 'sim_infall_tmax_%.1f.png'%(tmax)
     plt.savefig(output)
 
-def plot_frac_below_pvalue(all_drdt,all_p,all_p_sfr,tmax,nbins=100,pvalue=0.05,plotsingle=True):
+def plot_frac_below_pvalue(all_drdt,all_p,all_p_sfr,tmax,nbins=100,plotsingle=True):
+    pvalue = args.pvalue
     if plotsingle:
         plt.figure()
     plt.subplots_adjust(bottom=.15,left=.12)
