@@ -38,14 +38,18 @@ from scipy.special import gammainc
 
 parser = argparse.ArgumentParser(description ='Program to run simulation for LCS paper 2')
 parser.add_argument('--use24', dest = 'use24', default = False, action='store_true',help = 'use 24um profile parameters when calculating expected SFR of sim galaxies (should set this).')
+parser.add_argument('--model', dest = 'model', default = 1, help = 'infall model to use.  default is 1.  \n\tmodel 1 is shrinking 24um effective radius \n\tmodel 2 is truncatingthe 24um emission')
+parser.add_argument('--tmax', dest = 'tmax', default = 3., help = 'maximum infall time.  default is 3 Gyr.  ')
+parser.add_argument('--rmax', dest = 'rmax', default = 6., help = 'maximum size of SF disk in terms of Re.  default is 6.  ')
 #parser.add_argument('--diskonly', dest = 'diskonly', default = 1, help = 'True/False (enter 1 or 0). normalize by Simard+11 disk size rather than Re for single-component sersic fit.  Default is true.  ')
 
 args = parser.parse_args()
-
+args.model = int(args.model)
+args.tmax = float(args.tmax)
 ###########################
 ##### DEFINITIONS
 ###########################
-
+mycolors = plt.rcParams['axes.prop_cycle'].by_key()['color']
 mipspixelscale=2.45
 
 #R24/Rd err  core_flag   B/T 
@@ -104,9 +108,19 @@ external_logsfr = logSFR[~core_flag]
 core_nsersic = nsersic[core_flag]
 external_nsersic = nsersic[~core_flag]
 
+core_Re24 = Re24[core_flag]
+external_Re24 = Re24[~core_flag]
+
+core_nsersic24 = nsersic24[core_flag]
+external_nsersic24 = nsersic24[~core_flag]
+
 ## infall rates
 # uniform distribution between 0 and tmax Gyr
 tmax = 2. # max infall time in Gyr
+
+def model2_get_Re_from_rtrunc(rtrunc):
+    # here rtrunc is the truncation radius/Re
+    return 1.0043-1.614*np.exp(-1.4125*rtrunc)
 
 def get_frac_flux_retained(n,ratio_before,ratio_after):
     # ratio_before = the initial value of R/Re
@@ -149,40 +163,75 @@ def get_frac_flux_retained0(n,ratio_before,ratio_after):
     frac_retained = (ratio_before/ratio_after)**2
     return frac_retained
 
-def run_sim(tmax = 2.,nrandom=100,drdt_step=.1,plotsingle=True):
+
+def get_frac_flux_retained_model2(n,Re,rtrunc=1,rmax=6):
+    # sersic index of profile
+    # Re = effective radius of profile
+    # n = sersic index of profile
+    # rmax = multiple of Re to use a max radius of integration in the "before" integral
+    # rtrunc = max radius to integrate to in "after" integral
+
+    # L(<R) = Ie Re^2 2 pi n e^{b_n}/b_n^2n incomplete_gamma(2n, x)
+    
+    # calculate the loss in light
+
+    # this should simplify to the ratio of the incomplete gamma functions
+    # ... I think ...
+    
+    bn = 1.999*n-0.327
+    x_after = bn*(rtrunc/Re)**(1./n)
+    x_before = bn*(rmax)**(1./n)
+    frac_retained = gammainc(2*n,x_after)/gammainc(2*n,x_before)     
+    return frac_retained
+
+
+
+def run_sim(tmax = 2.,nrandom=100,drdt_step=.1,plotsingle=True,plotflag=True):
+    rmax = float(args.rmax)
     ks_D_min = 0
     ks_p_max = 0
     drdt_best = 0
     drdt_multiple = []
-    drdtmin=-2
+    drdtmin=-4
     drdtmax=0
     all_p = np.zeros(int(nrandom*(drdtmax-drdtmin)/drdt_step))
     all_p_sfr = np.zeros(int(nrandom*(drdtmax-drdtmin)/drdt_step))    
     all_drdt = np.zeros(int(nrandom*(drdtmax - drdtmin)/drdt_step))
     i=0
+    if args.model == 2:
+        print('USING MODEL 2')
     for drdt in np.arange(drdtmin,drdtmax,drdt_step):
         #print drdt
         for j in range(nrandom):
             #sim_core = np.random.choice(external,size=len(core)) + drdt*np.random.uniform(low=0, high=tmax, size=len(core))
             infall_times = np.linspace(0,tmax,len(external))
             actual_infall_times = np.random.choice(infall_times, len(infall_times))
-            sim_core = external + drdt*actual_infall_times
+            if args.model == 1:
+                sim_core = external + drdt*actual_infall_times
+                # to implement SFR decrease
+                # need SFR, sersic index, and Re for all galaxies
+                # greg has equation for integral of sersic profile
+                # create function that gives flux/flux_0 for sersic profile that
+                # has Re shrink by some factor
+                #frac_retained = get_frac_flux_retained(external_nsersic,external,sim_core)
+                frac_retained = get_frac_flux_retained0(external_nsersic,external,sim_core)            
+                ########################################################
+                # get predicted SFR of core galaxies by multiplying the
+                # distribution of SFRs from the external samples by the
+                # flux ratio you would expect from shrinking the
+                # external sizes to the sim_core sizes
+                # SFRs are logged
+                sim_core_logsfr = np.log10(frac_retained) + external_logsfr
+            elif args.model == 2:
+                # get the truncation radius (actual physical radius)
+                sim_core_Re24 = external_Re24 + drdt*actual_infall_times
+                sim_core_Re24 = (rmax + drdt*actual_infall_times)*external_Re24
 
-            # to implement SFR decrease
-            # need SFR, sersic index, and Re for all galaxies
-            # greg has equation for integral of sersic profile
-            # create function that gives flux/flux_0 for sersic profile that
-            # has Re shrink by some factor
-            #frac_retained = get_frac_flux_retained(external_nsersic,external,sim_core)
-            frac_retained = get_frac_flux_retained0(external_nsersic,external,sim_core)            
-            ########################################################
-            # get predicted SFR of core galaxies by multiplying the
-            # distribution of SFRs from the external samples by the
-            # flux ratio you would expect from shrinking the
-            # external sizes to the sim_core sizes
-            # SFRs are logged
-            sim_core_logsfr = np.log10(frac_retained) + external_logsfr
-
+                # new size ratio
+                sim_core = model2_get_Re_from_rtrunc(sim_core_Re24/external_Re24)*external
+                # get the SFR by integrating profile to truncation radius
+                frac_retained = get_frac_flux_retained_model2(external_nsersic24,external_Re24,rtrunc=sim_core_Re24,rmax=rmax)
+                sim_core_logsfr = np.log10(frac_retained) + external_logsfr                
             # not sure what this statement does...
             if sum(sim_core > 0.)*1./len(sim_core) < .2:
                 continue
@@ -217,7 +266,8 @@ def run_sim(tmax = 2.,nrandom=100,drdt_step=.1,plotsingle=True):
             print('\t best dr/dt = ',drdt_multiple[i])
             print('\t disk is quenched in %.1f Gyr'%(1./abs(drdt_multiple[i])))
     #plot_results(core,external,best_sim_core,best_drdt,tmax)
-    plot_hexbin(all_drdt,all_p,best_drdt,tmax,gridsize = int(1./drdt_step),plotsingle=plotsingle)
+    if plotflag:
+        plot_hexbin(all_drdt,all_p,best_drdt,tmax,gridsize = int(1./drdt_step),plotsingle=plotsingle)
 
     return best_drdt, best_sim_core,ks_p_max,all_drdt,all_p,all_p_sfr
 
@@ -238,6 +288,39 @@ def plot_hexbin(all_drdt,all_p,best_drdt,tmax,gridsize=10,plotsingle=True):
     #plt.text(0.02,.7,s,transform = plt.gca().transAxes)
     plt.title(s,fontsize=18)
     output = 'sim_infall_tmax_%.1f.png'%(tmax)
+    plt.savefig(output)
+
+def plot_frac_below_pvalue(all_drdt,all_p,all_p_sfr,tmax,nbins=100,pvalue=0.05,plotsingle=True):
+    if plotsingle:
+        plt.figure()
+    plt.subplots_adjust(bottom=.15,left=.12)
+    mybins = np.linspace(min(all_drdt),max(all_drdt),100)
+    t= np.histogram(all_drdt,bins=mybins)
+    #print(t)
+    ytot = t[0]
+    xtot = t[1]
+    flag = all_p < 0.05
+    t = np.histogram(all_drdt[flag],bins=mybins)
+    #print(t)
+    y1 = t[0]/ytot
+    flag = all_p_sfr < 0.05
+    t = np.histogram(all_drdt[flag],bins=mybins)
+    y2 = t[0]/ytot
+    #plt.figure()
+
+    # calculate the position of the bin centers
+    xplt = 0.5*(xtot[0:-1]+xtot[1:])
+    plt.plot(xplt,y1,'bo',color=mycolors[0],markersize=6,label='R24/Re')
+    plt.plot(xplt,y2,'rs',color=mycolors[1],markersize=6,label='SFR')
+    plt.legend()
+
+    plt.xlabel(r'$dr/dt \ (Gyr^{-1}) $',fontsize=18)
+    plt.ylabel(r'$Fraction(p<{:.3f})$'.format(pvalue),fontsize=18)
+    #s = r'$t_{max} = %.1f \ Gyr, \ dr/dt = %.2f \ Gyr^{-1}, \ t_{quench} = %.1f \ Gyr$'%(tmax, best_drdt,1./abs(best_drdt))
+    s = r'$t_{max} = %.1f \ Gyr$'%(tmax)
+    #plt.text(0.02,.7,s,transform = plt.gca().transAxes)
+    plt.title(s,fontsize=18)
+    output = 'frac_pvalue_infall_tmax_%.1f.png'%(tmax)
     plt.savefig(output)
 
 def plot_sfr_size(all_p,all_p_sfr,all_drdt,tmax,plotsingle=True):
@@ -280,12 +363,30 @@ def plot_multiple_tmax_wsfr(nrandom=100):
         best_drdt, best_sim_core,ks_p_max,all_drdt,all_p,all_p_sfr=run_sim(tmax=tmax,drdt_step=.05,nrandom=nrandom,plotsingle=False)
         allax.append(plt.gca())
         plt.subplot(2,4,i+5)    
-        plot_sfr_size(all_p,all_p_sfr,all_drdt,tmax,plotsingle=False)    
+        #plot_sfr_size(all_p,all_p_sfr,all_drdt,tmax,plotsingle=False)
+        plot_frac_below_pvalue(all_drdt,all_p,all_p_sfr,tmax,nbins=100,pvalue=0.05,plotsingle=False)        
         allax.append(plt.gca())
 
 
     plt.subplots_adjust(hspace=.5,wspace=.7,bottom=.1)
     cb = plt.colorbar(ax=allax,label='$dr/dt$')    
+    plt.savefig('sim_infall_multiple_tmax_wsfr.pdf')
+    plt.savefig('sim_infall_multiple_tmax_wsfr.png')    
+    #plt.savefig('fig18.pdf')
+def plot_multiple_tmax_wsfr2(nrandom=100):
+    plt.figure(figsize=(10,8))
+    mytmax = [1,2,3,4]
+    allax = []
+    for i,tmax in enumerate(mytmax):
+        plt.subplot(2,2,i+1)
+        best_drdt, best_sim_core,ks_p_max,all_drdt,all_p,all_p_sfr=run_sim(tmax=tmax,drdt_step=.05,nrandom=nrandom,plotsingle=False,plotflag=False)
+
+        plot_frac_below_pvalue(all_drdt,all_p,all_p_sfr,tmax,nbins=100,pvalue=0.05,plotsingle=False)        
+        allax.append(plt.gca())
+
+
+    plt.subplots_adjust(hspace=.5,wspace=.5,bottom=.1)
+    #cb = plt.colorbar(ax=allax,label='$dr/dt$')    
     plt.savefig('sim_infall_multiple_tmax_wsfr.pdf')
     plt.savefig('sim_infall_multiple_tmax_wsfr.png')    
     #plt.savefig('fig18.pdf')
@@ -307,3 +408,11 @@ def plot_results(core,external,sim_core,best_drdt,tmax):
     plt.text(0.02,.6,s,transform = plt.gca().transAxes)
     plt.legend(loc='upper left')
 
+if __name__ == '__main__':
+
+    # run program
+    print('Welcome!')
+    #best_drdt, best_sim_core,ks_p_max,all_drdt,all_p,all_p_sfr = run_sim(tmax=args.tmax,drdt_step=0.05,nrandom=100,rmax=6)
+    # plot
+    #plot_frac_below_pvalue(all_drdt,all_p,best_drdt,args.tmax,nbins=100,pvalue=0.05,plotsingle=True)
+    pass
