@@ -251,21 +251,28 @@ class galaxies:
         #flux_10pc = 10.**((22.5-self.s.ABSMAG[:,1])/2.5)
         # assume ABSMAG is in AB mag, with ZP = 3631 Jy
         # ******* NSA ABSMAG IS FOR H0=100 *********
-        flux_10pc = 3631.*10**(-1.*self.s.ABSMAG[:,1]/2.5)*u.Jy
-        dist = 10.*u.pc
-        self.nuLnu_NUV = flux_10pc*4*np.pi*dist**2*freq_NUV
-        self.nuLnu_NUV_cor = self.nuLnu_NUV.cgs + 2.26*self.nuLnu24_ZDIST.cgs
-
-
+        #flux_10pc = 3631.*10**(-1.*self.s.ABSMAG[:,1]/2.5)*u.Jy
+        #dist = 10.*u.pc
 
         ## CALCULATING AGAIN USING THE CORRECT DISTANCE
         nuv_mag = 22.5 - np.log10(self.s['NMGY'][:,1])
         fnu_nuv = 3631*10**(-1*nuv_mag/2.5)*u.Jy
+
+        nuFnu_NUV = fnu_nuv*freq_NUV
+        
+        #self.nuLnu_NUV = flux_10pc*4*np.pi*dist**2*freq_NUV
+        self.nuLnu_NUV_ZDIST = nuFnu_NUV * 4 * np.pi * (cosmo.luminosity_distance(self.s.ZDIST))**2
+        self.nuLnu_NUV_ZCLUST = nuFnu_NUV * 4 * np.pi * (cosmo.luminosity_distance(self.s.CLUSTER_REDSHIFT))**2        
+        
+        self.nuLnu_NUV_cor_ZDIST = self.nuLnu_NUV_ZDIST.cgs + 2.26*self.nuLnu24_ZDIST.cgs
+        self.nuLnu_NUV_cor_ZCLUST = self.nuLnu_NUV_ZCLUST.cgs + 2.26*self.nuLnu24_ZCLUST.cgs        
+
+        
         #self.nuLnu_NUV = fnu_nuv*4*np.pi*(cosmo.luminosity_distance(self.s.ZDIST))**2*freq_NUV
 
         #self.nuLnu_NUV_cor = self.nuLnu_NUV.cgs + 2.26*self.nuLnu24_ZDIST.cgs
         
-        self.logSFR_NUV = np.log10(self.nuLnu_NUV_cor.cgs.value) - 43.17
+        self.logSFR_NUV = np.log10(self.nuLnu_NUV_cor_ZDIST.cgs.value) - 43.17
         # need relation for calculating SFR from UV only
         #
         # eqn 12
@@ -274,41 +281,25 @@ class galaxies:
         # 24um - logCx = 42.69
         # Halpha - log Cx = 41.27
         
-        self.logSFR_NUV_KE = np.log10(self.nuLnu_NUV.cgs.value) - 43.17
+        self.logSFR_NUV_KE = np.log10(self.nuLnu_NUV_ZDIST.cgs.value) - 43.17
         self.logSFR_IR_KE = np.log10(self.nuLnu24_ZDIST.cgs.value)-42.69
-        self.logSFR_NUVIR_KE = np.log10(self.nuLnu_NUV_cor.cgs.value) - 43.17
+        self.logSFR_NUVIR_KE = np.log10(self.nuLnu_NUV_cor_ZDIST.cgs.value) - 43.17
+        self.logSFR_NUVIR_KE_ZCLUST = np.log10(self.nuLnu_NUV_cor_ZCLUST.cgs.value) - 43.17        
         # repeating calculation using ZCLUSTER
 
 
-        
-        # convert NSA NUV abs mag to nuLnu_NUV
-        #flux_10pc = 10.**((22.5-self.s.ABSMAG[:,1])/2.5)
-        # assume ABSMAG is in AB mag, with ZP = 3631 Jy
-        flux = 3.631e-6*self.s.NMGY[:,1]*u.Jy
-        distcl = cosmo.luminosity_distance(self.s.CLUSTER_REDSHIFT)
-        self.nuLnu_NUV_ZCLUST = flux*4*np.pi*distcl**2*freq_NUV
-        dist = cosmo.luminosity_distance(self.s.ZDIST)
-        self.nuLnu_NUV_ZDIST = flux*4*np.pi*dist**2*freq_NUV
-        
-        #self.nuLnu_NUV_cor_ZCLUST = self.nuLnu_NUV_ZCLUST.cgs + 2.26*self.nuLnu24_ZCLUST.cgs
-        #self.nuLnu_NUV_cor_ZDIST = self.nuLnu_NUV_ZDIST.cgs + 2.26*self.nuLnu24_ZDIST.cgs
-
-        # assuming that the ABSMAG is calculated based on ZDIST
-        # rescaling this for cluster redshift to use for members
-        self.nuLnu_NUV_cor_ZCLUST = self.nuLnu_NUV_cor*(distcl/dist)**2 
-        self.nuLnu_NUV_cor_ZDIST = self.nuLnu_NUV_cor
-
         self.logSFR_NUV_ZCLUST = np.log10(self.nuLnu_NUV_cor_ZCLUST.cgs.value) - 43.17
-        self.logSFR_NUV_ZDIST = np.log10(self.nuLnu_NUV_cor_ZDIST.cgs.value) - 43.17
-        self.logSFR_NUV_BEST = self.logSFR_NUV_ZCLUST * np.array(self.membflag,'i') + np.array(~self.membflag,'i')*(self.logSFR_NUV_ZDIST)
+
+        self.logSFR_NUV_BEST = self.logSFR_NUV_ZCLUST * np.array(self.membflag,'i') + np.array(~self.membflag,'i')*(self.logSFR_NUV_KE)
+        self.logSFR_NUVIR_KE_BEST = self.logSFR_NUVIR_KE_ZCLUST * np.array(self.membflag,'i') + np.array(~self.membflag,'i')*(self.logSFR_NUVIR_KE)        
         self.SFR_NUV_BEST = 10**self.logSFR_NUV_BEST
 
     def update_table(self):
         
         # append Kennicutt & Evans SFRs at end of table
         t = Table(self.s)
-        newcolumns = [self.membflag, self.lirflag, self.sampleflag,self.logSFR_NUV_KE, self.logSFR_IR_KE, self.logSFR_NUVIR_KE,self.sizeratio,self.sizeratioERR]
-        newnames = ['membflag','lirflag','sampleflag','logSFR_NUV_KE','logSFR_IR_KE','logSFR_NUVIR_KE','sizeratio','sizeratio_err']
+        newcolumns = [self.membflag, self.lirflag, self.sampleflag,self.logSFR_NUV_KE, self.logSFR_IR_KE, self.logSFR_NUVIR_KE,self.logSFR_NUVIR_KE_BEST,self.sizeratio,self.sizeratioERR]
+        newnames = ['membflag','lirflag','sampleflag','logSFR_NUV_KE','logSFR_IR_KE','logSFR_NUVIR_KE','logSFR_NUVIR_KE_ZBEST','sizeratio','sizeratio_err']
         for i in range(len(newcolumns)):
             col = Column(newcolumns[i],name=newnames[i])
             t.add_column(col)

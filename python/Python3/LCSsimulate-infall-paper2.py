@@ -40,7 +40,8 @@ parser = argparse.ArgumentParser(description ='Program to run simulation for LCS
 parser.add_argument('--use24', dest = 'use24', default = False, action='store_true',help = 'use 24um profile parameters when calculating expected SFR of sim galaxies (should set this).')
 parser.add_argument('--model', dest = 'model', default = 1, help = 'infall model to use.  default is 1.  \n\tmodel 1 is shrinking 24um effective radius \n\tmodel 2 is truncatingthe 24um emission')
 parser.add_argument('--sfrint', dest = 'sfrint', default = 1, help = 'method for integrating the SFR in model 2.  \n\tmethod 1 = integrate external sersic profile out to truncation radius.\n\tmethod 2 = integrate fitted sersic profile out to rmax.')
-parser.add_argument('--pvalue', dest = 'pvalue', default = .005, help = 'pvalue threshold to use when plotting fraction of trials below this pvalue.  Default is 0.05 (2sigma).  For ref, 3sigma is .003.')parser.add_argument('--tmax', dest = 'tmax', default = 3., help = 'maximum infall time.  default is 3 Gyr.  ')
+parser.add_argument('--pvalue', dest = 'pvalue', default = .005, help = 'pvalue threshold to use when plotting fraction of trials below this pvalue.  Default is 0.05 (2sigma).  For ref, 3sigma is .003.')
+parser.add_argument('--tmax', dest = 'tmax', default = 3., help = 'maximum infall time.  default is 3 Gyr.  ')
 
 parser.add_argument('--rmax', dest = 'rmax', default = 6., help = 'maximum size of SF disk in terms of Re.  default is 6.  ')
 #parser.add_argument('--diskonly', dest = 'diskonly', default = 1, help = 'True/False (enter 1 or 0). normalize by Simard+11 disk size rather than Re for single-component sersic fit.  Default is true.  ')
@@ -213,9 +214,9 @@ def get_frac_flux_retained_model2(n,Re,rtrunc=1,rmax=6,version=1):
     return frac_retained
 
 
-###########################
+###############################
 ##### MAIN SIMULATION FUNCTION
-###########################
+###############################
 
 
 def run_sim(tmax = 2.,nrandom=100,drdt_step=.1,plotsingle=True,plotflag=True):
@@ -256,7 +257,8 @@ def run_sim(tmax = 2.,nrandom=100,drdt_step=.1,plotsingle=True,plotflag=True):
                 sim_core_logsfr = np.log10(frac_retained) + external_logsfr
             elif args.model == 2:
                 # get the truncation radius (actual physical radius)
-                sim_core_Re24 = external_Re24 + drdt*actual_infall_times
+                #sim_core_Re24 = external_Re24 + drdt*actual_infall_times
+                # our choice of rmax will affect the inferred infall time
                 sim_core_Re24 = (rmax + drdt*actual_infall_times)*external_Re24
 
                 # new size ratio
@@ -266,10 +268,21 @@ def run_sim(tmax = 2.,nrandom=100,drdt_step=.1,plotsingle=True,plotflag=True):
                     frac_retained = get_frac_flux_retained_model2(external_nsersic24,external_Re24,rtrunc=sim_core_Re24,rmax=rmax)
                 elif args.sfrint == 2:
                     frac_retained = get_frac_flux_retained_model2(external_nsersic24,external_Re24,rtrunc=sim_core_Re24,rmax=rmax,version=2)
-                sim_core_logsfr = np.log10(frac_retained) + external_logsfr                
+                sim_core_logsfr = np.log10(frac_retained) + external_logsfr
+
+            ## NEED TO REVIEW THIS
+            ## THIS REQUIRES THAT > 20% OF SIMULATED CORE GALAXIES
+            ## HAVE A SIZE > 0
+            ## do we need this?????
             # not sure what this statement does...
             if sum(sim_core > 0.)*1./len(sim_core) < .2:
                 continue
+
+            ## MAKE SURE SIMULATED CORE RADIUS DOES NOT GO NEGATIVE
+
+            ## NEED TO CUT SIMULATED GALAXIES BASED ON SFR AND SIZE
+            ## EASIEST IS TO USE MIN VALUE OF SFR AND SIZE IN THE CATALOG
+            ## WE COULD PUT THE ACTUAL CUTS IN
 
             # compare distribution of sizes between core (measured)
             # and the simulated core
@@ -285,15 +298,18 @@ def run_sim(tmax = 2.,nrandom=100,drdt_step=.1,plotsingle=True,plotflag=True):
             elif abs(p - ks_p_max) < 1.e-5:
                 #print('found an equally good model at drdt = ',drdt,p)
                 drdt_multiple.append(drdt)
-            D2,p2 = ks_2samp(core_logsfr,sim_core_logsfr)
+            flag = sim_core_logsfr > min(logSFR)
+            if sum(flag) < 0.2*len(flag):
+                print('Warning: < 20% of sim core sample has SFRs above detection threshold')
+            D2,p2 = ks_2samp(core_logsfr,sim_core_logsfr[sim_core_logsfr > min(logSFR)])
             all_p[i] = p
             all_drdt[i] = drdt
             all_p_sfr[i] = p2
             i += 1
-    print('best dr/dt = ',best_drdt)
-    print('disk is quenched in %.1f Gyr'%(1./abs(best_drdt)))
-    print('fraction that are quenched = %.2f'%(1.*sum(best_sim_core < 0.)/len(best_sim_core)))
-    print('KS p value = %.8e'%(ks_p_max))
+    #print('best dr/dt = ',best_drdt)
+    #print('disk is quenched in %.1f Gyr'%(1./abs(best_drdt)))
+    #print('fraction that are quenched = %.2f'%(1.*sum(best_sim_core < 0.)/len(best_sim_core)))
+    #print('KS p value = %.8e'%(ks_p_max))
     if len(drdt_multiple) > 0.:
         print('drdt multiple values of dr/dt')
         for i in range(len(drdt_multiple)):
@@ -421,7 +437,7 @@ def plot_multiple_tmax_wsfr2(nrandom=100):
         plt.subplot(2,2,i+1)
         best_drdt, best_sim_core,ks_p_max,all_drdt,all_p,all_p_sfr=run_sim(tmax=tmax,drdt_step=.05,nrandom=nrandom,plotsingle=False,plotflag=False)
 
-        plot_frac_below_pvalue(all_drdt,all_p,all_p_sfr,tmax,nbins=100,pvalue=0.05,plotsingle=False)        
+        plot_frac_below_pvalue(all_drdt,all_p,all_p_sfr,tmax,nbins=100,plotsingle=False)        
         allax.append(plt.gca())
 
 
