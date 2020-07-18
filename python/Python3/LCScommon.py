@@ -295,7 +295,7 @@ def ks(x,y,run_anderson=True):
     D,pvalue=ks_boot(x,y)
     print('KS Test:')
     print('D = %6.2f'%(D))
-    print('p-vale = %6.5f (prob that samples are from same distribution)'%(pvalue))
+    print('p-vale = %1.3e (prob that samples are from same distribution)'%(pvalue))
     if run_anderson:
         anderson(x,y)
     return D,pvalue
@@ -343,7 +343,7 @@ def drawbox(data,style):#feed in center x,y,dx,dy,rotation E of N
     xp=data[0]+xp
     yp=data[1]+yp
     #draw rotated box
-    plot(xp,yp,style)
+    plot(xp,yp,style,zorder=20)
 
 def transcoords(imge,coords):
     outcoords='junk.xy'
@@ -406,7 +406,7 @@ def binxycolor(x,y,color,nbin=5,erry=False,use_median=False,equal_pop_bins=False
             ybins[i] = np.mean(y[xbin_number == i])
             colorbins[i] = np.mean(color[xbin_number == i])
 
-        ybinerr = np.std(y[xbin_number == i])/np.sqrt(sum(xbin_number == i))
+        ybinerr[i] = np.std(y[xbin_number == i])/np.sqrt(sum(xbin_number == i))
                       
     if erry:
         return xbins,ybins,ybinerr,colorbins

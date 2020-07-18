@@ -105,14 +105,16 @@ def colormass(x1,y1,x2,y2,name1,name2, figname, hexbinflag=False,contourflag=Fal
 
         plt.hexbin(x1,y1,bins='log',cmap='gray_r', gridsize=75,label=name1)
     else:
-        plt.plot(x1,y1,'k.',color=color1,alpha=alphagray,label=name1, zorder=10)
+        label=name1+' (%i)'%(n1)
+        plt.plot(x1,y1,'ko',color=color1,alpha=alphagray,label=label, zorder=10)
     if contourflag:
         H, xbins,ybins = np.histogram2d(x2,y2,bins=contour_bins)
         extent = [xbins[0], xbins[-1], ybins[0], ybins[-1]]
         plt.contour((H.T), levels=ncontour_levels, extent = extent, zorder=1,colors=color2, label='__nolegend__')
         #plt.legend()
     else:
-        plt.plot(x2,y2,'c.',color=color2,alpha=alpha1, label=name2)
+        label=name2+' (%i)'%(n2)
+        plt.plot(x2,y2,'co',color=color2,alpha=alpha1, label=label)
         
         
         #plt.legend()
@@ -122,8 +124,9 @@ def colormass(x1,y1,x2,y2,name1,name2, figname, hexbinflag=False,contourflag=Fal
     plt.axis([xmin,xmax,ymin,ymax])
     plt.xticks(fontsize=12)
     plt.yticks(fontsize=12)
-    plt.xlabel(xlabel,fontsize=22)
-    plt.ylabel(ylabel,fontsize=22)
+    plt.xlabel(xlabel,fontsize=26)
+    plt.ylabel(ylabel,fontsize=26)
+    plt.gca().tick_params(axis='both', labelsize=16)
     #plt.axis([7.9,11.6,-.05,2])
     ax2 = plt.subplot2grid((nrow,ncol),(0,0),rowspan=1,colspan=ncol-1, fig=fig, sharex = ax1, yticks=[])
     minx = min([min(x1),min(x2)])
@@ -132,7 +135,7 @@ def colormass(x1,y1,x2,y2,name1,name2, figname, hexbinflag=False,contourflag=Fal
     t = plt.hist(x1, normed=True, bins=mybins,color=color1,histtype='step',lw=1.5, label=name1+' (%i)'%(n1))
     t = plt.hist(x2, normed=True, bins=mybins,color=color2,histtype='step',lw=1.5, label=name2+' (%i)'%(n2))
     #plt.legend()
-    ax2.legend(fontsize=10,loc='upper right')
+    ax1.legend(fontsize=20,loc='lower right')
     ax2.xaxis.tick_top()
     ax3 = plt.subplot2grid((nrow,ncol),(1,ncol-1),rowspan=nrow-1,colspan=1, fig=fig, sharey = ax1, xticks=[])
     miny = min([min(y1),min(y2)])
@@ -144,6 +147,9 @@ def colormass(x1,y1,x2,y2,name1,name2, figname, hexbinflag=False,contourflag=Fal
     
     plt.yticks(rotation='horizontal')
     ax3.yaxis.tick_right()
+    ax3.tick_params(axis='both', labelsize=16)
+    ax2.tick_params(axis='both', labelsize=16)
+    #ax3.set_title('$log_{10}(SFR)$',fontsize=20)
     plt.savefig(figname)
 
     print('############################################################# ')
@@ -621,6 +627,7 @@ class comp_lcs_gsw():
         y2 = self.gsw.cat['logSFR'][flag2]
         
         colormass(x1,y1,x2,y2,label,'GSWLC','sfr-mstar-gswlc-field.pdf',ymin=-2,ymax=1.6,xmin=9.75,xmax=11.5,nhistbin=10,ylabel='$\log_{10}(SFR)$',contourflag=False,alphagray=.8)
+        plt.subplots_adjust(left=.15)
         if outfile1 is None:
             plt.savefig(homedir+'/research/LCS/plots/lcscore-gsw-sfms.pdf')
         else:
