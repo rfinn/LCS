@@ -631,6 +631,28 @@ def plot_results(core,external,sim_core,best_drdt,tmax):
     plt.text(0.02,.6,s,transform = plt.gca().transAxes)
     plt.legend(loc='upper left')
 
+
+def plot_model3(all_drdt,all_p,all_p_sfr,boost,tmax=2):
+    '''plot boost factor vs dr/dt, colored by pvalue'''
+    plt.figure(figsize=(12,4))
+    plt.subplots_adjust(wspace=.5)
+    colors = [all_p,all_p_sfr]
+    labels = ['size p value','sfr p value']
+    titles = ['Size Constraints','SFR Constraints']
+    v2 = .005
+    allax = []
+    for i in range(len(colors)):
+        plt.subplot(1,2,i+1)
+        plt.scatter(all_drdt,boost,c=colors[i],vmin=0,vmax=v2,s=15)
+    
+        plt.title(titles[i])
+        plt.xlabel('dr/dt',fontsize=16)
+        plt.ylabel('I boost/I0',fontsize=16)
+        allax.append(plt.gca())
+    cb = plt.colorbar()
+    cb.set_label('KS p value')
+    plt.savefig(plotdir+'/model3-tmax'+str(tmax)+'-size-sfr-constraints.png')
+    plt.savefig(plotdir+'/model3-tmax'+str(tmax)+'-size-sfr-constraints.pdf')
 if __name__ == '__main__':
 
     # run program
