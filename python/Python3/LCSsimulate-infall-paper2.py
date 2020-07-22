@@ -1,6 +1,9 @@
 #!/usr/bin/env python
 
 '''
+GOAL:
+- test several models that describe how disks shrink and integrated SFR decreases as a result of outside-in quenching
+
 
 USAGE
 - from within ipython
@@ -16,6 +19,7 @@ t = run_sim(tmax=5,drdt_step=0.05,nrandom=1000)
 
 
 Written by Rose A. Finn, 2/21/18
+Updated 2019-2020 to incorporate total SFRs into the comparison.
 
 '''
 
@@ -30,8 +34,11 @@ from scipy.stats import ks_2samp
 # the incomplete gamma function, for integrating the sersic profile
 from scipy.special import gammainc
 #from astropy.table import Table
+import os
 
 #from anderson import *
+
+homedir = os.getenv("HOME")
 ###########################
 ##### SET UP ARGPARSE
 ###########################
@@ -44,7 +51,8 @@ parser.add_argument('--pvalue', dest = 'pvalue', default = .005, help = 'pvalue 
 parser.add_argument('--tmax', dest = 'tmax', default = 3., help = 'maximum infall time.  default is 3 Gyr.  ')
 
 parser.add_argument('--rmax', dest = 'rmax', default = 6., help = 'maximum size of SF disk in terms of Re.  default is 6.  ')
-#parser.add_argument('--diskonly', dest = 'diskonly', default = 1, help = 'True/False (enter 1 or 0). normalize by Simard+11 disk size rather than Re for single-component sersic fit.  Default is true.  ')
+parser.add_argument('--btcut', dest = 'btcut', default = False, action='store_true',help = 'cut sample by B/T < 0.3.  This should be set, but leaving this as an option for backwards compatability..  ')
+
 
 args = parser.parse_args()
 args.model = int(args.model)
@@ -58,7 +66,10 @@ args.pvalue = float(args.pvalue)
 
 mycolors = plt.rcParams['axes.prop_cycle'].by_key()['color']
 mipspixelscale=2.45
-
+######################################################
+## FROM FITTING FIT VS INPUT
+## SERSIC PARAMETERS AS A FUNCTION OF RTRUNC
+######################################################
 sersicN_fit = [ 1.00321952, -1.33892353, -1.58502679]
 sersicRe_fit = [ 1.0051858,  -1.6640543,  -1.43415337]
 sersicIe_fit = [ 1.03890568, 30.02634861, -3.38602545]
@@ -70,20 +81,24 @@ tmax = 2. # max infall time in Gyr
 
 ###########################
 ##### READ IN DATA FILE
-##### WITH FITTED PARAMETERS
+##### WITH SIZE INFO
 ###########################
 
 # updated input file to include SFR, n
-#infile = '/home/rfinn/research/LCS/tables/LCS-simulation-data.fits'
-infile = '/home/rfinn/research/LCS/tables/LCS_all_size_KE_SFR.fits'
+#infile = homedir+'/research/LCS/tables/LCS-simulation-data.fits'
+infile = homedir+'/research/LCS/tables/LCS_all_size_KE_SFR.fits'
 sizes = Table.read(infile)
 # keep only galaxies in paper 1 sample
 sizes = sizes[sizes['sampleflag']]
-              
+bt = sizes['B_T_r']
+btflag = sizes['B_T_r'] < 0.3
+if args.btcut:
+    sizes = sizes[btflag]
+# keep only B/T < 0.3              
 size_ratio = sizes['sizeratio']
 size_err = sizes['sizeratio_err']
 core_flag= sizes['membflag']
-bt = sizes['B_T_r']
+
 logSFR = sizes['logSFR_NUVIR_KE']
 nsersic = sizes['ng'] # simard sersic index
 Re = sizes['Re'] # rband disk scale length from simard
@@ -161,11 +176,21 @@ gammainc = 1 when integrating to infinity
 
 '''
 def get_frac_flux_retained0(n,ratio_before,ratio_after):
-    # ratio_before = the initial value of R24/Re_r
-    # ratio_after = the final value of R24/Re_r
-    # n = sersic index of profile
+    '''
+    calculate fraction of flux retained after shrinking Re of sersic profile
+
+    PARAMS
+    ------
+    ratio_before: the initial value of R24/Re_r
+    ratio_after: the final value of R24/Re_r
+    n: sersic index of profile
 
     # L(<R) = Ie Re^2 2 pi n e^{b_n}/b_n^2n incomplete_gamma(2n, x)
+
+    RETURNS
+    -------
+    frac_retained: fraction of flux retained
+    '''
     
     # calculate the loss in light
     bn = 1.999*n-0.327
@@ -178,6 +203,24 @@ def get_frac_flux_retained0(n,ratio_before,ratio_after):
 
 
 def get_frac_flux_retained_model2(n,Re,rtrunc=1,rmax=6,version=1):
+    '''
+    return fraction of the flux retained by a truncated profile
+
+    PARAMS
+    ------
+    * n: sersic index of profile
+    * Re: effective radius of sersic profile
+    * rtrunc: truncation radius, in terms of Re; default=1
+    * rmax: maximum extent of the disk, in terms of Re, for the purpose of integration; default=6
+    * version:
+      - 1 : integrate truncated profile
+      - 2 : integrate fitted sersic profile (what we would get if we fit a sersic profile to a truncated profile)
+
+    RETURNS
+    -------
+    * fraction of the flux retained
+    
+    '''
     if version == 1:
         # sersic index of profile
         # Re = effective radius of profile
@@ -214,12 +257,108 @@ def get_frac_flux_retained_model2(n,Re,rtrunc=1,rmax=6,version=1):
     return frac_retained
 
 
+def get_frac_flux_retained_model3(n,Re,rtrunc=1,rmax=6,version=1,Iboost=1):
+    '''
+    return fraction of the flux retained by a truncated profile.
+
+    this model integrates the after model to the truncation radius AND
+    boosts the central intensity of the after model.
+    The sersic index is unchanged.  
+
+    PARAMS
+    ------
+    * n: sersic index of profile
+    * Re: effective radius of sersic profile
+    * rtrunc: truncation radius, in terms of Re; default=1
+    * rmax: maximum extent of the disk, in terms of Re, for the purpose of integration; default=6
+      - this is how far out the original profile is integrated to, rather than infinity
+    * version:
+      - 1 = integrate the truncated profile
+      - 2 = integrate the sersic profile we would measure by fitting a sersic profile to the truncated profile
+      - best to use option 1
+    * Iboost: factor to boost central intensity by
+
+    RETURNS
+    -------
+    * fraction of the flux retained
+    
+    '''
+    if version == 1:
+        # sersic index of profile
+        # Re = effective radius of profile
+        # n = sersic index of profile
+        # rmax = multiple of Re to use a max radius of integration in the "before" integral
+        # rtrunc = max radius to integrate to in "after" integral
+
+        # ORIGINAL
+        # L(<R) = Ie Re^2 2 pi n e^{b_n}/b_n^2n incomplete_gamma(2n, x)
+        # PROCESSED
+        # L(<R) = boost*Ie Re^2 2 pi n e^{b_n}/b_n^2n incomplete_gamma(2n, x)
+            
+        # calculate the loss in light
+        
+        # this should simplify to the ratio of the incomplete gamma functions
+        # ... I think ...
+
+        # this is the same for both
+        bn = 1.999*n-0.327
+        
+        x_after = bn*(rtrunc/Re)**(1./n)
+        x_before = bn*(rmax)**(1./n)
+        frac_retained = Iboost*gammainc(2*n,x_after)/gammainc(2*n,x_before)
+        
+    elif version == 2:
+        # use fitted values of model to get integrated flux after
+        # integral of input sersic profile with integral of fitted sersic profile
+        Ie = 1
+        sfr_before = integrate_sersic(n,Re,Ie,rmax=rmax)
+        
+        n2 = n*model2_get_fitted_param(rtrunc/Re,sersicN_fit)
+        Re2 = Re*model2_get_fitted_param(rtrunc/Re,sersicRe_fit)
+        Ie2 = Ie*model2_get_fitted_param(rtrunc/Re,sersicIe_fit)
+        sfr_after = integrate_sersic(n2,Re2,Ie2,rmax=rmax)        
+        
+        frac_retained = Iboost*sfr_after/sfr_before
+
+        
+    return frac_retained
+
+
 ###############################
 ##### MAIN SIMULATION FUNCTION
 ###############################
 
 
-def run_sim(tmax = 2.,nrandom=100,drdt_step=.1,plotsingle=True,plotflag=True):
+def run_sim(tmax = 2.,nrandom=100,drdt_step=.1,model=1,plotsingle=True,plotflag=True):
+    '''
+    run simulations of disk shrinking
+
+    PARAMS
+    ------
+    * tmax: maximum time that core galaxies have been in cluster, in Gyr; default = 2
+    * nrandom : number of random iterations for each value of dr/dt
+    * drdt_step : step size for drdt; range is between -2 and 0
+    * model : quenching model to use; can be 1, 2 or 3
+      - 1 = shrink Re
+      - 2 = truncate disk
+      - 3 = truncate disk and boost central intensity
+    * plotsingle : default is True;
+      - use this to print a separate figure;
+      - set to False if creating a multi-panel plot
+    * plotflag : don't remember what this does
+
+    RETURNS
+    -------
+    * best_drdt : best dr/dt value (basically meaningless)
+      - b/c KS test is good at rejecting null hypothesis, but pvalue of 0.98 is not better than pvalue=0.97
+    * best_sim_core : best distribution of core sizes? (basically meaningless)
+    * ks_p_max : pvalue for best model (basically meaningless)
+    * all_drdt : dr/dt for every model
+    * all_p : p value for size comparison for every model
+    * all_p_sfr : p value for SFR comparison for every model
+    * all_boost : boost value for each model; this will be zeros if model != 3
+
+    '''
     rmax = float(args.rmax)
     ks_D_min = 0
     ks_p_max = 0
@@ -230,11 +369,13 @@ def run_sim(tmax = 2.,nrandom=100,drdt_step=.1,plotsingle=True,plotflag=True):
     all_p = np.zeros(int(nrandom*(drdtmax-drdtmin)/drdt_step))
     all_p_sfr = np.zeros(int(nrandom*(drdtmax-drdtmin)/drdt_step))    
     all_drdt = np.zeros(int(nrandom*(drdtmax - drdtmin)/drdt_step))
+    all_boost = np.zeros(int(nrandom*(drdtmax - drdtmin)/drdt_step))    
     i=0
     if args.model == 2:
         print('USING MODEL 2')
     for drdt in np.arange(drdtmin,drdtmax,drdt_step):
-        #print drdt
+
+        # repeat nrandom times for each value of dr/dt and tmax
         for j in range(nrandom):
             #sim_core = np.random.choice(external,size=len(core)) + drdt*np.random.uniform(low=0, high=tmax, size=len(core))
             infall_times = np.linspace(0,tmax,len(external))
@@ -255,7 +396,7 @@ def run_sim(tmax = 2.,nrandom=100,drdt_step=.1,plotsingle=True,plotflag=True):
                 # external sizes to the sim_core sizes
                 # SFRs are logged
                 sim_core_logsfr = np.log10(frac_retained) + external_logsfr
-            elif args.model == 2:
+            if args.model == 2:
                 # get the truncation radius (actual physical radius)
                 #sim_core_Re24 = external_Re24 + drdt*actual_infall_times
                 # our choice of rmax will affect the inferred infall time
@@ -269,7 +410,25 @@ def run_sim(tmax = 2.,nrandom=100,drdt_step=.1,plotsingle=True,plotflag=True):
                 elif args.sfrint == 2:
                     frac_retained = get_frac_flux_retained_model2(external_nsersic24,external_Re24,rtrunc=sim_core_Re24,rmax=rmax,version=2)
                 sim_core_logsfr = np.log10(frac_retained) + external_logsfr
+            if args.model == 3:
+                # model 3 involves boosting Ie in addition to truncating the disk,
+                # so this requires another loop where Iboost/Ie0 ranges from 1 to 5
+                # not sure if I can implement this as a third case
+                # or I could just assign a random boost for each iteration
+                # and increase nrandom when running model 3
+                boost = np.random.random()*2+1
+                #print('boost factor = ',boost)
+                sim_core_Re24 = (rmax + drdt*actual_infall_times)*external_Re24
 
+                # new size ratio
+                sim_core = model2_get_fitted_param(sim_core_Re24/external_Re24,sersicRe_fit)*external
+                # get the SFR by integrating profile to truncation radius
+                if args.sfrint == 1:
+                    frac_retained = get_frac_flux_retained_model3(external_nsersic24,external_Re24,rtrunc=sim_core_Re24,rmax=rmax,Iboost=boost)
+                elif args.sfrint == 2:
+                    frac_retained = get_frac_flux_retained_model2(external_nsersic24,external_Re24,rtrunc=sim_core_Re24,rmax=rmax,version=2,Iboost=boost)
+                sim_core_logsfr = np.log10(frac_retained) + external_logsfr
+            
             ## NEED TO REVIEW THIS
             ## THIS REQUIRES THAT > 20% OF SIMULATED CORE GALAXIES
             ## HAVE A SIZE > 0
@@ -305,6 +464,8 @@ def run_sim(tmax = 2.,nrandom=100,drdt_step=.1,plotsingle=True,plotflag=True):
             all_p[i] = p
             all_drdt[i] = drdt
             all_p_sfr[i] = p2
+            if args.model == 3:
+                all_boost[i] = boost
             i += 1
     #print('best dr/dt = ',best_drdt)
     #print('disk is quenched in %.1f Gyr'%(1./abs(best_drdt)))
@@ -320,7 +481,10 @@ def run_sim(tmax = 2.,nrandom=100,drdt_step=.1,plotsingle=True,plotflag=True):
     if plotflag:
         plot_hexbin(all_drdt,all_p,best_drdt,tmax,gridsize = int(1./drdt_step),plotsingle=plotsingle)
 
-    return best_drdt, best_sim_core,ks_p_max,all_drdt,all_p,all_p_sfr
+    if args.model == 3:
+        return best_drdt, best_sim_core,ks_p_max,all_drdt,all_p,all_p_sfr,all_boost
+    else:
+        return best_drdt, best_sim_core,ks_p_max,all_drdt,all_p,all_p_sfr
 
 ###########################
 ##### PLOT FUNCTIONS
@@ -435,7 +599,10 @@ def plot_multiple_tmax_wsfr2(nrandom=100):
     allax = []
     for i,tmax in enumerate(mytmax):
         plt.subplot(2,2,i+1)
-        best_drdt, best_sim_core,ks_p_max,all_drdt,all_p,all_p_sfr=run_sim(tmax=tmax,drdt_step=.05,nrandom=nrandom,plotsingle=False,plotflag=False)
+        if args.model < 3:
+            best_drdt, best_sim_core,ks_p_max,all_drdt,all_p,all_p_sfr=run_sim(tmax=tmax,drdt_step=.05,nrandom=nrandom,plotsingle=False,plotflag=False)
+        else:
+            best_drdt, best_sim_core,ks_p_max,all_drdt,all_p,all_p_sfr,boost=run_sim(tmax=tmax,drdt_step=.05,nrandom=nrandom,plotsingle=False,plotflag=False)
 
         plot_frac_below_pvalue(all_drdt,all_p,all_p_sfr,tmax,nbins=100,plotsingle=False)        
         allax.append(plt.gca())
@@ -468,7 +635,10 @@ if __name__ == '__main__':
 
     # run program
     print('Welcome!')
-    #best_drdt, best_sim_core,ks_p_max,all_drdt,all_p,all_p_sfr = run_sim(tmax=args.tmax,drdt_step=0.05,nrandom=100,rmax=6)
+    #if args.model == 3:
+    #    best_drdt, best_sim_core,ks_p_max,all_drdt,all_p,all_p_sfr,all_boost = run_sim(tmax=args.tmax,drdt_step=0.05,nrandom=100,rmax=6)
+    #else:
+    #    best_drdt, best_sim_core,ks_p_max,all_drdt,all_p,all_p_sfr = run_sim(tmax=args.tmax,drdt_step=0.05,nrandom=100,rmax=6)
     # plot
     #plot_frac_below_pvalue(all_drdt,all_p,best_drdt,args.tmax,nbins=100,pvalue=0.05,plotsingle=True)
     pass
