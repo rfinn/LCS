@@ -39,6 +39,7 @@ import os
 #from anderson import *
 
 homedir = os.getenv("HOME")
+plotdir = homedir+'/research/LCS/plots/'
 ###########################
 ##### SET UP ARGPARSE
 ###########################
@@ -406,8 +407,10 @@ def run_sim(tmax = 2.,nrandom=100,drdt_step=.1,model=1,plotsingle=True,plotflag=
                 sim_core = model2_get_fitted_param(sim_core_Re24/external_Re24,sersicRe_fit)*external
                 # get the SFR by integrating profile to truncation radius
                 if args.sfrint == 1:
+                    # integrated truncated profile
                     frac_retained = get_frac_flux_retained_model2(external_nsersic24,external_Re24,rtrunc=sim_core_Re24,rmax=rmax)
                 elif args.sfrint == 2:
+                    # integrate sersic model you would fit to truncated profile
                     frac_retained = get_frac_flux_retained_model2(external_nsersic24,external_Re24,rtrunc=sim_core_Re24,rmax=rmax,version=2)
                 sim_core_logsfr = np.log10(frac_retained) + external_logsfr
             if args.model == 3:
@@ -434,7 +437,7 @@ def run_sim(tmax = 2.,nrandom=100,drdt_step=.1,model=1,plotsingle=True,plotflag=
             ## HAVE A SIZE > 0
             ## do we need this?????
             # not sure what this statement does...
-            if sum(sim_core > 0.)*1./len(sim_core) < .2:
+            if sum(sim_core > 0.)*1./len(sim_core) < .05:
                 continue
 
             ## MAKE SURE SIMULATED CORE RADIUS DOES NOT GO NEGATIVE
@@ -653,6 +656,100 @@ def plot_model3(all_drdt,all_p,all_p_sfr,boost,tmax=2):
     cb.set_label('KS p value')
     plt.savefig(plotdir+'/model3-tmax'+str(tmax)+'-size-sfr-constraints.png')
     plt.savefig(plotdir+'/model3-tmax'+str(tmax)+'-size-sfr-constraints.pdf')
+
+def plot_model3_3panel(all_drdt,all_p,all_p_sfr,boost,tmax=2,v2=.005):
+    plt.figure(figsize=(14,4))
+    plt.subplots_adjust(wspace=.01,bottom=.15)
+    colors = [all_p,all_p_sfr]
+    labels = ['size p value','sfr p value']
+    titles = ['Size Constraints','SFR Constraints']
+    allax = []
+    for i in range(len(colors)+1):
+        plt.subplot(1,3,i+1)
+        if i < 2:
+            plt.scatter(all_drdt,boost,c=colors[i],vmin=0,vmax=v2,s=10)
+            plt.title(titles[i])
+        else:
+            # plot both together
+            flag = np.arange(0,len(all_drdt),2)
+            plt.scatter(all_drdt[flag],boost[flag],c=colors[0][flag],vmin=0,vmax=v2,s=10)
+            flag = np.arange(1,len(all_drdt),2)
+            plt.scatter(all_drdt[flag],boost[flag],c=colors[1][flag],vmin=0,vmax=v2,s=10)
+            #plt.scatter(all_drdt,boost,c=colors[0]+colors[1],vmin=0,vmax=v2,s=10)
+            plt.title('Size & SFR Constraints')
+        if i == 0:
+            plt.ylabel('Iboost/Ie',fontsize=16)
+        else:
+            y1,y2 = plt.ylim()
+            #t = plt.yticks()
+            #print(t)
+            plt.yticks([])
+            plt.ylim(y1,y2)
+        plt.xlabel('dr/dt',fontsize=16)
+        
+        allax.append(plt.gca())
+    cb = plt.colorbar(ax=allax,fraction=.08)
+    cb.set_label('KS p value')
+    plt.savefig(plotdir+'/model3-tmax'+str(tmax)+'-size-sfr-constraints-3panel.png')
+    plt.savefig(plotdir+'/model3-tmax'+str(tmax)+'-size-sfr-constraints-3panel.pdf')
+
+def plot_model1_3panel(all_drdt,all_p,all_p_sfr,tmax=2,v2=.005,model=1):
+    '''
+    make a 1x3 plot showing
+     (1) pvalue vs dr/dt for size
+     (2) pvalue vs dr/dt for SFR
+     (3) pvalue size vs pvalue SFR, color coded by dr/dt
+
+    PARAMS
+    ------
+    * all_drdt : output from run_sum; disk-shrinking rate for each model
+    * all_p : output from run_sum; KS pvalue for size comparision
+    * all_p_sfr : output from run_sum; KS pvalue for SFR comparison
+    * tmax : tmax of simulation, default is 2 Gyr
+    * v2 : max value for colorbar; default is 0.005 for 2sigma
+    * model : default is 1; could use this plot for models 1 and 2
+
+    OUTPUT
+    ------
+    * save png and pdf plot in plotdir
+    * title is: model3-tmax'+str(tmax)+'-size-sfr-constraints-3panel.pdf
+    '''
+    
+    plt.figure(figsize=(14,4))
+    plt.subplots_adjust(wspace=.5,bottom=.15)
+    xvars = [all_drdt, all_drdt, all_p]
+    yvars = [all_p, all_p_sfr, all_p_sfr]
+    xlabels=['dr/dt','dr/dt','pvalue Size']
+    ylabels=['pvalue Size','pvalue SFR','pvalue SFR']    
+    titles = ['Size Constraints','SFR Constraints','']
+    allax = []
+    for i in range(len(xvars)):
+        plt.subplot(1,3,i+1)
+        if i < 2:
+            plt.scatter(xvars[i],yvars[i],s=10,alpha=.5)
+            plt.title(titles[i])
+        else:
+            # plot pvalue vs pvalue, color coded by dr/dt
+            plt.scatter(all_p,all_p_sfr,c=all_drdt,vmin=-4,vmax=0,s=5)
+            plt.title('Size & SFR Constraints')
+
+        plt.xlabel(xlabels[i],fontsize=16)
+        plt.ylabel(ylabels[i],fontsize=16)        
+        
+        allax.append(plt.gca())
+    cb = plt.colorbar(ax=allax,fraction=.08)
+    cb.set_label('dr/dt')
+    plt.axhline(y=.05,ls='--')
+    plt.axvline(x=.05,ls='--')
+    ax = plt.gca()
+    #plt.axis([-.01,.35,-.01,.2])
+    xl = np.linspace(.05,1,100)
+    y1 = np.ones(len(xl))
+    y2 = .05*np.ones(len(xl))
+    plt.fill_between(xl,y1=y1,y2=y2,alpha=.1)
+    plt.savefig(plotdir+'/model'+str(model)+'-tmax'+str(tmax)+'-size-sfr-constraints-3panel.png')
+    plt.savefig(plotdir+'/model'+str(model)+'-tmax'+str(tmax)+'-size-sfr-constraints-3panel.pdf')
+
 if __name__ == '__main__':
 
     # run program
