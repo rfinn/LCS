@@ -88,6 +88,7 @@ tmax = 2. # max infall time in Gyr
 # updated input file to include SFR, n
 #infile = homedir+'/research/LCS/tables/LCS-simulation-data.fits'
 infile = homedir+'/research/LCS/tables/LCS_all_size_KE_SFR.fits'
+infile = homedir+'/research/LCS/tables/LCS_all_size_KE_SFR_GSWLC2_X2.fits'
 sizes = Table.read(infile)
 # keep only galaxies in paper 1 sample
 sizes = sizes[sizes['sampleflag']]
@@ -99,8 +100,10 @@ if args.btcut:
 size_ratio = sizes['sizeratio']
 size_err = sizes['sizeratio_err']
 core_flag= sizes['membflag']
-
-logSFR = sizes['logSFR_NUVIR_KE']
+try:
+    logSFR = sizes['logSFR']
+except KeyError:
+    logSFR = sizes['logSFR_NUVIR_KE']
 nsersic = sizes['ng'] # simard sersic index
 Re = sizes['Re'] # rband disk scale length from simard
 Re24 = sizes['fcre1']*mipspixelscale # 24um Re in arcsec
@@ -135,6 +138,19 @@ external_Re24 = Re24[~core_flag]
 core_nsersic24 = nsersic24[core_flag]
 external_nsersic24 = nsersic24[~core_flag]
 
+###########################
+##### compare core/external
+###########################
+def run_ks(x,y):
+    D,p = ks_2samp(x,y)
+    print('KS test: %.2f, p=%.2e'%(D,p))
+
+print('core vs external: size distribution')
+run_ks(core_Re24,external_Re24)
+print('core vs external: SFR distribution')
+run_ks(core_logsfr,external_logsfr)
+print('core vs external: n sersic distribution')
+run_ks(core_nsersic,external_nsersic)
 
 
 ###########################
@@ -203,7 +219,7 @@ def get_frac_flux_retained0(n,ratio_before,ratio_after):
     return frac_retained
 
 
-def get_frac_flux_retained_model2(n,Re,rtrunc=1,rmax=6,version=1):
+def get_frac_flux_retained_model2(n,Re,rtrunc=1,rmax=4,version=1):
     '''
     return fraction of the flux retained by a truncated profile
 
@@ -258,7 +274,7 @@ def get_frac_flux_retained_model2(n,Re,rtrunc=1,rmax=6,version=1):
     return frac_retained
 
 
-def get_frac_flux_retained_model3(n,Re,rtrunc=1,rmax=6,version=1,Iboost=1):
+def get_frac_flux_retained_model3(n,Re,rtrunc=1,rmax=4,version=1,Iboost=1):
     '''
     return fraction of the flux retained by a truncated profile.
 
@@ -330,7 +346,7 @@ def get_frac_flux_retained_model3(n,Re,rtrunc=1,rmax=6,version=1,Iboost=1):
 ###############################
 
 
-def run_sim(tmax = 2.,nrandom=100,drdt_step=.1,model=1,plotsingle=True,plotflag=True):
+def run_sim(tmax = 2.,nrandom=100,drdt_step=.1,model=1,plotsingle=True,plotflag=True,rmax=4):
     '''
     run simulations of disk shrinking
 
@@ -343,6 +359,7 @@ def run_sim(tmax = 2.,nrandom=100,drdt_step=.1,model=1,plotsingle=True,plotflag=
       - 1 = shrink Re
       - 2 = truncate disk
       - 3 = truncate disk and boost central intensity
+    * rmax : max extent of disk for truncation model in terms of Re; disk shrinks as (rmax - dr/dt*tinfall)*Re_input
     * plotsingle : default is True;
       - use this to print a separate figure;
       - set to False if creating a multi-panel plot
@@ -360,12 +377,13 @@ def run_sim(tmax = 2.,nrandom=100,drdt_step=.1,model=1,plotsingle=True,plotflag=
     * all_boost : boost value for each model; this will be zeros if model != 3
 
     '''
-    rmax = float(args.rmax)
+    # pass in rmax
+    #rmax = float(args.rmax)
     ks_D_min = 0
     ks_p_max = 0
     drdt_best = 0
     drdt_multiple = []
-    drdtmin=-4
+    drdtmin=-2.5
     drdtmax=0
     all_p = np.zeros(int(nrandom*(drdtmax-drdtmin)/drdt_step))
     all_p_sfr = np.zeros(int(nrandom*(drdtmax-drdtmin)/drdt_step))    
@@ -419,7 +437,7 @@ def run_sim(tmax = 2.,nrandom=100,drdt_step=.1,model=1,plotsingle=True,plotflag=
                 # not sure if I can implement this as a third case
                 # or I could just assign a random boost for each iteration
                 # and increase nrandom when running model 3
-                boost = np.random.random()*2+1
+                boost = np.random.random()*3+1
                 #print('boost factor = ',boost)
                 sim_core_Re24 = (rmax + drdt*actual_infall_times)*external_Re24
 
