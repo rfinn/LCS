@@ -35,6 +35,7 @@ from scipy.stats import ks_2samp
 from scipy.special import gammainc
 #from astropy.table import Table
 import os
+import LCScommon as lcommon
 
 #from anderson import *
 
@@ -45,7 +46,7 @@ plotdir = homedir+'/research/LCS/plots/'
 ###########################
 
 parser = argparse.ArgumentParser(description ='Program to run simulation for LCS paper 2')
-parser.add_argument('--use24', dest = 'use24', default = False, action='store_true',help = 'use 24um profile parameters when calculating expected SFR of sim galaxies (should set this).')
+parser.add_argument('--use24', dest = 'use24', default = True, action='store_false',help = 'use 24um profile parameters when calculating expected SFR of sim galaxies.  default is true')
 parser.add_argument('--model', dest = 'model', default = 1, help = 'infall model to use.  default is 1.  \n\tmodel 1 is shrinking 24um effective radius \n\tmodel 2 is truncatingthe 24um emission')
 parser.add_argument('--sfrint', dest = 'sfrint', default = 1, help = 'method for integrating the SFR in model 2.  \n\tmethod 1 = integrate external sersic profile out to truncation radius.\n\tmethod 2 = integrate fitted sersic profile out to rmax.')
 parser.add_argument('--pvalue', dest = 'pvalue', default = .005, help = 'pvalue threshold to use when plotting fraction of trials below this pvalue.  Default is 0.05 (2sigma).  For ref, 3sigma is .003.')
@@ -53,6 +54,7 @@ parser.add_argument('--tmax', dest = 'tmax', default = 3., help = 'maximum infal
 
 parser.add_argument('--rmax', dest = 'rmax', default = 6., help = 'maximum size of SF disk in terms of Re.  default is 6.  ')
 parser.add_argument('--btcut', dest = 'btcut', default = False, action='store_true',help = 'cut sample by B/T < 0.3.  This should be set, but leaving this as an option for backwards compatability..  ')
+parser.add_argument('--gsw', dest = 'gsw', default = False, action='store_true',help = 'use GSWLC sfrs instead of MIPS 24+UV SFRs')
 
 
 args = parser.parse_args()
@@ -87,31 +89,53 @@ tmax = 2. # max infall time in Gyr
 
 # updated input file to include SFR, n
 #infile = homedir+'/research/LCS/tables/LCS-simulation-data.fits'
-infile = homedir+'/research/LCS/tables/LCS_all_size_KE_SFR.fits'
-infile = homedir+'/research/LCS/tables/LCS_all_size_KE_SFR_GSWLC2_X2.fits'
+
+if args.gsw:
+    print('USING GSWLC SFRS')
+    # data for the 1490 galaxies that are matched to GSWLC
+    infile = homedir+'/research/LCS/tables/LCS_all_size_KE_SFR_GSWLC2_X2.fits'
+else:
+    print('USING MIPS+GALEX NUV SFRS')
+    # data for the full sample of 1800 galaxies
+    # this path will use MIPS+UV sfrs
+    infile = homedir+'/research/LCS/tables/LCS_all_size_KE_SFR.fits'
+
 sizes = Table.read(infile)
 # keep only galaxies in paper 1 sample
 sizes = sizes[sizes['sampleflag']]
+
+
 bt = sizes['B_T_r']
 btflag = sizes['B_T_r'] < 0.3
 if args.btcut:
     sizes = sizes[btflag]
 # keep only B/T < 0.3              
+
+if args.gsw:
+    # use gswlc sfrs
+    logSFR = sizes['logSFR']
+    SFR = 10.**(logSFR)
+
+else:
+    # use MIPS+GALEX sfrs
+    logSFR = sizes['logSFR_NUVIR_KE']
+    SFR = 10.**(logSFR)
+print('\nMIN SFR = ',min(SFR))
 size_ratio = sizes['sizeratio']
 size_err = sizes['sizeratio_err']
 core_flag= sizes['membflag']
-try:
-    logSFR = sizes['logSFR']
-except KeyError:
-    logSFR = sizes['logSFR_NUVIR_KE']
 nsersic = sizes['ng'] # simard sersic index
+
 Re = sizes['Re'] # rband disk scale length from simard
 Re24 = sizes['fcre1']*mipspixelscale # 24um Re in arcsec
 nsersic24 = sizes['fcnsersic1']*mipspixelscale # 24um Re in arcsec
 
 if args.use24:
+    print('\nUsing 24um sizes (this is the right thing to do)\n')
     Re = Re24
     nsersic = nsersic24
+    # can't remember what this does, or why I would use something else
+    # maybe at some point I was using the R-band effective radius?
     
 '''
 sizes = ascii.read(infile)
@@ -126,8 +150,8 @@ core_flag = np.array(sizes['col2'],'bool')
 core = size_ratio[core_flag]
 external = size_ratio[~core_flag]
 
-core_logsfr = logSFR[core_flag]
-external_logsfr = logSFR[~core_flag]
+core_sfr = 10.**(logSFR[core_flag])
+external_sfr = 10.**(logSFR[~core_flag])
 
 core_nsersic = nsersic[core_flag]
 external_nsersic = nsersic[~core_flag]
@@ -141,17 +165,16 @@ external_nsersic24 = nsersic24[~core_flag]
 ###########################
 ##### compare core/external
 ###########################
-def run_ks(x,y):
-    D,p = ks_2samp(x,y)
-    print('KS test: %.2f, p=%.2e'%(D,p))
-
-print('core vs external: size distribution')
-run_ks(core_Re24,external_Re24)
-print('core vs external: SFR distribution')
-run_ks(core_logsfr,external_logsfr)
-print('core vs external: n sersic distribution')
-run_ks(core_nsersic,external_nsersic)
-
+    
+print('\ncore vs external: size distribution')
+lcommon.ks(core,external,run_anderson=True)
+print('\ncore vs external: SFR distribution')
+lcommon.ks(core_sfr,external_sfr,run_anderson=True)
+print('\ncore vs external: Re 24')
+lcommon.ks(core_Re24,external_Re24,run_anderson=True)
+print('\ncore vs external: n sersic distribution')
+lcommon.ks(core_nsersic,external_nsersic,run_anderson=True)
+print("")
 
 ###########################
 ##### FUNCTIONS
@@ -192,21 +215,21 @@ the same as for the external galaxy.
 gammainc = 1 when integrating to infinity
 
 '''
-def get_frac_flux_retained0(n,ratio_before,ratio_after):
+def get_frac_flux_retained0(n,ratio_before,ratio_after,Iboost=1):
     '''
     calculate fraction of flux retained after shrinking Re of sersic profile
 
     PARAMS
     ------
-    ratio_before: the initial value of R24/Re_r
-    ratio_after: the final value of R24/Re_r
-    n: sersic index of profile
+    * ratio_before: the initial value of R24/Re_r
+    * ratio_after: the final value of R24/Re_r
+    * n: sersic index of profile
 
     # L(<R) = Ie Re^2 2 pi n e^{b_n}/b_n^2n incomplete_gamma(2n, x)
 
     RETURNS
     -------
-    frac_retained: fraction of flux retained
+    * frac_retained: fraction of flux retained
     '''
     
     # calculate the loss in light
@@ -215,66 +238,12 @@ def get_frac_flux_retained0(n,ratio_before,ratio_after):
     x_after = bn*(ratio_after)**(1./n)
 
     # everything is the same except for Re(24)
-    frac_retained = (ratio_before/ratio_after)**2
+    frac_retained = Iboost*(ratio_after/ratio_before)**2
     return frac_retained
 
 
-def get_frac_flux_retained_model2(n,Re,rtrunc=1,rmax=4,version=1):
-    '''
-    return fraction of the flux retained by a truncated profile
 
-    PARAMS
-    ------
-    * n: sersic index of profile
-    * Re: effective radius of sersic profile
-    * rtrunc: truncation radius, in terms of Re; default=1
-    * rmax: maximum extent of the disk, in terms of Re, for the purpose of integration; default=6
-    * version:
-      - 1 : integrate truncated profile
-      - 2 : integrate fitted sersic profile (what we would get if we fit a sersic profile to a truncated profile)
-
-    RETURNS
-    -------
-    * fraction of the flux retained
-    
-    '''
-    if version == 1:
-        # sersic index of profile
-        # Re = effective radius of profile
-        # n = sersic index of profile
-        # rmax = multiple of Re to use a max radius of integration in the "before" integral
-        # rtrunc = max radius to integrate to in "after" integral
-        
-        # L(<R) = Ie Re^2 2 pi n e^{b_n}/b_n^2n incomplete_gamma(2n, x)
-        
-        # calculate the loss in light
-        
-        # this should simplify to the ratio of the incomplete gamma functions
-        # ... I think ...
-        
-        bn = 1.999*n-0.327
-        x_after = bn*(rtrunc/Re)**(1./n)
-        x_before = bn*(rmax)**(1./n)
-        frac_retained = gammainc(2*n,x_after)/gammainc(2*n,x_before)
-        
-    elif version == 2:
-        # use fitted values of model to get integrated flux after
-        # integral of input sersic profile with integral of fitted sersic profile
-        Ie = 1
-        sfr_before = integrate_sersic(n,Re,Ie,rmax=rmax)
-        
-        n2 = n*model2_get_fitted_param(rtrunc/Re,sersicN_fit)
-        Re2 = Re*model2_get_fitted_param(rtrunc/Re,sersicRe_fit)
-        Ie2 = Ie*model2_get_fitted_param(rtrunc/Re,sersicIe_fit)
-        sfr_after = integrate_sersic(n2,Re2,Ie2,rmax=rmax)        
-        
-        frac_retained = sfr_after/sfr_before
-
-        
-    return frac_retained
-
-
-def get_frac_flux_retained_model3(n,Re,rtrunc=1,rmax=4,version=1,Iboost=1):
+def get_frac_flux_retained_model2(n,Re,rtrunc=1,rmax=4,version=1,Iboost=1):
     '''
     return fraction of the flux retained by a truncated profile.
 
@@ -346,7 +315,7 @@ def get_frac_flux_retained_model3(n,Re,rtrunc=1,rmax=4,version=1,Iboost=1):
 ###############################
 
 
-def run_sim(tmax = 2.,nrandom=100,drdt_step=.1,model=1,plotsingle=True,plotflag=True,rmax=4):
+def run_sim(tmax = 2.,nrandom=100,drdtmin=-2,drdt_step=.1,model=1,plotsingle=True,maxboost=5,plotflag=True,rmax=4,boostflag=False):
     '''
     run simulations of disk shrinking
 
@@ -355,15 +324,16 @@ def run_sim(tmax = 2.,nrandom=100,drdt_step=.1,model=1,plotsingle=True,plotflag=
     * tmax: maximum time that core galaxies have been in cluster, in Gyr; default = 2
     * nrandom : number of random iterations for each value of dr/dt
     * drdt_step : step size for drdt; range is between -2 and 0
-    * model : quenching model to use; can be 1, 2 or 3
+    * model : quenching model to use; can be 1 or 2
       - 1 = shrink Re
       - 2 = truncate disk
-      - 3 = truncate disk and boost central intensity
+    * boostflag : set this to boost central intensity; can set this for both model 1 and 2
     * rmax : max extent of disk for truncation model in terms of Re; disk shrinks as (rmax - dr/dt*tinfall)*Re_input
     * plotsingle : default is True;
       - use this to print a separate figure;
       - set to False if creating a multi-panel plot
     * plotflag : don't remember what this does
+
 
     RETURNS
     -------
@@ -383,39 +353,73 @@ def run_sim(tmax = 2.,nrandom=100,drdt_step=.1,model=1,plotsingle=True,plotflag=
     ks_p_max = 0
     drdt_best = 0
     drdt_multiple = []
-    drdtmin=-2.5
+    #drdtmin=-2
     drdtmax=0
-    all_p = np.zeros(int(nrandom*(drdtmax-drdtmin)/drdt_step))
-    all_p_sfr = np.zeros(int(nrandom*(drdtmax-drdtmin)/drdt_step))    
-    all_drdt = np.zeros(int(nrandom*(drdtmax - drdtmin)/drdt_step))
-    all_boost = np.zeros(int(nrandom*(drdtmax - drdtmin)/drdt_step))    
-    i=0
-    if args.model == 2:
+    npoints = int((drdtmax-drdtmin)/drdt_step)
+    all_p = np.zeros(npoints)
+    all_p_sfr = np.zeros(npoints)
+    all_drdt = np.zeros(npoints)
+    all_boost = np.zeros(npoints)
+    fquench_size = np.zeros(npoints)
+    fquench_sfr = np.zeros(npoints)
+
+    if model == 2:
         print('USING MODEL 2')
-    for drdt in np.arange(drdtmin,drdtmax,drdt_step):
+    for i in range(npoints):
+        drdt  = drdtmin + i*drdt_step
 
         # repeat nrandom times for each value of dr/dt and tmax
         for j in range(nrandom):
             #sim_core = np.random.choice(external,size=len(core)) + drdt*np.random.uniform(low=0, high=tmax, size=len(core))
             infall_times = np.linspace(0,tmax,len(external))
             actual_infall_times = np.random.choice(infall_times, len(infall_times))
-            if args.model == 1:
+            if boostflag:
+                # model 3 involves boosting Ie in addition to truncating the disk,
+                # so this requires another loop where Iboost/Ie0 ranges from 1 to 5
+                # not sure if I can implement this as a third case
+                # or I could just assign a random boost for each iteration
+                # and increase nrandom when running model 3
+
+                #
+                # going with one boost factor per iteration for now
+                # obviously, it's not realistic that ALL galaxies
+                # would be boosted by the SAME factor
+                # but this is an easy place to start
+                
+                boost = np.random.random()*maxboost+1 # boost factor will range between 1 and 3
+                
+            else:
+                boost = 1.0
+            
+            if model == 1:
+                # shrink effective radius
                 sim_core = external + drdt*actual_infall_times
+
+                # don't allow shrunk radii to go negative
+
+                zero_size_flag = sim_core <= 0
+                #if sum(zero_size_flag) > 0:
+                #    print('number of size = 0 :',sum(zero_size_flag),len(sim_core))
+                sim_core[zero_size_flag] = np.zeros(sum(zero_size_flag))
+
+                
                 # to implement SFR decrease
                 # need SFR, sersic index, and Re for all galaxies
                 # greg has equation for integral of sersic profile
                 # create function that gives flux/flux_0 for sersic profile that
                 # has Re shrink by some factor
                 #frac_retained = get_frac_flux_retained(external_nsersic,external,sim_core)
-                frac_retained = get_frac_flux_retained0(external_nsersic,external,sim_core)            
+                frac_retained = get_frac_flux_retained0(external_nsersic,external,sim_core,Iboost=boost)
+                
                 ########################################################
                 # get predicted SFR of core galaxies by multiplying the
                 # distribution of SFRs from the external samples by the
                 # flux ratio you would expect from shrinking the
                 # external sizes to the sim_core sizes
-                # SFRs are logged
-                sim_core_logsfr = np.log10(frac_retained) + external_logsfr
-            if args.model == 2:
+                # SFRs are logged, so add log of frac_retained 
+                sim_core_sfr = frac_retained*external_sfr
+                
+            if model == 2:
                 # get the truncation radius (actual physical radius)
                 #sim_core_Re24 = external_Re24 + drdt*actual_infall_times
                 # our choice of rmax will affect the inferred infall time
@@ -423,89 +427,97 @@ def run_sim(tmax = 2.,nrandom=100,drdt_step=.1,model=1,plotsingle=True,plotflag=
 
                 # new size ratio
                 sim_core = model2_get_fitted_param(sim_core_Re24/external_Re24,sersicRe_fit)*external
+
+                # don't allow shrunk radii to go negative
+
+                zero_size_flag = sim_core < 0
+                sim_core[zero_size_flag] = np.zeros(sum(zero_size_flag))
+
+                
                 # get the SFR by integrating profile to truncation radius
                 if args.sfrint == 1:
                     # integrated truncated profile
-                    frac_retained = get_frac_flux_retained_model2(external_nsersic24,external_Re24,rtrunc=sim_core_Re24,rmax=rmax)
+                    frac_retained = get_frac_flux_retained_model2(external_nsersic24,external_Re24,rtrunc=sim_core_Re24,rmax=rmax,Iboost=boost)
                 elif args.sfrint == 2:
                     # integrate sersic model you would fit to truncated profile
-                    frac_retained = get_frac_flux_retained_model2(external_nsersic24,external_Re24,rtrunc=sim_core_Re24,rmax=rmax,version=2)
-                sim_core_logsfr = np.log10(frac_retained) + external_logsfr
-            if args.model == 3:
-                # model 3 involves boosting Ie in addition to truncating the disk,
-                # so this requires another loop where Iboost/Ie0 ranges from 1 to 5
-                # not sure if I can implement this as a third case
-                # or I could just assign a random boost for each iteration
-                # and increase nrandom when running model 3
-                boost = np.random.random()*3+1
-                #print('boost factor = ',boost)
-                sim_core_Re24 = (rmax + drdt*actual_infall_times)*external_Re24
-
-                # new size ratio
-                sim_core = model2_get_fitted_param(sim_core_Re24/external_Re24,sersicRe_fit)*external
-                # get the SFR by integrating profile to truncation radius
-                if args.sfrint == 1:
-                    frac_retained = get_frac_flux_retained_model3(external_nsersic24,external_Re24,rtrunc=sim_core_Re24,rmax=rmax,Iboost=boost)
-                elif args.sfrint == 2:
                     frac_retained = get_frac_flux_retained_model2(external_nsersic24,external_Re24,rtrunc=sim_core_Re24,rmax=rmax,version=2,Iboost=boost)
-                sim_core_logsfr = np.log10(frac_retained) + external_logsfr
-            
+                    
+                sim_core_sfr = frac_retained*external_sfr
             ## NEED TO REVIEW THIS
             ## THIS REQUIRES THAT > 20% OF SIMULATED CORE GALAXIES
             ## HAVE A SIZE > 0
             ## do we need this?????
             # not sure what this statement does...
-            if sum(sim_core > 0.)*1./len(sim_core) < .05:
-                continue
 
-            ## MAKE SURE SIMULATED CORE RADIUS DOES NOT GO NEGATIVE
+            ## SKIPPING FOR NOW
+            #if sum(sim_core > 0.)*1./len(sim_core) < .05:
+            #    continue
+
+
 
             ## NEED TO CUT SIMULATED GALAXIES BASED ON SFR AND SIZE
             ## EASIEST IS TO USE MIN VALUE OF SFR AND SIZE IN THE CATALOG
             ## WE COULD PUT THE ACTUAL CUTS IN
-
+            
+            #print('\nFraction of Galaxies with sim_core < 0 = %.2f (%i/%i) (drdt = %.2f)'%(sum(sim_core <= 0)/len(sim_core),sum(sim_core <=0),len(sim_core),drdt))
             # compare distribution of sizes between core (measured)
             # and the simulated core
-            D,p=ks_2samp(core,sim_core[sim_core > 0.])
-            #D,t,p=anderson_ksamp([core,sim_core[sim_core > 0.]])
-            #print D,p
-            if p > ks_p_max:
-                #print 'got a good one, drdt = ',drdt
-                ks_p_max = p
-                best_sim_core = sim_core
-                best_drdt = drdt
-                drdt_multiple = []
-            elif abs(p - ks_p_max) < 1.e-5:
-                #print('found an equally good model at drdt = ',drdt,p)
-                drdt_multiple.append(drdt)
-            flag = sim_core_logsfr > min(logSFR)
-            if sum(flag) < 0.2*len(flag):
-                print('Warning: < 20% of sim core sample has SFRs above detection threshold')
-            D2,p2 = ks_2samp(core_logsfr,sim_core_logsfr[sim_core_logsfr > min(logSFR)])
+
+            # keep track of # that drop out due to size
+            flag = sim_core_sfr > min(SFR)
+            fquench_sfr[i] = sum(~flag)/len(flag)
+            fquench_size[i] = sum(sim_core <= 0)/len(sim_core)
+            quench_flag = flag & (sim_core <=0)
+
+            # removing flag for now to make sure things work as expected
+            D,p=ks_2samp(core,sim_core[~quench_flag])
+            #D,p=ks_2samp(core,sim_core)
+
+
+            # keep track of number that drop out due to SFR
+            
+            #if sum(quench_flag) < 0.2*len(quench_flag):
+            #    print('Warning: < 20% of sim core sample are unquenched')
+
+            # removing flag to make sure things work as expected
+            D2,p2 = ks_2samp(core_sfr,sim_core_sfr[~quench_flag])
+            #D2,p2 = ks_2samp(core_sfr,sim_core_sfr)            
             all_p[i] = p
             all_drdt[i] = drdt
             all_p_sfr[i] = p2
-            if args.model == 3:
-                all_boost[i] = boost
-            i += 1
-    #print('best dr/dt = ',best_drdt)
-    #print('disk is quenched in %.1f Gyr'%(1./abs(best_drdt)))
-    #print('fraction that are quenched = %.2f'%(1.*sum(best_sim_core < 0.)/len(best_sim_core)))
-    #print('KS p value = %.8e'%(ks_p_max))
-    if len(drdt_multiple) > 0.:
-        print('drdt multiple values of dr/dt')
-        for i in range(len(drdt_multiple)):
-            print('#################')
-            print('\t best dr/dt = ',drdt_multiple[i])
-            print('\t disk is quenched in %.1f Gyr'%(1./abs(drdt_multiple[i])))
-    #plot_results(core,external,best_sim_core,best_drdt,tmax)
-    if plotflag:
-        plot_hexbin(all_drdt,all_p,best_drdt,tmax,gridsize = int(1./drdt_step),plotsingle=plotsingle)
+            all_boost[i] = boost
 
-    if args.model == 3:
-        return best_drdt, best_sim_core,ks_p_max,all_drdt,all_p,all_p_sfr,all_boost
-    else:
-        return best_drdt, best_sim_core,ks_p_max,all_drdt,all_p,all_p_sfr
+            if plotflag & ((i+j) == 0):
+                #print(core_sfr)
+                #print('hey')
+                #print(sim_core_sfr)
+                #print('hey hey')
+                #print(frac_retained)        
+                plt.figure(figsize=(10,8))
+                # compare size dist
+                plt.subplot(1,2,1)
+                
+                plt.hist(core,label='core',histtype='step',bins=25,lw=2)
+                plt.hist(sim_core,label='sim core',histtype='step',bins=25,lw=2)
+                plt.hist(external,label='external',histtype='step',bins=25,lw=2)
+                plt.xlabel('Size')
+                plt.legend()
+                plt.title('dr/dt = '+str(drdt))                
+                plt.subplot(1,2,2)
+                plt.hist(core_sfr,label='core',histtype='step',bins=25,lw=2)
+                
+                plt.hist(sim_core_sfr,label='sim core',histtype='step',bins=25,lw=2)
+                plt.hist(external_sfr,label='external',histtype='step',bins=25,lw=2)
+                plt.xlabel('SFR')
+                plt.legend()
+                plt.title('boost = '+str(boost))
+
+        
+        
+                
+
+    
+    return all_drdt,all_p,all_p_sfr,all_boost,fquench_size,fquench_sfr
 
 ###########################
 ##### PLOT FUNCTIONS
@@ -675,7 +687,7 @@ def plot_model3(all_drdt,all_p,all_p_sfr,boost,tmax=2):
     plt.savefig(plotdir+'/model3-tmax'+str(tmax)+'-size-sfr-constraints.png')
     plt.savefig(plotdir+'/model3-tmax'+str(tmax)+'-size-sfr-constraints.pdf')
 
-def plot_model3_3panel(all_drdt,all_p,all_p_sfr,boost,tmax=2,v2=.005):
+def plot_boost_3panel(all_drdt,all_p,all_p_sfr,boost,tmax=2,v2=.005,model=3):
     plt.figure(figsize=(14,4))
     plt.subplots_adjust(wspace=.01,bottom=.15)
     colors = [all_p,all_p_sfr]
@@ -709,7 +721,7 @@ def plot_model3_3panel(all_drdt,all_p,all_p_sfr,boost,tmax=2,v2=.005):
     cb = plt.colorbar(ax=allax,fraction=.08)
     cb.set_label('KS p value')
     plt.savefig(plotdir+'/model3-tmax'+str(tmax)+'-size-sfr-constraints-3panel.png')
-    plt.savefig(plotdir+'/model3-tmax'+str(tmax)+'-size-sfr-constraints-3panel.pdf')
+    plt.savefig(plotdir+'/model'+str(model)+'-tmax'+str(tmax)+'-size-sfr-constraints-3panel.pdf')
 
 def plot_model1_3panel(all_drdt,all_p,all_p_sfr,tmax=2,v2=.005,model=1):
     '''
@@ -753,7 +765,7 @@ def plot_model1_3panel(all_drdt,all_p,all_p_sfr,tmax=2,v2=.005,model=1):
 
         plt.xlabel(xlabels[i],fontsize=16)
         plt.ylabel(ylabels[i],fontsize=16)        
-        
+        plt.ylim(-.02,1.02)
         allax.append(plt.gca())
     cb = plt.colorbar(ax=allax,fraction=.08)
     cb.set_label('dr/dt')

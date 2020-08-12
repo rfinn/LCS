@@ -135,7 +135,10 @@ def colormass(x1,y1,x2,y2,name1,name2, figname, hexbinflag=False,contourflag=Fal
     t = plt.hist(x1, normed=True, bins=mybins,color=color1,histtype='step',lw=1.5, label=name1+' (%i)'%(n1))
     t = plt.hist(x2, normed=True, bins=mybins,color=color2,histtype='step',lw=1.5, label=name2+' (%i)'%(n2))
     #plt.legend()
-    ax1.legend(fontsize=20,loc='lower right')
+    leg = ax1.legend(fontsize=20)
+    for l in leg.legendHandles:
+        l.set_alpha(1)
+        l._legmarker.set_alpha(1)
     ax2.xaxis.tick_top()
     ax3 = plt.subplot2grid((nrow,ncol),(1,ncol-1),rowspan=nrow-1,colspan=1, fig=fig, sharey = ax1, xticks=[])
     miny = min([min(y1),min(y2)])

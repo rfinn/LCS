@@ -290,7 +290,25 @@ def ks_boot(x,y,N=1,conf_int=68.):
         yboot=y[randint(0,len(y)-1,len(y))]
         boot_D[i],boot_p[i]=ks_2samp(xboot,yboot)
     return scoreatpercentile(boot_D,per=50),scoreatpercentile(boot_p,per=50) 
-def ks(x,y,run_anderson=True):
+def ks(x,y,run_anderson=True,Nboot=1):
+    '''
+    GOAL:
+    * compute KS test on two input arrays
+    * print results
+    * optional : run anderson-darling test
+
+    INPUT:
+    * x : one sample for comparison
+    * y : second sample for comparison
+    * run_anderson : set to true to run anderson-darling test
+    * Nboot : default=1; number of bootstrap resamples to do for KS test;
+              will calculate mean value of D and p-value
+
+    OUTPUT:
+    * D : KS D statistic
+    * pvalue : KS p value
+
+    '''
     #D,pvalue=ks_2samp(x,y)
     D,pvalue=ks_boot(x,y)
     print('KS Test:')
