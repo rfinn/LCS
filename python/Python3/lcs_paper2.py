@@ -440,10 +440,22 @@ class gswlc(gswlc_base):
         if figname2 is not None:
             plt.savefig(figname2)
 
+#######################################################################
+#######################################################################
+########## NEW CLASS: LCSGSW
+#######################################################################
+#######################################################################
 class lcsgsw(gswlc_base):
+    '''
+    functions to operate on catalog that is cross-match between
+    LCS and GSWLC 
+
+
+    '''
     def __init__(self,catalog,sigma_split=600,cutBT=False):
         # read in catalog of LCS matched to GSWLC
-        self.cat = fits.getdata(catalog)
+        #self.cat = fits.getdata(catalog)
+        self.cat = Table.read(catalog)
         self.write_file_for_simulation()        
         self.base_init()
         if cutBT:
@@ -455,25 +467,26 @@ class lcsgsw(gswlc_base):
         #self.lcsbase = lb.galaxies(lcspath)
     def get_DA(self):
         # stole this from LCSbase.py
+        #print(self.cat.colnames)
         self.DA=np.zeros(len(self.cat))
         for i in range(len(self.DA)):
             if self.cat['membflag'][i]:
-                self.DA[i] = cosmo.angular_diameter_distance(self.cat.CLUSTER_REDSHIFT[i]).value*Mpcrad_kpcarcsec
+                self.DA[i] = cosmo.angular_diameter_distance(self.cat['CLUSTER_REDSHIFT'][i]).value*Mpcrad_kpcarcsec
             else:
-                self.DA[i] = cosmo.angular_diameter_distance(self.cat.ZDIST[i]).value*Mpcrad_kpcarcsec
+                self.DA[i] = cosmo.angular_diameter_distance(self.cat['ZDIST'][i]).value*Mpcrad_kpcarcsec
         
     def calculate_sizeratio(self):
         self.gim2dflag = self.cat['matchflag']
         # stole this from LCSbase.py
         self.SIZE_RATIO_DISK = np.zeros(len(self.cat))
-        a =  self.cat.fcre1[self.gim2dflag]*mipspixelscale # fcre1 = 24um half-light radius in mips pixels
+        a =  self.cat['fcre1'][self.gim2dflag]*mipspixelscale # fcre1 = 24um half-light radius in mips pixels
         b = self.DA[self.gim2dflag]
         c = self.cat['Rd'][self.gim2dflag] # gim2d half light radius for disk in kpc
 
         # this is the size ratio we use in paper 1
         self.SIZE_RATIO_DISK[self.gim2dflag] =a*b/c
         self.SIZE_RATIO_DISK_ERR = np.zeros(len(self.gim2dflag))
-        self.SIZE_RATIO_DISK_ERR[self.gim2dflag] = self.cat.fcre1err[self.gim2dflag]*mipspixelscale*self.DA[self.gim2dflag]/self.cat['Rd'][self.gim2dflag]
+        self.SIZE_RATIO_DISK_ERR[self.gim2dflag] = self.cat['fcre1err'][self.gim2dflag]*mipspixelscale*self.DA[self.gim2dflag]/self.cat['Rd'][self.gim2dflag]
 
         self.sizeratio = self.SIZE_RATIO_DISK
         self.sizeratioERR=self.SIZE_RATIO_DISK_ERR
@@ -504,6 +517,8 @@ class lcsgsw(gswlc_base):
         btflag = (self.cat['B_T_r'] < 0.3) & (self.cat['matchflag'])
         self.cat = self.cat[btflag]
         self.ssfr = self.ssfr[btflag]
+        self.sizeratio = self.sizeratio[btflag]
+        self.sizeratioERR = self.sizeratioERR[btflag]                
     def get_mstar_limit(self,rlimit=17.7):
         
         print(rlimit,zmax)
@@ -580,7 +595,44 @@ class lcsgsw(gswlc_base):
         print('CORE VS EXTERNAL')
         t = ks(sfrcore,sfrext,run_anderson=False)
 
+    def plot_ssfr_sizeratio(self,outfile1='plot.pdf',outfile2='plot.png'):
+        '''
+        GOAL: 
+        * compare sSFR vs sizeratio for galaxies in the paper 1 sample
+
+        INPUT: 
+        * outfile1 - usually pdf name for output plot
+        * outfile2 - usually png name for output plot
+
+        OUTPUT:
+        * plot of sSFR vs sizeratio
+        '''
+
+        plt.figure(figsize=(8,6))
+        flag = self.cat['sampleflag']
+        plt.scatter(self.ssfr[flag],self.sizeratio[flag],c=self.cat['B_T_r'][flag])
+        cb = plt.colorbar(label='B/T')
+        plt.ylabel('$R_e(24)/R_e(r)$',fontsize=20)
+        plt.xlabel('$sSFR / (yr^{-1})$',fontsize=20)
+        t = spearmanr(self.sizeratio[flag],self.ssfr[flag])
+        print(t)
+        plt.savefig(outfile1)
+        plt.savefig(outfile2)
+        
+
+#######################################################################
+#######################################################################
+########## NEW CLASS: comp_lcs_gsw
+#######################################################################
+#######################################################################
+
 class comp_lcs_gsw():
+    '''
+    class that operates on LCS and GSWLC
+
+    used to compare LCS with field sample constructed from SDSS with GSWLC SFR and Mstar values
+
+    '''
     def __init__(self,lcs,gsw,minmstar = 10, minssfr = -11.5):
         self.lcs = lcs
         self.gsw = gsw
@@ -817,6 +869,7 @@ class comp_lcs_gsw():
         t = ks_2samp(x1,x2)
         print(t)        
         pass
+
                                   
 if __name__ == '__main__':
     ###########################
@@ -847,6 +900,9 @@ if __name__ == '__main__':
     g = gswlc(infile)
     #g.plot_ms()
     #g.plot_field1()
-    lcs = lcsgsw('/home/rfinn/research/LCS/tables/lcs-gswlc-x2-match.fits',cutBT=args.cutBT)
+    lcsfile = '/home/rfinn/research/LCS/tables/lcs-gswlc-x2-match.fits'
+    lcsfile = '/home/rfinn/research/LCS/tables/LCS_all_size_KE_SFR_GSWLC2_X2.fits'
+    lcs = lcsgsw(lcsfile,cutBT=args.cutBT)
+    #lcs = lcsgsw('/home/rfinn/research/LCS/tables/LCS_all_size_KE_SFR_GSWLC2_X2.fits',cutBT=args.cutBT)    
     #lcs.compare_sfrs()
     b = comp_lcs_gsw(lcs,g)

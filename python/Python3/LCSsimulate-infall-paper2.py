@@ -55,6 +55,7 @@ parser.add_argument('--tmax', dest = 'tmax', default = 3., help = 'maximum infal
 parser.add_argument('--rmax', dest = 'rmax', default = 6., help = 'maximum size of SF disk in terms of Re.  default is 6.  ')
 parser.add_argument('--btcut', dest = 'btcut', default = False, action='store_true',help = 'cut sample by B/T < 0.3.  This should be set, but leaving this as an option for backwards compatability..  ')
 parser.add_argument('--gsw', dest = 'gsw', default = False, action='store_true',help = 'use GSWLC sfrs instead of MIPS 24+UV SFRs')
+parser.add_argument('--sampleks', dest = 'sampleks', default = False, action='store_true',help = 'run KS test to compare core/external size, SFR, Re24 and nsersic24.  default is False.')
 
 
 args = parser.parse_args()
@@ -165,16 +166,16 @@ external_nsersic24 = nsersic24[~core_flag]
 ###########################
 ##### compare core/external
 ###########################
-    
-print('\ncore vs external: size distribution')
-lcommon.ks(core,external,run_anderson=True)
-print('\ncore vs external: SFR distribution')
-lcommon.ks(core_sfr,external_sfr,run_anderson=True)
-print('\ncore vs external: Re 24')
-lcommon.ks(core_Re24,external_Re24,run_anderson=True)
-print('\ncore vs external: n sersic distribution')
-lcommon.ks(core_nsersic,external_nsersic,run_anderson=True)
-print("")
+if args.sampleks:
+    print('\ncore vs external: size distribution')
+    lcommon.ks(core,external,run_anderson=True)
+    print('\ncore vs external: SFR distribution')
+    lcommon.ks(core_sfr,external_sfr,run_anderson=True)
+    print('\ncore vs external: Re 24')
+    lcommon.ks(core_Re24,external_Re24,run_anderson=True)
+    print('\ncore vs external: n sersic distribution')
+    lcommon.ks(core_nsersic,external_nsersic,run_anderson=True)
+    print("")
 
 ###########################
 ##### FUNCTIONS
@@ -355,7 +356,8 @@ def run_sim(tmax = 2.,nrandom=100,drdtmin=-2,drdt_step=.1,model=1,plotsingle=Tru
     drdt_multiple = []
     #drdtmin=-2
     drdtmax=0
-    npoints = int((drdtmax-drdtmin)/drdt_step)
+    nstep_drdt = int((drdtmax-drdtmin)/drdt_step)
+    npoints = int(nstep_drdt*nrandom)
     all_p = np.zeros(npoints)
     all_p_sfr = np.zeros(npoints)
     all_drdt = np.zeros(npoints)
@@ -365,7 +367,7 @@ def run_sim(tmax = 2.,nrandom=100,drdtmin=-2,drdt_step=.1,model=1,plotsingle=Tru
 
     if model == 2:
         print('USING MODEL 2')
-    for i in range(npoints):
+    for i in range(nstep_drdt):
         drdt  = drdtmin + i*drdt_step
 
         # repeat nrandom times for each value of dr/dt and tmax
@@ -694,17 +696,18 @@ def plot_boost_3panel(all_drdt,all_p,all_p_sfr,boost,tmax=2,v2=.005,model=3):
     labels = ['size p value','sfr p value']
     titles = ['Size Constraints','SFR Constraints']
     allax = []
+    psize=30
     for i in range(len(colors)+1):
         plt.subplot(1,3,i+1)
         if i < 2:
-            plt.scatter(all_drdt,boost,c=colors[i],vmin=0,vmax=v2,s=10)
+            plt.scatter(all_drdt,boost,c=colors[i],vmin=0,vmax=v2,s=psize)
             plt.title(titles[i])
         else:
             # plot both together
             flag = np.arange(0,len(all_drdt),2)
-            plt.scatter(all_drdt[flag],boost[flag],c=colors[0][flag],vmin=0,vmax=v2,s=10)
+            plt.scatter(all_drdt[flag],boost[flag],c=colors[0][flag],vmin=0,vmax=v2,s=psize)
             flag = np.arange(1,len(all_drdt),2)
-            plt.scatter(all_drdt[flag],boost[flag],c=colors[1][flag],vmin=0,vmax=v2,s=10)
+            plt.scatter(all_drdt[flag],boost[flag],c=colors[1][flag],vmin=0,vmax=v2,s=psize)
             #plt.scatter(all_drdt,boost,c=colors[0]+colors[1],vmin=0,vmax=v2,s=10)
             plt.title('Size & SFR Constraints')
         if i == 0:
@@ -780,6 +783,26 @@ def plot_model1_3panel(all_drdt,all_p,all_p_sfr,tmax=2,v2=.005,model=1):
     plt.savefig(plotdir+'/model'+str(model)+'-tmax'+str(tmax)+'-size-sfr-constraints-3panel.png')
     plt.savefig(plotdir+'/model'+str(model)+'-tmax'+str(tmax)+'-size-sfr-constraints-3panel.pdf')
 
+def plot_quenched_fraction(all_drdt,all_boost, fquench_size,fquench_sfr):
+    plt.figure(figsize=(10,4))
+    allax=[]
+    colors = [fquench_size, fquench_sfr]
+    for i in range(len(colors)):
+        plt.subplot(1,2,i+1)
+        plt.scatter(all_drdt,all_boost,c=colors[i],vmin=0,vmax=.5)
+        allax.append(plt.gca())
+        plt.xlabel('$dr/dt$',fontsize=20)
+        
+        if i == 0:
+            plt.ylabel('$I_{boost}/I_e$',fontsize=20)
+            plt.title('Size Constraints')
+        if i == 1:
+            plt.yticks([])
+            plt.title('SFR Fraction')
+    plt.colorbar(ax=allax,label='frac_quenched')
+
+    
+    
 if __name__ == '__main__':
 
     # run program

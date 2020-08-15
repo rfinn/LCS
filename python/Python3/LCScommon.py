@@ -309,8 +309,10 @@ def ks(x,y,run_anderson=True,Nboot=1):
     * pvalue : KS p value
 
     '''
-    #D,pvalue=ks_2samp(x,y)
-    D,pvalue=ks_boot(x,y)
+    if Nboot == 1:
+        D,pvalue=ks_2samp(x,y)
+    else:
+        D,pvalue=ks_boot(x,y,N=Nboot)
     print('KS Test:')
     print('D = %6.2f'%(D))
     print('p-vale = %1.3e (prob that samples are from same distribution)'%(pvalue))
