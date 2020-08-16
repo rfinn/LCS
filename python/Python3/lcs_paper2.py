@@ -36,7 +36,7 @@ from PIL import Image
 ###########################
 ##### DEFINITIONS
 ###########################
-
+homedir = os.getenv("HOME")
 #USE_DISK_ONLY = np.bool(np.float(args.diskonly))#True # set to use disk effective radius to normalize 24um size
 USE_DISK_ONLY = True
 #if USE_DISK_ONLY:
@@ -888,20 +888,20 @@ if __name__ == '__main__':
         #g = gswlc_full('/home/rfinn/research/GSWLC/GSWLC-X2.dat')
         # 10 arcsec match b/s GSWLC-X2 and Tempel-12.5_v_2 in topcat, best, symmetric
         #g = gswlc_full('/home/rfinn/research/LCS/tables/GSWLC-Tempel-12.5-v2.fits')
-        g = gswlc_full('/home/rfinn/research/GSWLC/GSWLC-Tempel-12.5-v2-Simard2011.fits',cutBT=args.cutBT)        
+        g = gswlc_full(homedir+'/research/GSWLC/GSWLC-Tempel-12.5-v2-Simard2011.fits',cutBT=args.cutBT)        
         g.cut_redshift()
         g.save_trimmed_cat()
 
     #g = gswlc('/home/rfinn/research/LCS/tables/GSWLC-X2-LCS-Zoverlap.fits')
     if args.cutBT:
-        infile='/home/rfinn/research/GSWLC/GSWLC-Tempel-12.5-v2-Simard2011-LCS-Zoverlap-BTcut.fits'
+        infile=homedir+'/research/GSWLC/GSWLC-Tempel-12.5-v2-Simard2011-LCS-Zoverlap-BTcut.fits'
     else:
-        infile = '/home/rfinn/research/GSWLC/GSWLC-Tempel-12.5-v2-Simard2011-LCS-Zoverlap.fits'
+        infile = homedir+'/research/GSWLC/GSWLC-Tempel-12.5-v2-Simard2011-LCS-Zoverlap.fits'
     g = gswlc(infile)
     #g.plot_ms()
     #g.plot_field1()
-    lcsfile = '/home/rfinn/research/LCS/tables/lcs-gswlc-x2-match.fits'
-    lcsfile = '/home/rfinn/research/LCS/tables/LCS_all_size_KE_SFR_GSWLC2_X2.fits'
+    lcsfile = homedir+'/research/LCS/tables/lcs-gswlc-x2-match.fits'
+    lcsfile = homedir+'/research/LCS/tables/LCS_all_size_KE_SFR_GSWLC2_X2.fits'
     lcs = lcsgsw(lcsfile,cutBT=args.cutBT)
     #lcs = lcsgsw('/home/rfinn/research/LCS/tables/LCS_all_size_KE_SFR_GSWLC2_X2.fits',cutBT=args.cutBT)    
     #lcs.compare_sfrs()

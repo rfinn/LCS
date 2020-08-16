@@ -239,6 +239,8 @@ def get_frac_flux_retained0(n,ratio_before,ratio_after,Iboost=1):
     x_after = bn*(ratio_after)**(1./n)
 
     # everything is the same except for Re(24)
+
+    ### check this!!!  gamma function might be different???
     frac_retained = Iboost*(ratio_after/ratio_before)**2
     return frac_retained
 
@@ -329,6 +331,7 @@ def run_sim(tmax = 2.,nrandom=100,drdtmin=-2,drdt_step=.1,model=1,plotsingle=Tru
       - 1 = shrink Re
       - 2 = truncate disk
     * boostflag : set this to boost central intensity; can set this for both model 1 and 2
+    * maxboost : max factor to boost SFRs by; Iboost/Ie
     * rmax : max extent of disk for truncation model in terms of Re; disk shrinks as (rmax - dr/dt*tinfall)*Re_input
     * plotsingle : default is True;
       - use this to print a separate figure;
@@ -372,6 +375,7 @@ def run_sim(tmax = 2.,nrandom=100,drdtmin=-2,drdt_step=.1,model=1,plotsingle=Tru
 
         # repeat nrandom times for each value of dr/dt and tmax
         for j in range(nrandom):
+            aindex = nrandom*i+j
             #sim_core = np.random.choice(external,size=len(core)) + drdt*np.random.uniform(low=0, high=tmax, size=len(core))
             infall_times = np.linspace(0,tmax,len(external))
             actual_infall_times = np.random.choice(infall_times, len(infall_times))
@@ -388,7 +392,7 @@ def run_sim(tmax = 2.,nrandom=100,drdtmin=-2,drdt_step=.1,model=1,plotsingle=Tru
                 # would be boosted by the SAME factor
                 # but this is an easy place to start
                 
-                boost = np.random.random()*maxboost+1 # boost factor will range between 1 and 3
+                boost = np.random.random()*(maxboost-1)+1 # boost factor will range between 1 and maxboost
                 
             else:
                 boost = 1.0
@@ -467,8 +471,8 @@ def run_sim(tmax = 2.,nrandom=100,drdtmin=-2,drdt_step=.1,model=1,plotsingle=Tru
 
             # keep track of # that drop out due to size
             flag = sim_core_sfr > min(SFR)
-            fquench_sfr[i] = sum(~flag)/len(flag)
-            fquench_size[i] = sum(sim_core <= 0)/len(sim_core)
+            fquench_sfr[aindex] = sum(~flag)/len(flag)
+            fquench_size[aindex] = sum(sim_core <= 0)/len(sim_core)
             quench_flag = flag & (sim_core <=0)
 
             # removing flag for now to make sure things work as expected
@@ -484,10 +488,10 @@ def run_sim(tmax = 2.,nrandom=100,drdtmin=-2,drdt_step=.1,model=1,plotsingle=Tru
             # removing flag to make sure things work as expected
             D2,p2 = ks_2samp(core_sfr,sim_core_sfr[~quench_flag])
             #D2,p2 = ks_2samp(core_sfr,sim_core_sfr)            
-            all_p[i] = p
-            all_drdt[i] = drdt
-            all_p_sfr[i] = p2
-            all_boost[i] = boost
+            all_p[aindex] = p
+            all_drdt[aindex] = drdt
+            all_p_sfr[aindex] = p2
+            all_boost[aindex] = boost
 
             if plotflag & ((i+j) == 0):
                 #print(core_sfr)
@@ -726,7 +730,7 @@ def plot_boost_3panel(all_drdt,all_p,all_p_sfr,boost,tmax=2,v2=.005,model=3):
     plt.savefig(plotdir+'/model3-tmax'+str(tmax)+'-size-sfr-constraints-3panel.png')
     plt.savefig(plotdir+'/model'+str(model)+'-tmax'+str(tmax)+'-size-sfr-constraints-3panel.pdf')
 
-def plot_model1_3panel(all_drdt,all_p,all_p_sfr,tmax=2,v2=.005,model=1):
+def plot_model1_3panel(all_drdt,all_p,all_p_sfr,tmax=2,v2=.005,model=1,vmin=-4):
     '''
     make a 1x3 plot showing
      (1) pvalue vs dr/dt for size
@@ -763,7 +767,7 @@ def plot_model1_3panel(all_drdt,all_p,all_p_sfr,tmax=2,v2=.005,model=1):
             plt.title(titles[i])
         else:
             # plot pvalue vs pvalue, color coded by dr/dt
-            plt.scatter(all_p,all_p_sfr,c=all_drdt,vmin=-4,vmax=0,s=5)
+            plt.scatter(all_p,all_p_sfr,c=all_drdt,vmin=vmin,vmax=0,s=5)
             plt.title('Size & SFR Constraints')
 
         plt.xlabel(xlabels[i],fontsize=16)
@@ -783,23 +787,23 @@ def plot_model1_3panel(all_drdt,all_p,all_p_sfr,tmax=2,v2=.005,model=1):
     plt.savefig(plotdir+'/model'+str(model)+'-tmax'+str(tmax)+'-size-sfr-constraints-3panel.png')
     plt.savefig(plotdir+'/model'+str(model)+'-tmax'+str(tmax)+'-size-sfr-constraints-3panel.pdf')
 
-def plot_quenched_fraction(all_drdt,all_boost, fquench_size,fquench_sfr):
+def plot_quenched_fraction(all_drdt,all_boost, fquench_size,fquench_sfr,vmax=.5):
     plt.figure(figsize=(10,4))
     allax=[]
     colors = [fquench_size, fquench_sfr]
     for i in range(len(colors)):
         plt.subplot(1,2,i+1)
-        plt.scatter(all_drdt,all_boost,c=colors[i],vmin=0,vmax=.5)
+        plt.scatter(all_drdt,all_boost,c=colors[i],vmin=0,vmax=vmax)
         allax.append(plt.gca())
         plt.xlabel('$dr/dt$',fontsize=20)
         
         if i == 0:
             plt.ylabel('$I_{boost}/I_e$',fontsize=20)
-            plt.title('Size Constraints')
+            plt.title('$Frac \ with\ R_{24} = 0$')
         if i == 1:
             plt.yticks([])
-            plt.title('SFR Fraction')
-    plt.colorbar(ax=allax,label='frac_quenched')
+            plt.title('$Frac \ with \ SFR < Limit $')
+    plt.colorbar(ax=allax,label='Quenched Fraction')
 
     
     
