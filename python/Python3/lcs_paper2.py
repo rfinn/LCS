@@ -37,6 +37,8 @@ from PIL import Image
 ##### DEFINITIONS
 ###########################
 homedir = os.getenv("HOME")
+plotdir = homedir+'/research/LCS/plots/'
+
 #USE_DISK_ONLY = np.bool(np.float(args.diskonly))#True # set to use disk effective radius to normalize 24um size
 USE_DISK_ONLY = True
 #if USE_DISK_ONLY:
@@ -68,16 +70,44 @@ truncated=np.array([113107,140175,79360,79394,79551,79545,82185,166185,166687,16
 ###########################
 ##### Functions
 ###########################
+# using colors from matplotlib default color cycle
+mycolors = plt.rcParams['axes.prop_cycle'].by_key()['color']
+
 colorblind1='#F5793A' # orange
 colorblind2 = '#85C0F9' # light blue
 colorblind3='#0F2080' # dark blue
-
+darkblue = colorblind3
+darkblue = mycolors[1]
+lightblue = colorblind2
+#lightblue = 'b'
 #colorblind2 = 'c'
 colorblind3 = 'k'
+
 def colormass(x1,y1,x2,y2,name1,name2, figname, hexbinflag=False,contourflag=False, \
              xmin=7.9, xmax=11.6, ymin=-1.2, ymax=1.2, contour_bins = 40, ncontour_levels=5,\
               xlabel='$\log_{10}(M_\star/M_\odot) $', ylabel='$(g-i)_{corrected} $', color1=colorblind3,color2=colorblind2,\
               nhistbin=50, alpha1=.1,alphagray=.1):
+
+    '''
+    PARAMS:
+    -------
+    * x1,y1
+    * x2,y2
+    * name1
+    * name2
+    * hexbinflag
+    * contourflag
+    * xmin, xmax
+    * ymin, ymax
+    * contour_bins, ncontour_levels
+    * color1
+    * color2
+    * nhistbin
+    * alpha1
+    * alphagray
+    
+
+    '''
     fig = plt.figure(figsize=(8,8))
     nrow = 4
     ncol = 4
@@ -103,10 +133,10 @@ def colormass(x1,y1,x2,y2,name1,name2, figname, hexbinflag=False,contourflag=Fal
         #plt.contour(np.log10(H.T+1),  10, extent = extent, zorder=1,colors='k')
         #plt.hexbin(xvar2,yvar2,bins='log',cmap='Blues', gridsize=100)
 
-        plt.hexbin(x1,y1,bins='log',cmap='gray_r', gridsize=75,label=name1)
+        plt.hexbin(x1,y1,bins='log',cmap='gray_r', gridsize=75,label='_nolegend_')
     else:
         label=name1+' (%i)'%(n1)
-        plt.plot(x1,y1,'ko',color=color1,alpha=alphagray,label=label, zorder=10)
+        plt.plot(x1,y1,'ko',color=color1,alpha=alphagray,label=label, zorder=10,mec='k',markersize=8)
     if contourflag:
         H, xbins,ybins = np.histogram2d(x2,y2,bins=contour_bins)
         extent = [xbins[0], xbins[-1], ybins[0], ybins[-1]]
@@ -114,7 +144,7 @@ def colormass(x1,y1,x2,y2,name1,name2, figname, hexbinflag=False,contourflag=Fal
         #plt.legend()
     else:
         label=name2+' (%i)'%(n2)
-        plt.plot(x2,y2,'co',color=color2,alpha=alpha1, label=label)
+        plt.plot(x2,y2,'co',color=color2,alpha=alpha1, label=label,markersize=8,mec='k')
         
         
         #plt.legend()
@@ -135,10 +165,10 @@ def colormass(x1,y1,x2,y2,name1,name2, figname, hexbinflag=False,contourflag=Fal
     t = plt.hist(x1, normed=True, bins=mybins,color=color1,histtype='step',lw=1.5, label=name1+' (%i)'%(n1))
     t = plt.hist(x2, normed=True, bins=mybins,color=color2,histtype='step',lw=1.5, label=name2+' (%i)'%(n2))
     #plt.legend()
-    leg = ax1.legend(fontsize=20)
-    for l in leg.legendHandles:
-        l.set_alpha(1)
-        l._legmarker.set_alpha(1)
+    leg = ax2.legend(fontsize=18)
+    #for l in leg.legendHandles:
+    #    l.set_alpha(1)
+    #    l._legmarker.set_alpha(1)
     ax2.xaxis.tick_top()
     ax3 = plt.subplot2grid((nrow,ncol),(1,ncol-1),rowspan=nrow-1,colspan=1, fig=fig, sharey = ax1, xticks=[])
     miny = min([min(y1),min(y2)])
@@ -153,7 +183,7 @@ def colormass(x1,y1,x2,y2,name1,name2, figname, hexbinflag=False,contourflag=Fal
     ax3.tick_params(axis='both', labelsize=16)
     ax2.tick_params(axis='both', labelsize=16)
     #ax3.set_title('$log_{10}(SFR)$',fontsize=20)
-    plt.savefig(figname)
+    #plt.savefig(figname)
 
     print('############################################################# ')
     print('KS test comparising galaxies within range shown on the plot')
@@ -163,7 +193,7 @@ def colormass(x1,y1,x2,y2,name1,name2, figname, hexbinflag=False,contourflag=Fal
     print('')
     print('COLOR')
     t = ks(y1,y2,run_anderson=False)
-
+    return ax1,ax2,ax3
 
 def plotsalim07():
     #plot the main sequence from Salim+07 for a Chabrier IMF
@@ -184,7 +214,54 @@ def plotsalim07():
     plt.plot(lmstar, lsfr, c='salmon',ls='-', lw=2, label='$Salim+07$')
     plt.plot(lmstar, lsfr-np.log10(5.), 'w--', lw=4)
     plt.plot(lmstar, lsfr-np.log10(5.), c='salmon',ls='--', lw=2)
-        
+
+def mass_match(input_mass,comp_mass,dm=.15,nmatch=20,inputZ=None,compZ=None,dz=.0025):
+    '''
+    for each galaxy in parent, draw nmatch galaxies in match_mass
+    that are within +/-dm
+
+    PARAMS:
+    -------
+    * parent - parent sample to create mass-matched sample from
+    * match - sample to draw matches from
+    * dm - mass offset from which to draw matched galaxies from
+    * nmatch = number of matched galaxies per galaxy in the input
+    * comp_sfr = SFRs of comparison sample, if you want those too 
+
+    RETURNS:
+    --------
+    * indices of the comp_sample
+
+    '''
+    # for each galaxy in parent
+    # select nmatch galaxies from comp_sample that have stellar masses
+    # within +/- dm
+    return_index = np.zeros(len(input_mass)*nmatch,'i')
+
+    comp_index = np.arange(len(comp_mass))
+    # hate to do this with a loop,
+    # but I can't think of a smarter way right now
+    for i in range(len(input_mass)):
+        # limit comparison sample to mass of i galaxy, +/- dm
+        flag = np.abs(comp_mass - input_mass[i]) < dm
+        # if redshifts are provided, also restrict based on redshift offset
+        if inputZ is not None:
+            flag = flag & (np.abs(compZ - inputZ[i]) < dz)
+        # select nmatch galaxies randomly from this limited mass range
+        # NOTE: can avoid repeating items by setting replace=False
+        if sum(flag) < nmatch:
+            print('galaxies in slice < # requested',sum(flag),nmatch,input_mass[i],inputZ[i])
+        if sum(flag) == 0:
+            print('\truh roh - doubling mass and redshift slices')
+            flag = np.abs(comp_mass - input_mass[i]) < 2*dm
+            # if redshifts are provided, also restrict based on redshift offset
+            if inputZ is not None:
+                flag = flag & (np.abs(compZ - inputZ[i]) < 2*dz)
+        return_index[int(i*nmatch):int((i+1)*nmatch)] = np.random.choice(comp_index[flag],nmatch,replace=True)
+
+    return return_index
+
+                     
 def plotelbaz():
     #plot the main sequence from Elbaz+13
         
@@ -260,6 +337,75 @@ def getlegacy(ra1,dec1,jpeg=True,imsize=None):
     
     return t,w
 
+def sersic(x,Ie,n,Re):
+    bn = 1.999*n - 0.327
+    return Ie*np.exp(-1*bn*((x/Re)**(1./n)-1))
+
+def plot_models():
+    plt.figure(figsize=(8,6))
+    plt.subplots_adjust(wspace=.35)
+
+    rmax = 4
+    scaleRe = 0.8
+    rtrunc = 1.5
+    n=1
+    # shrink Re
+    plt.subplot(2,2,1)
+    x = np.linspace(0,rmax,100)
+    
+    Ie=1
+    Re=1
+    y = sersic(x,Ie,n,Re)
+    plt.plot(x,y,label='sersic n='+str(n),lw=2)
+    y2 = sersic(x,Ie,n,scaleRe*Re)
+    plt.plot(x,y2,label="Re "+r"$ \rightarrow \ $"+str(scaleRe)+"Re",ls='--',lw=2)
+    #plt.legend()
+    
+    plt.ylabel('Intensity',fontsize=18)
+    plt.text(0.1,.85,'(a)',transform=plt.gca().transAxes,horizontalalignment='left')
+    plt.legend(fontsize=14)
+    
+    # plot total flux
+    plt.subplot(2,2,2)
+    dx = x[1]-x[0]
+    sum1 = (y*dx*2*np.pi*x)
+    sum2 = (y2*dx*2*np.pi*x)
+    plt.plot(x,np.cumsum(sum1)/np.max(np.cumsum(sum1)),label='sersic n='+str(n),lw=2)
+    plt.plot(x,np.cumsum(sum2)/np.max(np.cumsum(sum1)),label="Re "+r"$ \rightarrow \ $"+str(scaleRe)+"Re",ls='--',lw=2)
+    plt.ylabel('Enclosed Flux',fontsize=18)
+    plt.grid()
+    plt.text(0.1,.85,'(b)',transform=plt.gca().transAxes,horizontalalignment='left')
+    plt.legend(fontsize=14)
+    
+    # truncated sersic model
+    plt.subplot(2,2,3)
+    plt.plot(x,y,label='sersic n='+str(n),lw=2)
+    y3 = y.copy()
+    flag = x > rtrunc
+    y3[flag] = np.zeros(sum(flag))
+    plt.plot(x,y3,ls='--',label='Rtrunc =  '+str(rtrunc)+' Re',lw=2)
+    plt.legend()
+    plt.ylabel('Intensity',fontsize=18)
+    #plt.legend()
+    #plt.gca().set_yscale('log')
+    plt.text(0.1,.85,'(c)',transform=plt.gca().transAxes,horizontalalignment='left')
+    plt.legend(fontsize=14)
+    plt.xlabel('r/Re')
+    
+    plt.subplot(2,2,4)
+    sum3 = (y3*dx*2*np.pi*x)
+    plt.plot(x,np.cumsum(sum1)/np.max(np.cumsum(sum1)),label='sersic n='+str(n),lw=2)
+    plt.plot(x,np.cumsum(sum3)/np.max(np.cumsum(sum1)),label='Rtrunc =  '+str(rtrunc)+' Re',ls='--',lw=2)
+    plt.ylabel('Enclosed Flux',fontsize=18)
+    
+    plt.grid()
+    plt.text(0.1,.85,'(d)',transform=plt.gca().transAxes,horizontalalignment='left')
+    plt.legend(fontsize=14)
+    plt.xlabel('r/Re')
+    plt.savefig(plotdir+'/cartoon-models.png')
+    plt.savefig(plotdir+'/cartoon-models.pdf')
+    pass
+    
 ###########################
 ##### Plot parameters
 ###########################
@@ -565,7 +711,7 @@ class lcsgsw(gswlc_base):
         plt.plot(xl,-4./3.*xl+2,'k-',lw=3,color=colorblind1)
         props = dict(boxstyle='square', facecolor='0.8', alpha=0.8)
         plt.text(.1,.1,'CORE',transform=plt.gca().transAxes,fontsize=18,color=colorblind3,bbox=props)
-        plt.text(.6,.6,'EXTERNAL',transform=plt.gca().transAxes,fontsize=18,color=colorblind3,bbox=props)        
+        plt.text(.6,.6,'INFALL',transform=plt.gca().transAxes,fontsize=18,color=colorblind3,bbox=props)        
         #plt.plot(xl,-3./1.2*xl+3,'k-',lw=3)
         plt.axis([xmin,xmax,ymin,ymax])
         if figname1 is not None:
@@ -578,7 +724,7 @@ class lcsgsw(gswlc_base):
 
         '''
         if masscut is None:
-            masscut = minmass
+            masscut = self.minmass
         flag = (self.cat['logSFR'] > -99) & (self.cat['logSFR']-self.cat['logMstar'] > -11.5) & (self.cat['logMstar'] > masscut)
         sfrcore = self.cat['logSFR'][self.cat['membflag'] & flag] 
         sfrext = self.cat['logSFR'][~self.cat['membflag']& flag]
@@ -640,9 +786,9 @@ class comp_lcs_gsw():
         self.ssfrcut = minssfr
         self.lowssfr_flag = (self.lcs.cat['logMstar']> self.masscut)  &\
             (self.lcs.ssfr > self.ssfrcut) & (self.lcs.ssfr < -11.)
-    
-
-    def plot_sfr_mstar(self,lcsflag=None,label='LCS core',outfile1=None,outfile2=None):
+        
+        
+    def plot_sfr_mstar(self,lcsflag=None,label='LCS core',outfile1=None,outfile2=None,coreflag=True,massmatch=True):
         """
         OVERVIEW:
         * compares ssfr vs mstar of lcs and gswlc field samples
@@ -674,14 +820,32 @@ class comp_lcs_gsw():
         # removing field1 cut because we are now using Tempel catalog that only
         # includes galaxies in halo masses logM < 12.5
         flag2 = (self.gsw.cat['logMstar'] > self.masscut) & (self.gsw.ssfr > self.ssfrcut)  #& self.gsw.field1
-        print('number in core sample = ',sum(flag1))
-        print('number in external sample = ',sum(flag2))
-        x1 = self.lcs.cat['logMstar'][flag1]
-        y1 = self.lcs.cat['logSFR'][flag1]
-        x2 = self.gsw.cat['logMstar'][flag2]
-        y2 = self.gsw.cat['logSFR'][flag2]
+        print('number in lcs sample = ',sum(flag1))
+        print('number in gsw sample = ',sum(flag2))
+        # GSWLC sample
+        x1 = self.gsw.cat['logMstar'][flag2]
+        y1 = self.gsw.cat['logSFR'][flag2]
+        z1 = self.gsw.cat['Z_1'][flag2]
+        # LCS sample (forgive the switch in indices)
+        x2 = self.lcs.cat['logMstar'][flag1]
+        y2 = self.lcs.cat['logSFR'][flag1]
+        z2 = self.lcs.cat['Z'][flag1]
+        # get indices for mass-matched gswlc sample
+        if massmatch:
+            keep_indices = mass_match(x2,x1,inputZ=z2,compZ=z1,dz=.002)
+            x1 = x1[keep_indices]
+            y1 = y1[keep_indices]
         
-        colormass(x1,y1,x2,y2,label,'GSWLC','sfr-mstar-gswlc-field.pdf',ymin=-2,ymax=1.6,xmin=9.75,xmax=11.5,nhistbin=10,ylabel='$\log_{10}(SFR)$',contourflag=False,alphagray=.8)
+        if coreflag:
+            color2=darkblue
+        else:
+            color2=lightblue
+        ax1,ax2,ax3 = colormass(x1,y1,x2,y2,'GSWLC',label,'sfr-mstar-gswlc-field.pdf',ymin=-2,ymax=1.6,xmin=8.5,xmax=11.5,nhistbin=10,ylabel='$\log_{10}(SFR)$',contourflag=False,alphagray=.1,hexbinflag=True,color2=color2,color1='0.5',alpha1=1)
+        # add marker to figure to show galaxies with size measurements
+        flag = self.lcs.cat['sampleflag'] & lcsflag
+        ax1.plot(self.lcs.cat['logMstar'][flag],self.lcs.cat['logSFR'][flag],'ks',color='darkmagenta',alpha=.5,markersize=10,mec='w',label='LCS size sample ('+str(sum(flag))+')')
+        ax1.legend(loc='upper left')
+        
         plt.subplots_adjust(left=.15)
         if outfile1 is None:
             plt.savefig(homedir+'/research/LCS/plots/lcscore-gsw-sfms.pdf')
@@ -691,7 +855,7 @@ class comp_lcs_gsw():
             plt.savefig(homedir+'/research/LCS/plots/lcscore-gsw-sfms.png')
         else:
             plt.savefig(outfile2)
-    def plot_ssfr_mstar(self,lcsflag=None,outfile1=None,outfile2=None,label='LCS core',nbins=20):
+    def plot_ssfr_mstar(self,lcsflag=None,outfile1=None,outfile2=None,label='LCS core',nbins=20,coreflag=True,massmatch=True):
         """
         OVERVIEW:
         * compares ssfr vs mstar of lcs and gswlc field samples
@@ -724,10 +888,33 @@ class comp_lcs_gsw():
         print('number in external sample = ',sum(flag2))
         x1 = self.lcs.cat['logMstar'][flag1]
         y1 = self.lcs.ssfr[flag1]
+
+        
         x2 = self.gsw.cat['logMstar'][flag2]
         y2 = self.gsw.ssfr[flag2]
+
+        z1 = self.gsw.cat['Z_1'][flag2]
+        # LCS sample (forgive the switch in indices)
+        x2 = self.lcs.cat['logMstar'][flag1]
+        y2 = self.lcs.cat['logSFR'][flag1]
+        z2 = self.lcs.cat['Z'][flag1]
+        # get indices for mass-matched gswlc sample
+        if massmatch:
+            keep_indices = mass_match(x2,x1,inputZ=z2,compZ=z1,dz=.002)
+
+        if coreflag:
+            color2=darkblue
+        else:
+            color2=lightblue
+            
+        # get indices for mass-matched gswlc sample
+        if massmatch:
+            keep_indices = mass_match(x2,x1)
+            x1 = x1[keep_indices]
+            y1 = y1[keep_indices]
+
         
-        colormass(x1,y1,x2,y2,label,'GSWLC','sfr-mstar-gswlc-field.pdf',ymin=-11.6,ymax=-8.75,xmin=9.75,xmax=11.5,nhistbin=nbins,ylabel='$\log_{10}(sSFR)$',contourflag=False,alphagray=1)
+        colormass(x1,y1,x2,y2,'GSWLC',label,'sfr-mstar-gswlc-field.pdf',ymin=-11.6,ymax=-8.75,xmin=9.75,xmax=11.5,nhistbin=nbins,ylabel='$\log_{10}(sSFR)$',contourflag=False,alphagray=.8,hexbinflag=True,color1='0.5',color2=color2)
         if outfile1 is None:
             plt.savefig(homedir+'/research/LCS/plots/lcscore-gsw-ssfrmstar.pdf')
         else:
@@ -765,7 +952,7 @@ class comp_lcs_gsw():
         x2 = self.lcs.cat['logMstar'][flag2]
         y2 = self.lcs.cat['logSFR'][flag2]
         
-        colormass(x1,y1,x2,y2,'LCS core','LCS infall','sfr-mstar-lcs-core-field.pdf',ymin=-2,ymax=1.5,xmin=9.75,xmax=11.5,nhistbin=nbins,ylabel='$\log_{10}(SFR)$',contourflag=False,alphagray=.8,alpha1=1)
+        colormass(x1,y1,x2,y2,'LCS core','LCS infall','sfr-mstar-lcs-core-field.pdf',ymin=-2,ymax=1.5,xmin=9.75,xmax=11.5,nhistbin=nbins,ylabel='$\log_{10}(SFR)$',contourflag=False,alphagray=.8,alpha1=1,color1=darkblue)
         if outfile1 is None:
             plt.savefig(homedir+'/research/LCS/plots/lcscore-external-sfrmstar.pdf')
         else:
@@ -877,7 +1064,7 @@ if __name__ == '__main__':
     ###########################
 
     parser = argparse.ArgumentParser(description ='Program to run analysis for LCS paper 2')
-    #parser.add_argument('--minmass', dest = 'minmass', default = 10., help = 'minimum stellar mass for sample.  default is log10(M*) > 7.9')
+    parser.add_argument('--minmass', dest = 'minmass', default = 10., help = 'minimum stellar mass for sample.  default is log10(M*) > 7.9')
     parser.add_argument('--cutBT', dest = 'cutBT', default = False, action='store_true', help = 'Set this to cut the sample by B/T < 0.3.')
     #parser.add_argument('--cutBT', dest = 'diskonly', default = 1, help = 'True/False (enter 1 or 0). normalize by Simard+11 disk size rather than Re for single-component sersic fit.  Default is true.  ')    
 
@@ -905,4 +1092,4 @@ if __name__ == '__main__':
     lcs = lcsgsw(lcsfile,cutBT=args.cutBT)
     #lcs = lcsgsw('/home/rfinn/research/LCS/tables/LCS_all_size_KE_SFR_GSWLC2_X2.fits',cutBT=args.cutBT)    
     #lcs.compare_sfrs()
-    b = comp_lcs_gsw(lcs,g)
+    b = comp_lcs_gsw(lcs,g,minmstar=float(args.minmass))

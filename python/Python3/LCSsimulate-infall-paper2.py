@@ -54,6 +54,7 @@ parser.add_argument('--tmax', dest = 'tmax', default = 3., help = 'maximum infal
 
 parser.add_argument('--rmax', dest = 'rmax', default = 6., help = 'maximum size of SF disk in terms of Re.  default is 6.  ')
 parser.add_argument('--btcut', dest = 'btcut', default = False, action='store_true',help = 'cut sample by B/T < 0.3.  This should be set, but leaving this as an option for backwards compatability..  ')
+parser.add_argument('--masscut', dest = 'masscut', default = 9.5, help = 'mass cut for sample.  default is  logMstar > 9.5 ')
 parser.add_argument('--gsw', dest = 'gsw', default = False, action='store_true',help = 'use GSWLC sfrs instead of MIPS 24+UV SFRs')
 parser.add_argument('--sampleks', dest = 'sampleks', default = False, action='store_true',help = 'run KS test to compare core/external size, SFR, Re24 and nsersic24.  default is False.')
 
@@ -105,6 +106,8 @@ sizes = Table.read(infile)
 # keep only galaxies in paper 1 sample
 sizes = sizes[sizes['sampleflag']]
 
+mflag = sizes['logMstar'] > float(args.masscut)
+sizes = sizes[mflag]
 
 bt = sizes['B_T_r']
 btflag = sizes['B_T_r'] < 0.3
@@ -112,6 +115,7 @@ if args.btcut:
     sizes = sizes[btflag]
 # keep only B/T < 0.3              
 
+    
 if args.gsw:
     # use gswlc sfrs
     logSFR = sizes['logSFR']
@@ -126,11 +130,13 @@ size_ratio = sizes['sizeratio']
 size_err = sizes['sizeratio_err']
 core_flag= sizes['membflag']
 nsersic = sizes['ng'] # simard sersic index
-
+infall_flag = (sizes['DELTA_V'] <= 3.) & ~core_flag
 Re = sizes['Re'] # rband disk scale length from simard
 Re24 = sizes['fcre1']*mipspixelscale # 24um Re in arcsec
 nsersic24 = sizes['fcnsersic1']*mipspixelscale # 24um Re in arcsec
 
+print('N core = ',sum(core_flag))
+print('N infall = ',sum(infall_flag))
 if args.use24:
     print('\nUsing 24um sizes (this is the right thing to do)\n')
     Re = Re24
@@ -149,30 +155,32 @@ core_flag = np.array(sizes['col2'],'bool')
 
 ## split sizes
 core = size_ratio[core_flag]
-external = size_ratio[~core_flag]
+external = size_ratio[infall_flag]
 
 core_sfr = 10.**(logSFR[core_flag])
-external_sfr = 10.**(logSFR[~core_flag])
+external_sfr = 10.**(logSFR[infall_flag])
 
 core_nsersic = nsersic[core_flag]
-external_nsersic = nsersic[~core_flag]
+external_nsersic = nsersic[infall_flag]
 
 core_Re24 = Re24[core_flag]
-external_Re24 = Re24[~core_flag]
+external_Re24 = Re24[infall_flag]
 
 core_nsersic24 = nsersic24[core_flag]
-external_nsersic24 = nsersic24[~core_flag]
+external_nsersic24 = nsersic24[infall_flag]
 
 ###########################
 ##### compare core/external
 ###########################
 if args.sampleks:
-    print('\ncore vs external: size distribution')
+    print('\ncore vs external: size ratio distribution')
     lcommon.ks(core,external,run_anderson=True)
     print('\ncore vs external: SFR distribution')
     lcommon.ks(core_sfr,external_sfr,run_anderson=True)
     print('\ncore vs external: Re 24')
     lcommon.ks(core_Re24,external_Re24,run_anderson=True)
+    print('\ncore vs external: logMstar')
+    lcommon.ks(sizes['logMstar'][core_flag],sizes['logMstar'][~core_flag],run_anderson=True)
     print('\ncore vs external: n sersic distribution')
     lcommon.ks(core_nsersic,external_nsersic,run_anderson=True)
     print("")
@@ -367,6 +375,7 @@ def run_sim(tmax = 2.,nrandom=100,drdtmin=-2,drdt_step=.1,model=1,plotsingle=Tru
     all_boost = np.zeros(npoints)
     fquench_size = np.zeros(npoints)
     fquench_sfr = np.zeros(npoints)
+    fquench = np.zeros(npoints) # for both constraints    
 
     if model == 2:
         print('USING MODEL 2')
@@ -474,7 +483,7 @@ def run_sim(tmax = 2.,nrandom=100,drdtmin=-2,drdt_step=.1,model=1,plotsingle=Tru
             fquench_sfr[aindex] = sum(~flag)/len(flag)
             fquench_size[aindex] = sum(sim_core <= 0)/len(sim_core)
             quench_flag = flag & (sim_core <=0)
-
+            fquench[aindex] = sum(~flag | (sim_core <=  0))/len(sim_core)
             # removing flag for now to make sure things work as expected
             D,p=ks_2samp(core,sim_core[~quench_flag])
             #D,p=ks_2samp(core,sim_core)
@@ -523,7 +532,7 @@ def run_sim(tmax = 2.,nrandom=100,drdtmin=-2,drdt_step=.1,model=1,plotsingle=Tru
                 
 
     
-    return all_drdt,all_p,all_p_sfr,all_boost,fquench_size,fquench_sfr
+    return all_drdt,all_p,all_p_sfr,all_boost,fquench_size,fquench_sfr,fquench
 
 ###########################
 ##### PLOT FUNCTIONS
@@ -696,33 +705,24 @@ def plot_model3(all_drdt,all_p,all_p_sfr,boost,tmax=2):
 def plot_boost_3panel(all_drdt,all_p,all_p_sfr,boost,tmax=2,v2=.005,model=3):
     plt.figure(figsize=(14,4))
     plt.subplots_adjust(wspace=.01,bottom=.15)
-    colors = [all_p,all_p_sfr]
-    labels = ['size p value','sfr p value']
-    titles = ['Size Constraints','SFR Constraints']
+    colors = [all_p,all_p_sfr,np.minimum(all_p,all_p_sfr)]
+    labels = ['size p value','sfr p value','min p value']
+    titles = ['Size Constraints','SFR Constraints','minimum(Size, SFR)']
     allax = []
     psize=30
-    for i in range(len(colors)+1):
+    for i in range(len(colors)):
         plt.subplot(1,3,i+1)
-        if i < 2:
-            plt.scatter(all_drdt,boost,c=colors[i],vmin=0,vmax=v2,s=psize)
-            plt.title(titles[i])
-        else:
-            # plot both together
-            flag = np.arange(0,len(all_drdt),2)
-            plt.scatter(all_drdt[flag],boost[flag],c=colors[0][flag],vmin=0,vmax=v2,s=psize)
-            flag = np.arange(1,len(all_drdt),2)
-            plt.scatter(all_drdt[flag],boost[flag],c=colors[1][flag],vmin=0,vmax=v2,s=psize)
-            #plt.scatter(all_drdt,boost,c=colors[0]+colors[1],vmin=0,vmax=v2,s=10)
-            plt.title('Size & SFR Constraints')
+        plt.scatter(all_drdt,boost,c=colors[i],vmin=0,vmax=v2,s=psize)
+        plt.title(titles[i],fontsize=20)
         if i == 0:
-            plt.ylabel('Iboost/Ie',fontsize=16)
+            plt.ylabel('$I_{boost}/I_e$',fontsize=24)
         else:
             y1,y2 = plt.ylim()
             #t = plt.yticks()
             #print(t)
             plt.yticks([])
             plt.ylim(y1,y2)
-        plt.xlabel('dr/dt',fontsize=16)
+        plt.xlabel('$dr/dt$',fontsize=24)
         
         allax.append(plt.gca())
     cb = plt.colorbar(ax=allax,fraction=.08)
@@ -768,10 +768,10 @@ def plot_model1_3panel(all_drdt,all_p,all_p_sfr,tmax=2,v2=.005,model=1,vmin=-4):
         else:
             # plot pvalue vs pvalue, color coded by dr/dt
             plt.scatter(all_p,all_p_sfr,c=all_drdt,vmin=vmin,vmax=0,s=5)
-            plt.title('Size & SFR Constraints')
+            plt.title('Size \& SFR Constraints')
 
-        plt.xlabel(xlabels[i],fontsize=16)
-        plt.ylabel(ylabels[i],fontsize=16)        
+        plt.xlabel(xlabels[i],fontsize=20)
+        plt.ylabel(ylabels[i],fontsize=20)        
         plt.ylim(-.02,1.02)
         allax.append(plt.gca())
     cb = plt.colorbar(ax=allax,fraction=.08)
@@ -787,23 +787,73 @@ def plot_model1_3panel(all_drdt,all_p,all_p_sfr,tmax=2,v2=.005,model=1,vmin=-4):
     plt.savefig(plotdir+'/model'+str(model)+'-tmax'+str(tmax)+'-size-sfr-constraints-3panel.png')
     plt.savefig(plotdir+'/model'+str(model)+'-tmax'+str(tmax)+'-size-sfr-constraints-3panel.pdf')
 
-def plot_quenched_fraction(all_drdt,all_boost, fquench_size,fquench_sfr,vmax=.5):
-    plt.figure(figsize=(10,4))
+def plot_quenched_fraction(all_drdt,all_boost, fquench_size,fquench_sfr,fquench,vmax=.5):
+    plt.figure(figsize=(14,4))
+    #plt.subplots_adjust(bottom=.15,left=.1)
+    plt.subplots_adjust(wspace=.01,bottom=.15)    
     allax=[]
-    colors = [fquench_size, fquench_sfr]
-    for i in range(len(colors)):
-        plt.subplot(1,2,i+1)
+    colors = [fquench_size, fquench_sfr,fquench]
+    # total quenching is the same as SFR quenching
+    # can't have galaxies with zero size that still has SFR above detection limit
+    # therefore, only need first two panels
+    for i in range(len(colors)-1):
+        plt.subplot(1,3,i+1)
         plt.scatter(all_drdt,all_boost,c=colors[i],vmin=0,vmax=vmax)
         allax.append(plt.gca())
-        plt.xlabel('$dr/dt$',fontsize=20)
+        plt.xlabel('$dr/dt$',fontsize=24)
         
         if i == 0:
-            plt.ylabel('$I_{boost}/I_e$',fontsize=20)
-            plt.title('$Frac \ with\ R_{24} = 0$')
+            plt.ylabel('$I_{boost}/I_e$',fontsize=24)
+            plt.title('Frac with $R_{24} = 0$',fontsize=20)
         if i == 1:
             plt.yticks([])
-            plt.title('$Frac \ with \ SFR < Limit $')
-    plt.colorbar(ax=allax,label='Quenched Fraction')
+            plt.title('Frac with  $SFR < Limit$',fontsize=20)
+        if i == 2:
+            plt.yticks([])
+            plt.title('Combined Fractions',fontsize=20)
+            
+    plt.colorbar(ax=allax,label='Quenched Fraction',fraction=.08)
+
+def compare_single(var,flag1,flag2,xlab):
+        xmin=min(var)
+        xmax=max(var)
+        print('KS test comparing members and exterior')
+        (D,p)=lcommon.ks(var[flag1],var[flag2])
+
+
+        plt.xlabel(xlab,fontsize=18)
+
+        plt.hist(var[flag1],bins=len(var[flag1]),cumulative=True,histtype='step',normed=True,label='Core',range=(xmin,xmax),color='k')
+        plt.hist(var[flag2],bins=len(var[flag2]),cumulative=True,histtype='step',normed=True,label='Infall',range=(xmin,xmax),color='0.5')
+        plt.legend(loc='upper left')        
+        plt.ylim(-.05,1.05)
+        ax=plt.gca()
+        plt.text(.9,.25,'$D = %4.2f$'%(D),horizontalalignment='right',transform=ax.transAxes,fontsize=16)
+        plt.text(.9,.1,'$p = %5.4f$'%(p),horizontalalignment='right',transform=ax.transAxes,fontsize=16)
+
+
+        return D, p
+
+def compare_cluster_exterior(sizes,coreflag,infallflag):
+    plt.figure(figsize=(8,6))
+    plt.subplots_adjust(bottom=.15,hspace=.4,top=.95)
+    plt.subplot(2,2,1)
+    compare_single(sizes['logMstar'],flag1=coreflag,flag2=infallflag,xlab='$ log_{10}(M_*/M_\odot) $')
+    plt.legend(loc='upper left')
+    plt.xticks(np.arange(9,12,.5))
+    #plt.xlim(8.9,11.15)
+    plt.subplot(2,2,2)
+    compare_single(sizes['B_T_r'],flag1=coreflag,flag2=infallflag,xlab='$GIM2D \ B/T $')
+    plt.xticks(np.arange(0,1.1,.2))
+    plt.xlim(-.01,.3)
+    plt.subplot(2,2,3)
+    compare_single(sizes['ZDIST'],flag1=coreflag,flag2=infallflag,xlab='$ Redshift $')
+    plt.xticks(np.arange(0.02,.055,.01))
+    plt.xlim(.0146,.045)
+    plt.subplot(2,2,4)
+    compare_single(sizes['logSFR'],flag1=coreflag,flag2=infallflag,xlab='$ \log_{10}(SFR/M_\odot/yr)$')
+    plt.text(-1.5,1,'$Cumulative \ Distribution$',fontsize=22,transform=plt.gca().transAxes,rotation=90,verticalalignment='center')
+
 
     
     
