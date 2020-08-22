@@ -679,11 +679,13 @@ class lcsgsw(gswlc_base):
         print(Mr)
         ssfr = self.cat['logSFR'] - self.cat['logMstar']
         flag = (self.cat['logMstar'] > 0) & (ssfr > -11.5)
-        Mr = self.cat['ABSMAG'][:,4]
+        Mr = self.cat['ABSMAG'][:,4]+5*np.log10(.7)
         plt.figure()
         plt.plot(Mr[flag],self.cat['logMstar'][flag],'bo',alpha=.2,markersize=3)
         plt.axvline(x=-18.6)
         plt.axhline(y=10)
+        plt.axhline(y=9.7,ls='--')        
+
         plt.xlabel('Mr')
         plt.ylabel('logMstar GSWLC')
         plt.grid(True)        

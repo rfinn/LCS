@@ -255,7 +255,7 @@ class galaxies:
         #dist = 10.*u.pc
 
         ## CALCULATING AGAIN USING THE CORRECT DISTANCE
-        nuv_mag = 22.5 - np.log10(self.s['NMGY'][:,1])
+        nuv_mag = 22.5 - 2.5*np.log10(self.s['NMGY'][:,1])
         fnu_nuv = 3631*10**(-1*nuv_mag/2.5)*u.Jy
 
         nuFnu_NUV = fnu_nuv*freq_NUV

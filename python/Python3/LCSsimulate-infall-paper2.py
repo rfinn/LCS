@@ -54,7 +54,7 @@ parser.add_argument('--tmax', dest = 'tmax', default = 3., help = 'maximum infal
 
 parser.add_argument('--rmax', dest = 'rmax', default = 6., help = 'maximum size of SF disk in terms of Re.  default is 6.  ')
 parser.add_argument('--btcut', dest = 'btcut', default = False, action='store_true',help = 'cut sample by B/T < 0.3.  This should be set, but leaving this as an option for backwards compatability..  ')
-parser.add_argument('--masscut', dest = 'masscut', default = 9.5, help = 'mass cut for sample.  default is  logMstar > 9.5 ')
+parser.add_argument('--masscut', dest = 'masscut', default = 9.7, help = 'mass cut for sample.  default is  logMstar > 9.5 ')
 parser.add_argument('--gsw', dest = 'gsw', default = False, action='store_true',help = 'use GSWLC sfrs instead of MIPS 24+UV SFRs')
 parser.add_argument('--sampleks', dest = 'sampleks', default = False, action='store_true',help = 'run KS test to compare core/external size, SFR, Re24 and nsersic24.  default is False.')
 
