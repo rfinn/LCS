@@ -106,6 +106,7 @@ sizes = Table.read(infile)
 # keep only galaxies in paper 1 sample
 sizes = sizes[sizes['sampleflag']]
 
+# cut on stellar mass
 mflag = sizes['logMstar'] > float(args.masscut)
 sizes = sizes[mflag]
 
@@ -704,7 +705,7 @@ def plot_model3(all_drdt,all_p,all_p_sfr,boost,tmax=2):
 
 def plot_boost_3panel(all_drdt,all_p,all_p_sfr,boost,tmax=2,v2=.005,model=3):
     plt.figure(figsize=(14,4))
-    plt.subplots_adjust(wspace=.01,bottom=.15)
+    plt.subplots_adjust(wspace=.01,bottom=.2)
     colors = [all_p,all_p_sfr,np.minimum(all_p,all_p_sfr)]
     labels = ['size p value','sfr p value','min p value']
     titles = ['Size Constraints','SFR Constraints','minimum(Size, SFR)']
@@ -727,6 +728,7 @@ def plot_boost_3panel(all_drdt,all_p,all_p_sfr,boost,tmax=2,v2=.005,model=3):
         allax.append(plt.gca())
     cb = plt.colorbar(ax=allax,fraction=.08)
     cb.set_label('KS p value')
+
     plt.savefig(plotdir+'/model3-tmax'+str(tmax)+'-size-sfr-constraints-3panel.png')
     plt.savefig(plotdir+'/model'+str(model)+'-tmax'+str(tmax)+'-size-sfr-constraints-3panel.pdf')
 
@@ -790,7 +792,7 @@ def plot_model1_3panel(all_drdt,all_p,all_p_sfr,tmax=2,v2=.005,model=1,vmin=-4):
 def plot_quenched_fraction(all_drdt,all_boost, fquench_size,fquench_sfr,fquench,vmax=.5):
     plt.figure(figsize=(14,4))
     #plt.subplots_adjust(bottom=.15,left=.1)
-    plt.subplots_adjust(wspace=.01,bottom=.15)    
+    plt.subplots_adjust(wspace=.01,bottom=.2)    
     allax=[]
     colors = [fquench_size, fquench_sfr,fquench]
     # total quenching is the same as SFR quenching

@@ -5,7 +5,7 @@
 ###########################
 
 import LCSbase as lb
-from LCScommon import *
+import LCScommon as lcscommon
 
 from matplotlib import pyplot as plt
 import numpy as np
@@ -86,7 +86,7 @@ colorblind3 = 'k'
 def colormass(x1,y1,x2,y2,name1,name2, figname, hexbinflag=False,contourflag=False, \
              xmin=7.9, xmax=11.6, ymin=-1.2, ymax=1.2, contour_bins = 40, ncontour_levels=5,\
               xlabel='$\log_{10}(M_\star/M_\odot) $', ylabel='$(g-i)_{corrected} $', color1=colorblind3,color2=colorblind2,\
-              nhistbin=50, alpha1=.1,alphagray=.1):
+              nhistbin=50, alpha1=.1,alphagray=.1,lcsflag=False):
 
     '''
     PARAMS:
@@ -109,6 +109,7 @@ def colormass(x1,y1,x2,y2,name1,name2, figname, hexbinflag=False,contourflag=Fal
 
     '''
     fig = plt.figure(figsize=(8,8))
+    plt.subplots_adjust(left=.15,bottom=.15)
     nrow = 4
     ncol = 4
     
@@ -136,7 +137,11 @@ def colormass(x1,y1,x2,y2,name1,name2, figname, hexbinflag=False,contourflag=Fal
         plt.hexbin(x1,y1,bins='log',cmap='gray_r', gridsize=75,label='_nolegend_')
     else:
         label=name1+' (%i)'%(n1)
-        plt.plot(x1,y1,'ko',color=color1,alpha=alphagray,label=label, zorder=10,mec='k',markersize=8)
+        if lcsflag:
+        
+            plt.plot(x1,y1,'ko',color=color1,alpha=alphagray,label=label, zorder=10,mec='k',markersize=8)
+        else:
+            plt.plot(x1,y1,'k.',color=color1,alpha=alphagray,label=label, zorder=1,markersize=8)        
     if contourflag:
         H, xbins,ybins = np.histogram2d(x2,y2,bins=contour_bins)
         extent = [xbins[0], xbins[-1], ybins[0], ybins[-1]]
@@ -159,13 +164,16 @@ def colormass(x1,y1,x2,y2,name1,name2, figname, hexbinflag=False,contourflag=Fal
     plt.gca().tick_params(axis='both', labelsize=16)
     #plt.axis([7.9,11.6,-.05,2])
     ax2 = plt.subplot2grid((nrow,ncol),(0,0),rowspan=1,colspan=ncol-1, fig=fig, sharex = ax1, yticks=[])
+    print('just checking ...',len(x1),len(x2))
+    print(min(x1))
+    print(min(x2))
     minx = min([min(x1),min(x2)])
     maxx = max([max(x1),max(x2)])    
     mybins = np.linspace(minx,maxx,nhistbin)
     t = plt.hist(x1, normed=True, bins=mybins,color=color1,histtype='step',lw=1.5, label=name1+' (%i)'%(n1))
     t = plt.hist(x2, normed=True, bins=mybins,color=color2,histtype='step',lw=1.5, label=name2+' (%i)'%(n2))
     #plt.legend()
-    leg = ax2.legend(fontsize=18)
+    leg = ax2.legend(fontsize=12,loc='lower left')
     #for l in leg.legendHandles:
     #    l.set_alpha(1)
     #    l._legmarker.set_alpha(1)
@@ -189,10 +197,10 @@ def colormass(x1,y1,x2,y2,name1,name2, figname, hexbinflag=False,contourflag=Fal
     print('KS test comparising galaxies within range shown on the plot')
     print('')
     print('STELLAR MASS')
-    t = ks(x1,x2,run_anderson=False)
+    t = lcscommon.ks(x1,x2,run_anderson=False)
     print('')
     print('COLOR')
-    t = ks(y1,y2,run_anderson=False)
+    t = lcscommon.ks(y1,y2,run_anderson=False)
     return ax1,ax2,ax3
 
 def plotsalim07():
@@ -741,7 +749,7 @@ class lcsgsw(gswlc_base):
         plt.xlabel('SFR')
         plt.ylabel('Normalized Counts')
         print('CORE VS EXTERNAL')
-        t = ks(sfrcore,sfrext,run_anderson=False)
+        t = lcscommon.ks(sfrcore,sfrext,run_anderson=False)
 
     def plot_ssfr_sizeratio(self,outfile1='plot.pdf',outfile2='plot.png'):
         '''
@@ -762,7 +770,7 @@ class lcsgsw(gswlc_base):
         cb = plt.colorbar(label='B/T')
         plt.ylabel('$R_e(24)/R_e(r)$',fontsize=20)
         plt.xlabel('$sSFR / (yr^{-1})$',fontsize=20)
-        t = spearmanr(self.sizeratio[flag],self.ssfr[flag])
+        t = lcscommon.spearmanr(self.sizeratio[flag],self.ssfr[flag])
         print(t)
         plt.savefig(outfile1)
         plt.savefig(outfile2)
@@ -790,7 +798,7 @@ class comp_lcs_gsw():
             (self.lcs.ssfr > self.ssfrcut) & (self.lcs.ssfr < -11.)
         
         
-    def plot_sfr_mstar(self,lcsflag=None,label='LCS core',outfile1=None,outfile2=None,coreflag=True,massmatch=True):
+    def plot_sfr_mstar(self,lcsflag=None,label='LCS core',outfile1=None,outfile2=None,coreflag=True,massmatch=True,hexbinflag=False,lcsinfall=False,lcsmemb=False):
         """
         OVERVIEW:
         * compares ssfr vs mstar of lcs and gswlc field samples
@@ -809,8 +817,20 @@ class comp_lcs_gsw():
         - figure name to save as
         - I'm using two to save a png and pdf version
 
+        * massmatch
+        - set to True to draw a mass-matched sample from GSWLC field sample
+
+        * hexbinflag
+        - set to True to use hexbin to plot field sample
+        - do this if NOT drawing mass-matched sample b/c number of points is large
+
+        * lcsinfall
+        - select if plotting lcs infall (this affects plotting of galaxies with size measurements)
+        * lcsmemb
+        - select if plotting lcs memb (this affects plotting of galaxies with size measurements)
+
         OUTPUT:
-        * creates a plot of ssfr vs mstar
+        * creates a plot of sfr vs mstar
         * creates histograms above x and y axes to compare two samples
 
         """
@@ -842,10 +862,13 @@ class comp_lcs_gsw():
             color2=darkblue
         else:
             color2=lightblue
-        ax1,ax2,ax3 = colormass(x1,y1,x2,y2,'GSWLC',label,'sfr-mstar-gswlc-field.pdf',ymin=-2,ymax=1.6,xmin=8.5,xmax=11.5,nhistbin=10,ylabel='$\log_{10}(SFR)$',contourflag=False,alphagray=.1,hexbinflag=True,color2=color2,color1='0.5',alpha1=1)
+        ax1,ax2,ax3 = colormass(x1,y1,x2,y2,'GSWLC',label,'sfr-mstar-gswlc-field.pdf',ymin=-2,ymax=1.6,xmin=8.75,xmax=11.25,nhistbin=10,ylabel='$\log_{10}(SFR)$',contourflag=False,alphagray=.15,hexbinflag=hexbinflag,color2=color2,color1='0.5',alpha1=1)
         # add marker to figure to show galaxies with size measurements
-        flag = self.lcs.cat['sampleflag'] & lcsflag
-        ax1.plot(self.lcs.cat['logMstar'][flag],self.lcs.cat['logSFR'][flag],'ks',color='darkmagenta',alpha=.5,markersize=10,mec='w',label='LCS size sample ('+str(sum(flag))+')')
+
+
+        self.plot_lcs_size_sample(ax1,memb=lcsmemb,infall=lcsinfall,ssfrflag=False)
+        ax1.legend(loc='upper left')
+        
         ax1.legend(loc='upper left')
         
         plt.subplots_adjust(left=.15)
@@ -857,7 +880,7 @@ class comp_lcs_gsw():
             plt.savefig(homedir+'/research/LCS/plots/lcscore-gsw-sfms.png')
         else:
             plt.savefig(outfile2)
-    def plot_ssfr_mstar(self,lcsflag=None,outfile1=None,outfile2=None,label='LCS core',nbins=20,coreflag=True,massmatch=True):
+    def plot_ssfr_mstar(self,lcsflag=None,outfile1=None,outfile2=None,label='LCS core',nbins=20,coreflag=True,massmatch=True,hexbinflag=True,lcsmemb=False,lcsinfall=False):
         """
         OVERVIEW:
         * compares ssfr vs mstar of lcs and gswlc field samples
@@ -888,22 +911,16 @@ class comp_lcs_gsw():
         flag2 = (self.gsw.cat['logMstar'] > self.masscut) & (self.gsw.ssfr > self.ssfrcut)  #& self.gsw.field1
         print('number in core sample = ',sum(flag1))
         print('number in external sample = ',sum(flag2))
-        x1 = self.lcs.cat['logMstar'][flag1]
-        y1 = self.lcs.ssfr[flag1]
-
         
-        x2 = self.gsw.cat['logMstar'][flag2]
-        y2 = self.gsw.ssfr[flag2]
-
+        x1 = self.gsw.cat['logMstar'][flag2]
+        y1 = self.gsw.ssfr[flag2]
         z1 = self.gsw.cat['Z_1'][flag2]
+
         # LCS sample (forgive the switch in indices)
         x2 = self.lcs.cat['logMstar'][flag1]
-        y2 = self.lcs.cat['logSFR'][flag1]
+        y2 = self.lcs.cat['logSFR'][flag1] - self.lcs.cat['logMstar'][flag1] 
         z2 = self.lcs.cat['Z'][flag1]
-        # get indices for mass-matched gswlc sample
-        if massmatch:
-            keep_indices = mass_match(x2,x1,inputZ=z2,compZ=z1,dz=.002)
-
+        
         if coreflag:
             color2=darkblue
         else:
@@ -911,12 +928,20 @@ class comp_lcs_gsw():
             
         # get indices for mass-matched gswlc sample
         if massmatch:
-            keep_indices = mass_match(x2,x1)
+            keep_indices = mass_match(x2,x1,inputZ=z2,compZ=z1,dz=.002)
             x1 = x1[keep_indices]
             y1 = y1[keep_indices]
-
         
-        colormass(x1,y1,x2,y2,'GSWLC',label,'sfr-mstar-gswlc-field.pdf',ymin=-11.6,ymax=-8.75,xmin=9.75,xmax=11.5,nhistbin=nbins,ylabel='$\log_{10}(sSFR)$',contourflag=False,alphagray=.8,hexbinflag=True,color1='0.5',color2=color2)
+            print('AFTER MASS MATCHING')
+            print('number of gswlc = ',len(x1))
+            print('number of lcs = ',len(x2))
+
+        ax1,ax2,ax3 = colormass(x1,y1,x2,y2,'GSWLC',label,'sfr-mstar-gswlc-field.pdf',ymin=-11.6,ymax=-8.75,xmin=8.75,xmax=11.5,nhistbin=nbins,ylabel='$\log_{10}(sSFR)$',\
+                  contourflag=False,alphagray=.15,hexbinflag=hexbinflag,color1='0.5',color2=color2,alpha1=1)
+
+        self.plot_lcs_size_sample(ax1,memb=lcsmemb,infall=lcsinfall,ssfrflag=True)
+        ax1.legend(loc='upper left')
+
         if outfile1 is None:
             plt.savefig(homedir+'/research/LCS/plots/lcscore-gsw-ssfrmstar.pdf')
         else:
@@ -954,7 +979,13 @@ class comp_lcs_gsw():
         x2 = self.lcs.cat['logMstar'][flag2]
         y2 = self.lcs.cat['logSFR'][flag2]
         
-        colormass(x1,y1,x2,y2,'LCS core','LCS infall','sfr-mstar-lcs-core-field.pdf',ymin=-2,ymax=1.5,xmin=9.75,xmax=11.5,nhistbin=nbins,ylabel='$\log_{10}(SFR)$',contourflag=False,alphagray=.8,alpha1=1,color1=darkblue)
+        ax1,ax2,ax3 = colormass(x1,y1,x2,y2,'LCS core','LCS infall','sfr-mstar-lcs-core-field.pdf',ymin=-2,ymax=1.5,xmin=8.75,xmax=11.5,nhistbin=nbins,ylabel='$\log_{10}(SFR)$',contourflag=False,alphagray=.8,alpha1=1,color1=darkblue,lcsflag=True)
+
+        self.plot_lcs_size_sample(ax1,memb=True,infall=True)
+        ax1.legend(loc='upper left')
+        
+        plt.subplots_adjust(left=.15)
+        
         if outfile1 is None:
             plt.savefig(homedir+'/research/LCS/plots/lcscore-external-sfrmstar.pdf')
         else:
@@ -991,8 +1022,16 @@ class comp_lcs_gsw():
         y1 = self.lcs.ssfr[flag1]
         x2 = self.lcs.cat['logMstar'][flag2]
         y2 = self.lcs.ssfr[flag2]
+
+
+        ax1,ax2,ax3 = colormass(x1,y1,x2,y2,'LCS core','LCS infall','sfr-mstar-lcs-core-field.pdf',ymin=-11.6,ymax=-8.75,xmin=8.75,xmax=11.5,nhistbin=nbins,ylabel='$\log_{10}(sSFR)$',contourflag=False,alphagray=.8,alpha1=1,color1=darkblue,lcsflag=True)
+
+
+        self.plot_lcs_size_sample(ax1,memb=True,infall=True,ssfrflag=True)
+        ax1.legend(loc='upper left')
         
-        colormass(x1,y1,x2,y2,'LCS core','LCS infall','sfr-mstar-lcs-core-field.pdf',ymin=-11.6,ymax=-8.75,xmin=9.75,xmax=11.5,nhistbin=nbins,ylabel='$\log_{10}(sSFR)$',contourflag=False,alphagray=.8,alpha1=1)
+        plt.subplots_adjust(left=.15)
+        
         if outfile1 is None:
             plt.savefig(homedir+'/research/LCS/plots/lcscore-gsw-ssfrmstar.pdf')
         else:
@@ -1001,7 +1040,24 @@ class comp_lcs_gsw():
             plt.savefig(homedir+'/research/LCS/plots/lcscore-gsw-ssfrmstar.png')
         else:
             plt.savefig(outfile2)
-
+    def plot_lcs_size_sample(self,ax,memb=True,infall=True,ssfrflag=False):
+        cmemb = colorblind1
+        cmemb = 'darkmagenta'
+        cinfall = lightblue
+        cinfall = 'blueviolet'
+        cinfall = 'darkmagenta'
+        if ssfrflag:
+            y = self.lcs.cat['logSFR'] - self.lcs.cat['logMstar']
+        else:
+            y = self.lcs.cat['logSFR']
+        
+        if memb:
+            flag = self.lcs.cat['sampleflag'] & self.lcs.cat['membflag']
+            ax.plot(self.lcs.cat['logMstar'][flag],y[flag],'ks',color=cmemb,alpha=.5,markersize=8,label='LCS memb w/size ('+str(sum(flag))+')')
+        if infall:
+            flag = self.lcs.cat['sampleflag'] & ~self.lcs.cat['membflag']  & (self.lcs.cat['DELTA_V'] < 3.)
+            ax.plot(self.lcs.cat['logMstar'][flag],y[flag],'k^',color=cinfall,alpha=.5,markersize=10,label='LCS infall w/size ('+str(sum(flag))+')')
+        
 
     def print_lowssfr_nsaids(self,lcsflag=None,ssfrmin=None,ssfrmax=-11):
         if ssfrmin is not None:
@@ -1059,14 +1115,27 @@ class comp_lcs_gsw():
         print(t)        
         pass
 
-                                  
+    def compute_ks(self):
+        '''
+        GOAL:
+        * compute KS statistics for table in paper comparing 
+          - LCS core/field vs GSWLC
+          - LCS core vs field
+          - with and witout B/T cut
+          - with and without mass matching
+        '''
+
+        # no BT cut
+        # actually, not that easy b/c some cuts are made in plot panels
+        # putting this off until later...
+        pass
 if __name__ == '__main__':
     ###########################
     ##### SET UP ARGPARSE
     ###########################
 
     parser = argparse.ArgumentParser(description ='Program to run analysis for LCS paper 2')
-    parser.add_argument('--minmass', dest = 'minmass', default = 10., help = 'minimum stellar mass for sample.  default is log10(M*) > 7.9')
+    parser.add_argument('--minmass', dest = 'minmass', default = 9.7, help = 'minimum stellar mass for sample.  default is log10(M*) > 9.7')
     parser.add_argument('--cutBT', dest = 'cutBT', default = False, action='store_true', help = 'Set this to cut the sample by B/T < 0.3.')
     #parser.add_argument('--cutBT', dest = 'diskonly', default = 1, help = 'True/False (enter 1 or 0). normalize by Simard+11 disk size rather than Re for single-component sersic fit.  Default is true.  ')    
 

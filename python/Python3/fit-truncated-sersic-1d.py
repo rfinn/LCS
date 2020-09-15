@@ -202,6 +202,7 @@ class simsample():
         plt.ylabel('n fit/ n input')
         allax.append(plt.gca())
         x1,x2 = plt.xlim()
+
         #ylim(x1,2*x2)
         plt.subplot(2,3,2)
         plt.scatter(d['Rtrunc'],d['Re_fit']/d['Re'],label='Re',c=d['Rtrunc'],s=ptsize)
@@ -257,38 +258,55 @@ class simsample():
 
     def summary_plot_3panel(self):
         d = self.outtab
-        x = d['Rtrunc']        
-        plt.figure(figsize=(12,3))
+        x = d['Rtrunc']
+        myfontsize=16
+        plt.figure(figsize=(10,8))
         ptsize=10
-        plt.subplots_adjust(wspace=.5,hspace=.4)
+        plt.subplots_adjust(wspace=.4,hspace=.3)
         allax=[]
-        plt.subplot(1,3,1)
+        plt.subplot(2,2,1)
         y = d['n_fit']/d['n']
         plt.scatter(x,y,label='n_fit/n',c=d['n'],s=ptsize)
         self.fit_curve(x,y,p0=[1,1,-1])
-        plt.xlabel('Rtrunc')
-        plt.ylabel('n fit/ n input')
+        plt.xlabel('Rtrunc',fontsize=myfontsize)
+        plt.ylabel('n fit/ n input',fontsize=myfontsize)
         allax.append(plt.gca())
-        
-        plt.subplot(1,3,2)
+        plt.colorbar(label='Sersic n',fraction=.08)        
+        plt.subplot(2,2,2)
         y = d['Re_fit']/d['Re']
         plt.scatter(x,y,label='Re_fit/Re',c=d['n'],s=ptsize)
-        plt.xlabel('Rtrunc')
-        plt.ylabel('Re_fit/Re')
+        plt.xlabel('Rtrunc',fontsize=myfontsize)
+        plt.ylabel('Re_fit/Re',fontsize=myfontsize)
         self.fit_curve(x,y,p0=[1,1,-.8])
         allax.append(plt.gca())
-                               
-        plt.subplot(1,3,3)
+        plt.colorbar(label='Sersic n',fraction=.08)                                       
+        plt.subplot(2,2,3)
         y = d['Ie_fit']/d['Ie']
         plt.scatter(x,y,label='Ie',c=d['n'],s=ptsize)
         self.fit_curve(x,y,p0=[0,1,-.8])                            
-        plt.xlabel('Rtrunc')
-        plt.ylabel('Ie fit/Ie input')
+        plt.xlabel('Rtrunc',fontsize=myfontsize)
+        plt.ylabel('Ie fit/Ie input',fontsize=myfontsize)
         x1,x2 = plt.xlim()
         allax.append(plt.gca())
         
-        plt.colorbar(ax=allax,label='Sersic n')
-        plt.savefig('sersic-1d-sim-3panel.png')
+        #plt.colorbar(ax=allax,label='Sersic n')
+        plt.colorbar(label='Sersic n',fraction=.08)        
+        plt.subplot(2,2,4)
+        plt.scatter(d['n'],d['Re_fit']/d['Re'],label='Re_fit/Re',c=d['Rtrunc'],s=ptsize)
+        plt.xlabel('Sersic index',fontsize=myfontsize)
+        plt.ylabel('Re_fit/Re',fontsize=myfontsize)
+        plt.colorbar(label='Rtrunc/Re',fraction=.08)
+        allax.append(plt.gca())        
+        #plt.ylim(0,10)
+        for i,ax in enumerate(allax):
+            if (i < 2) | (i == 3):
+                ax.set_ylim(.2,1.03)
+            elif i == 2:
+                ax.set_ylim(.9,4)
+            #ax.set_yscale('log')
+        
+        plt.savefig('sersic-1d-sim-4panel.png')
+        plt.savefig('sersic-1d-sim-4panel.pdf')        
     def fit_curve(self,x,y,p0=None):
         x1,x2 = plt.xlim()
         xl = np.linspace(x1,x2,100)
