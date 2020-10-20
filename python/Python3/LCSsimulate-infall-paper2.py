@@ -480,6 +480,8 @@ def run_sim(tmax = 2.,nrandom=100,drdtmin=-2,drdt_step=.1,model=1,plotsingle=Tru
             # and the simulated core
 
             # keep track of # that drop out due to size
+            # should be specific SFR rather than SFR limit
+            # should apply the ssfr > 11.5
             flag = sim_core_sfr > min(SFR)
             fquench_sfr[aindex] = sum(~flag)/len(flag)
             fquench_size[aindex] = sum(sim_core <= 0)/len(sim_core)
@@ -814,7 +816,7 @@ def plot_quenched_fraction(all_drdt,all_boost, fquench_size,fquench_sfr,fquench,
             plt.yticks([])
             plt.title('Combined Fractions',fontsize=20)
             
-    plt.colorbar(ax=allax,label='Quenched Fraction',fraction=.08)
+    plt.colorbar(ax=allax,label='Fraction',fraction=.08)
 
 def compare_single(var,flag1,flag2,xlab):
         xmin=min(var)

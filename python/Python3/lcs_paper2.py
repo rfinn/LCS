@@ -133,8 +133,8 @@ def colormass(x1,y1,x2,y2,name1,name2, figname, hexbinflag=False,contourflag=Fal
         #extent = [xbins[0], xbins[-1], ybins[0], ybins[-1]]
         #plt.contour(np.log10(H.T+1),  10, extent = extent, zorder=1,colors='k')
         #plt.hexbin(xvar2,yvar2,bins='log',cmap='Blues', gridsize=100)
-
-        plt.hexbin(x1,y1,bins='log',cmap='gray_r', gridsize=75,label='_nolegend_')
+        label=name1+' (%i)'%(n1)
+        plt.hexbin(x1,y1,bins='log',cmap='gray_r', gridsize=75)
     else:
         label=name1+' (%i)'%(n1)
         if lcsflag:
@@ -172,8 +172,9 @@ def colormass(x1,y1,x2,y2,name1,name2, figname, hexbinflag=False,contourflag=Fal
     mybins = np.linspace(minx,maxx,nhistbin)
     t = plt.hist(x1, normed=True, bins=mybins,color=color1,histtype='step',lw=1.5, label=name1+' (%i)'%(n1))
     t = plt.hist(x2, normed=True, bins=mybins,color=color2,histtype='step',lw=1.5, label=name2+' (%i)'%(n2))
-    #plt.legend()
-    leg = ax2.legend(fontsize=12,loc='lower left')
+    if hexbinflag:
+        plt.legend()
+    #leg = ax2.legend(fontsize=12,loc='lower left')
     #for l in leg.legendHandles:
     #    l.set_alpha(1)
     #    l._legmarker.set_alpha(1)
@@ -265,6 +266,16 @@ def mass_match(input_mass,comp_mass,dm=.15,nmatch=20,inputZ=None,compZ=None,dz=.
             # if redshifts are provided, also restrict based on redshift offset
             if inputZ is not None:
                 flag = flag & (np.abs(compZ - inputZ[i]) < 2*dz)
+            if sum(flag) == 0:
+                print('\truh roh again - tripling mass and redshift slices')
+                flag = np.abs(comp_mass - input_mass[i]) < 4*dm
+                # if redshifts are provided, also restrict based on redshift offset
+                if inputZ is not None:
+                    flag = flag & (np.abs(compZ - inputZ[i]) < 4*dz)
+                if sum(flag) == 0:
+                    print("can't seem to find a match for mass = ",input_mass[i], i)
+                    print("skipping this galaxy")                    
+                    continue
         return_index[int(i*nmatch):int((i+1)*nmatch)] = np.random.choice(comp_index[flag],nmatch,replace=True)
 
     return return_index
@@ -454,14 +465,17 @@ stat_cols = ['mean','var','MAD','skew','kurt']
 class gswlc_full():
     def __init__(self,catalog,cutBT=False):
         if catalog.find('.fits') > -1:
+            print('got a fits file')
             self.gsw = Table(fits.getdata(catalog))
             self.redshift_field = 'zobs'
             if cutBT:
                 self.outfile = catalog.split('.fits')[0]+'-LCS-Zoverlap-BTcut.fits'
+                print('outfile = ',self.outfile)
             else:
                 self.outfile = catalog.split('.fits')[0]+'-LCS-Zoverlap.fits'                        
-            
+                print('outfile = ',self.outfile)
         else:
+            print('reading ascii')
             self.gsw = ascii.read(catalog)
             if catalog.find('v2') > -1:
                 self.redshift_field = 'Z_1'
@@ -470,7 +484,8 @@ class gswlc_full():
             if cutBT:
                 self.outfile = catalog.split('.dat')[0]+'-LCS-Zoverlap-BTcut.fits'
             else:
-                self.outfile = catalog.split('.dat')[0]+'-LCS-Zoverlap.fits'                            
+                self.outfile = catalog.split('.dat')[0]+'-LCS-Zoverlap.fits'
+        #print(self.gsw.colnames[0:10],len(self.gsw.colnames))
         self.cut_redshift()
         if cutBT:
             self.cut_BT()
@@ -479,6 +494,10 @@ class gswlc_full():
     def cut_redshift(self):
         z1 = zmin
         z2 = zmax
+        #print(self.redshift_field)
+        #print(self.gsw.colnames[0:10],len(self.gsw.colnames))        
+        #print(self.gsw.colnames)
+        print(z1,z2)
         zflag = (self.gsw[self.redshift_field] > z1) & (self.gsw[self.redshift_field] < z2)
         massflag = self.gsw['logMstar'] > 0
         self.gsw = self.gsw[zflag & massflag]
@@ -495,7 +514,22 @@ class gswlc_full():
 # functions that will be applied to LCS-GSWLC catalog and GSWLC catalog
 class gswlc_base():
     def base_init(self):
+        # selecting agn in a different way - from dr10 catalog
+        #self.get_agn()
+        # cut catalog to remove agn
+        #self.remove_agn()
         self.calc_ssfr()
+    def get_agn(self):
+        self.specflag = ~np.isnan(self.cat['O3FLUX'])
+        self.AGNKAUFF= (np.log10(self.cat['O3FLUX']/self.cat['HBFLUX']) > (.61/(np.log10(self.cat['N2FLUX']/self.cat['HAFLUX']-.05))+1.3)) | (np.log10(self.cat['N2FLUX']/self.cat['HAFLUX']) > 0.)  #& (self.s.HAEW > 0.)
+        # add calculations for selecting the sample
+        
+        self.wiseagn=(self.cat['W1MAG_3'] - self.cat['W2MAG_3']) > 0.8
+        self.agnflag = (self.AGNKAUFF & self.specflag) | self.wiseagn
+        print('fraction of AGN = %.3f (%i/%i)'%(sum(self.agnflag)/len(self.agnflag),sum(self.agnflag),len(self.agnflag)))
+    def remove_agn(self):
+        print('REMOVING AGN')
+        self.cat = self.cat[~self.agnflag]
         
     def calc_ssfr(self):
         self.ssfr = self.cat['logSFR'] - self.cat['logMstar']
@@ -543,7 +577,7 @@ class gswlc(gswlc_base):
     def __init__(self,catalog,cutBT=False):
         self.cat = fits.getdata(catalog) 
         self.base_init()
-        self.calc_local_density()
+        #self.calc_local_density()
         self.get_field1()
         
     def calc_local_density(self,NN=10):
@@ -562,8 +596,8 @@ class gswlc(gswlc_base):
         decmin=5
         decmax=60
         gsw_position_flag = (self.cat['RA'] > ramin) & (self.cat['RA'] < ramax) & (self.cat['DEC'] > decmin) & (self.cat['DEC'] < decmax)
-        gsw_density_flag = np.log10(self.densNN*u.Mpc) < .2
-        self.field1 = gsw_position_flag & gsw_density_flag
+        #gsw_density_flag = np.log10(self.densNN*u.Mpc) < .2
+        #self.field1 = gsw_position_flag & gsw_density_flag
     def plot_field1(self,figname1=None,figname2=None):
         plt.figure(figsize=(14,8))
         plt.scatter(self.cat['RA'],self.cat['DEC'],c=np.log10(self.densNN*u.Mpc),vmin=-.5,vmax=1.,s=10)
@@ -610,8 +644,27 @@ class lcsgsw(gswlc_base):
         # read in catalog of LCS matched to GSWLC
         #self.cat = fits.getdata(catalog)
         self.cat = Table.read(catalog)
-        self.write_file_for_simulation()        
+        '''
+        c1 = Column(self.agnflag,name='agnflag')
+        c2 = Column(self.wiseagn,name='wiseagn')
+        c3 = Column(self.AGNKAUFF,name='kauffagn')
+        c4 = Column(self.cat['N2FLUX']/self.cat['HAFLUX'],name='n2ha')
+        c5 = Column(self.cat['O3FLUX']/self.cat['HBFLUX'],name='o3hb')        
+        tabcols = [c1,c2,c3,c4,c5,self.cat['HAFLUX'],self.cat['N2FLUX'],self.cat['HBFLUX'],self.cat['O3FLUX'],self.cat['W1MAG_3'],self.cat['W2MAG_3'],self.cat['AGNKAUFF']]
+        tabnames = ['agnflag','wiseagn','kauffagn','N2/HA','O3/HB','HAFLUX','N2FLUX','HBFLUX','O3FLUX','W1MAG_3','W2MAG_3','AGNKAUF']
+        newtable = Table(data=tabcols,names=tabnames)
+        newtable.write(homedir+'/research/LCS/tables/lcs-gsw-noagn.fits',overwrite=True)
+        '''
         self.base_init()
+
+        # this doesn't work after adding agn cut
+        # getting error that some array lengths are not the same
+        # I am not actually using this data file in the simulation
+        # so commenting it out for now.
+        # I'm sure the error will pop up somewhere else...
+        #self.write_file_for_simulation()
+        self.get_DA()
+        self.calculate_sizeratio()
         if cutBT:
             self.cut_BT()
         self.group = self.cat['CLUSTER_SIGMA'] < sigma_split
@@ -660,9 +713,10 @@ class lcsgsw(gswlc_base):
         # we are using GSWLC SFR
         c1 = Column(self.sizeratio,name='sizeratio')
         c2 = Column(self.sizeratioERR,name='sizeratio_err')
+        c3 = Column(self.agnflag,name='agnflag')        
         # using all simard values of sersic fit
-        tabcols = [c1,c2,self.cat['membflag'],self.cat['B_T_r'],self.cat['Re'],self.cat['ng'],self.cat['logSFR']]
-        tabnames = ['sizeratio','sizeratio_err','membflag','BT','Re','nsersic','logSFR']
+        tabcols = [c1,c2,self.cat['membflag'],self.cat['B_T_r'],self.cat['Re'],self.cat['ng'],self.cat['logSFR'],c3]
+        tabnames = ['sizeratio','sizeratio_err','membflag','BT','Re','nsersic','logSFR','agnflag']
         newtable = Table(data=tabcols,names=tabnames)
         newtable = newtable[self.cat['sampleflag']]
         newtable.write(homedir+'/research/LCS/tables/LCS-simulation-data.fits',format='fits',overwrite=True)
@@ -734,7 +788,7 @@ class lcsgsw(gswlc_base):
 
         '''
         if masscut is None:
-            masscut = self.minmass
+            masscut = self.masscut
         flag = (self.cat['logSFR'] > -99) & (self.cat['logSFR']-self.cat['logMstar'] > -11.5) & (self.cat['logMstar'] > masscut)
         sfrcore = self.cat['logSFR'][self.cat['membflag'] & flag] 
         sfrext = self.cat['logSFR'][~self.cat['membflag']& flag]
@@ -851,10 +905,18 @@ class comp_lcs_gsw():
         # LCS sample (forgive the switch in indices)
         x2 = self.lcs.cat['logMstar'][flag1]
         y2 = self.lcs.cat['logSFR'][flag1]
-        z2 = self.lcs.cat['Z'][flag1]
+        z2 = self.lcs.cat['Z_1'][flag1]
         # get indices for mass-matched gswlc sample
         if massmatch:
-            keep_indices = mass_match(x2,x1,inputZ=z2,compZ=z1,dz=.002)
+            #keep_indices = mass_match(x2,x1,inputZ=z2,compZ=z1,dz=.002)
+            keep_indices = mass_match(x2,x1)            
+            # if keep_indices == False
+            # remove redshift constraint
+            if (len(keep_indices) == 1):
+                if (keep_indices == False):
+                    print("WARNING: Removing the redshift constraint from the mass-matched sample")
+                    keep_indices = mass_match(x2,x1)
+                
             x1 = x1[keep_indices]
             y1 = y1[keep_indices]
         
@@ -862,14 +924,13 @@ class comp_lcs_gsw():
             color2=darkblue
         else:
             color2=lightblue
-        ax1,ax2,ax3 = colormass(x1,y1,x2,y2,'GSWLC',label,'sfr-mstar-gswlc-field.pdf',ymin=-2,ymax=1.6,xmin=8.75,xmax=11.25,nhistbin=10,ylabel='$\log_{10}(SFR)$',contourflag=False,alphagray=.15,hexbinflag=hexbinflag,color2=color2,color1='0.5',alpha1=1)
+        ax1,ax2,ax3 = colormass(x1,y1,x2,y2,'GSWLC',label,'sfr-mstar-gswlc-field.pdf',ymin=-2,ymax=1.6,xmin=9.5,xmax=11.25,nhistbin=10,ylabel='$\log_{10}(SFR/(M_\odot/yr))$',contourflag=False,alphagray=.15,hexbinflag=hexbinflag,color2=color2,color1='0.5',alpha1=1)
         # add marker to figure to show galaxies with size measurements
 
-
-        self.plot_lcs_size_sample(ax1,memb=lcsmemb,infall=lcsinfall,ssfrflag=False)
-        ax1.legend(loc='upper left')
-        
-        ax1.legend(loc='upper left')
+        #self.plot_lcs_size_sample(ax1,memb=lcsmemb,infall=lcsinfall,ssfrflag=False)
+        #ax1.legend(loc='upper left')
+        if not hexbinflag:
+            ax1.legend(loc='upper left')
         
         plt.subplots_adjust(left=.15)
         if outfile1 is None:
@@ -919,7 +980,7 @@ class comp_lcs_gsw():
         # LCS sample (forgive the switch in indices)
         x2 = self.lcs.cat['logMstar'][flag1]
         y2 = self.lcs.cat['logSFR'][flag1] - self.lcs.cat['logMstar'][flag1] 
-        z2 = self.lcs.cat['Z'][flag1]
+        z2 = self.lcs.cat['Z_1'][flag1]
         
         if coreflag:
             color2=darkblue
@@ -936,10 +997,10 @@ class comp_lcs_gsw():
             print('number of gswlc = ',len(x1))
             print('number of lcs = ',len(x2))
 
-        ax1,ax2,ax3 = colormass(x1,y1,x2,y2,'GSWLC',label,'sfr-mstar-gswlc-field.pdf',ymin=-11.6,ymax=-8.75,xmin=8.75,xmax=11.5,nhistbin=nbins,ylabel='$\log_{10}(sSFR)$',\
+        ax1,ax2,ax3 = colormass(x1,y1,x2,y2,'GSWLC',label,'sfr-mstar-gswlc-field.pdf',ymin=-11.6,ymax=-8.75,xmin=9.5,xmax=11.5,nhistbin=nbins,ylabel='$\log_{10}(sSFR)$',\
                   contourflag=False,alphagray=.15,hexbinflag=hexbinflag,color1='0.5',color2=color2,alpha1=1)
 
-        self.plot_lcs_size_sample(ax1,memb=lcsmemb,infall=lcsinfall,ssfrflag=True)
+        #self.plot_lcs_size_sample(ax1,memb=lcsmemb,infall=lcsinfall,ssfrflag=True)
         ax1.legend(loc='upper left')
 
         if outfile1 is None:
@@ -979,9 +1040,9 @@ class comp_lcs_gsw():
         x2 = self.lcs.cat['logMstar'][flag2]
         y2 = self.lcs.cat['logSFR'][flag2]
         
-        ax1,ax2,ax3 = colormass(x1,y1,x2,y2,'LCS core','LCS infall','sfr-mstar-lcs-core-field.pdf',ymin=-2,ymax=1.5,xmin=8.75,xmax=11.5,nhistbin=nbins,ylabel='$\log_{10}(SFR)$',contourflag=False,alphagray=.8,alpha1=1,color1=darkblue,lcsflag=True)
+        ax1,ax2,ax3 = colormass(x1,y1,x2,y2,'LCS core','LCS infall','sfr-mstar-lcs-core-field.pdf',ymin=-2,ymax=1.5,xmin=9.5,xmax=11.5,nhistbin=nbins,ylabel='$\log_{10}(SFR)$',contourflag=False,alphagray=.8,alpha1=1,color1=darkblue,lcsflag=True)
 
-        self.plot_lcs_size_sample(ax1,memb=True,infall=True)
+        #self.plot_lcs_size_sample(ax1,memb=True,infall=True)
         ax1.legend(loc='upper left')
         
         plt.subplots_adjust(left=.15)
@@ -1024,10 +1085,10 @@ class comp_lcs_gsw():
         y2 = self.lcs.ssfr[flag2]
 
 
-        ax1,ax2,ax3 = colormass(x1,y1,x2,y2,'LCS core','LCS infall','sfr-mstar-lcs-core-field.pdf',ymin=-11.6,ymax=-8.75,xmin=8.75,xmax=11.5,nhistbin=nbins,ylabel='$\log_{10}(sSFR)$',contourflag=False,alphagray=.8,alpha1=1,color1=darkblue,lcsflag=True)
+        ax1,ax2,ax3 = colormass(x1,y1,x2,y2,'LCS core','LCS infall','sfr-mstar-lcs-core-field.pdf',ymin=-11.6,ymax=-8.75,xmin=9.5,xmax=11.5,nhistbin=nbins,ylabel='$\log_{10}(sSFR)$',contourflag=False,alphagray=.8,alpha1=1,color1=darkblue,lcsflag=True)
 
 
-        self.plot_lcs_size_sample(ax1,memb=True,infall=True,ssfrflag=True)
+        #self.plot_lcs_size_sample(ax1,memb=True,infall=True,ssfrflag=True)
         ax1.legend(loc='upper left')
         
         plt.subplots_adjust(left=.15)
@@ -1052,10 +1113,10 @@ class comp_lcs_gsw():
             y = self.lcs.cat['logSFR']
         
         if memb:
-            flag = self.lcs.cat['sampleflag'] & self.lcs.cat['membflag']
+            flag = self.lcs.cat['sampleflag'] & self.lcs.cat['membflag']  & (self.lcs.cat['logMstar'] > self.masscut)
             ax.plot(self.lcs.cat['logMstar'][flag],y[flag],'ks',color=cmemb,alpha=.5,markersize=8,label='LCS memb w/size ('+str(sum(flag))+')')
         if infall:
-            flag = self.lcs.cat['sampleflag'] & ~self.lcs.cat['membflag']  & (self.lcs.cat['DELTA_V'] < 3.)
+            flag = self.lcs.cat['sampleflag'] & ~self.lcs.cat['membflag']  & (self.lcs.cat['DELTA_V'] < 3.) & (self.lcs.cat['logMstar'] > self.masscut)
             ax.plot(self.lcs.cat['logMstar'][flag],y[flag],'k^',color=cinfall,alpha=.5,markersize=10,label='LCS infall w/size ('+str(sum(flag))+')')
         
 
@@ -1114,6 +1175,7 @@ class comp_lcs_gsw():
         t = ks_2samp(x1,x2)
         print(t)        
         pass
+    
 
     def compute_ks(self):
         '''
@@ -1129,6 +1191,41 @@ class comp_lcs_gsw():
         # actually, not that easy b/c some cuts are made in plot panels
         # putting this off until later...
         pass
+    def compare_lcs_sfr(self,core=True,infall=True):
+        '''hist of sfrs of core vs infall lcs galaxies'''
+        plt.figure(figsize=(8,5))
+        plt.subplots_adjust(bottom=.2,left=.05)
+        mybins=np.linspace(-2.5,2,10)
+        ssfr = self.lcs.cat['logSFR'] - self.lcs.cat['logMstar']
+        flag1 = (self.lcs.cat['logSFR'] > -50) & (ssfr > self.ssfrcut) & (self.lcs.cat['logMstar'] > self.masscut)
+        x1 = self.lcs.cat['logSFR'][self.lcs.cat['membflag'] & flag1 ]
+        x2 = self.lcs.cat['logSFR'][~self.lcs.cat['membflag'] &( self.lcs.cat['DELTA_V'] < 3.) & flag1]
+        print('KS test comparing SFRs:')
+        t = ks_2samp(x1,x2)
+        print(t)
+        vars = [x1,x2]
+        labels = ['LCS Core','LCS Infall']
+        mycolors = ['r','b']
+        myhatch=['/','\\']
+        for i in [0,1]:
+            #plt.subplot(1,2,i+1)
+            if (i == 0) and not(core):
+                continue
+
+            if (i == 1) and not(infall):
+                continue
+            t = plt.hist(vars[i],label=labels[i],lw=2,bins=mybins,hatch=myhatch[i],color=mycolors[i],histtype='step')                
+        plt.xlabel('$log_{10}(SFR/(M_\odot/yr))$',fontsize=24)
+        #plt.axis([-2.5,2,0,50])
+        plt.legend()
+        if not(core):
+            outfile=homedir+'/research/LCS/plots/lcsinfall-sfrs'
+        elif not(infall):
+            outfile=homedir+'/research/LCS/plots/lcscore-sfrs'
+        else:
+            outfile=homedir+'/research/LCS/plots/lcscore-infall-sfrs'
+        plt.savefig(outfile+'.png')
+        plt.savefig(outfile+'.pdf')        
 if __name__ == '__main__':
     ###########################
     ##### SET UP ARGPARSE
@@ -1142,25 +1239,31 @@ if __name__ == '__main__':
     args = parser.parse_args()
     
     trimgswlc = True
+    gsw_basefile = homedir+'/research/GSWLC/GSWLC-X2-NO-DR10-AGN-Simard2011-tab1-Tempel-12.5'
     if trimgswlc:
         #g = gswlc_full('/home/rfinn/research/GSWLC/GSWLC-X2.dat')
         # 10 arcsec match b/s GSWLC-X2 and Tempel-12.5_v_2 in topcat, best, symmetric
         #g = gswlc_full('/home/rfinn/research/LCS/tables/GSWLC-Tempel-12.5-v2.fits')
-        g = gswlc_full(homedir+'/research/GSWLC/GSWLC-Tempel-12.5-v2-Simard2011.fits',cutBT=args.cutBT)        
+        #g = gswlc_full(homedir+'/research/GSWLC/GSWLC-Tempel-12.5-v2-Simard2011-NSAv0-unwise.fits',cutBT=args.cutBT)
+        
+        g = gswlc_full(gsw_basefile+'.fits',cutBT=args.cutBT)                
         g.cut_redshift()
         g.save_trimmed_cat()
 
     #g = gswlc('/home/rfinn/research/LCS/tables/GSWLC-X2-LCS-Zoverlap.fits')
     if args.cutBT:
-        infile=homedir+'/research/GSWLC/GSWLC-Tempel-12.5-v2-Simard2011-LCS-Zoverlap-BTcut.fits'
+        infile=gsw_basefile+'-LCS-Zoverlap-BTcut.fits'
     else:
-        infile = homedir+'/research/GSWLC/GSWLC-Tempel-12.5-v2-Simard2011-LCS-Zoverlap.fits'
+        infile = gsw_basefile+'-LCS-Zoverlap.fits'
     g = gswlc(infile)
+
     #g.plot_ms()
     #g.plot_field1()
     lcsfile = homedir+'/research/LCS/tables/lcs-gswlc-x2-match.fits'
     lcsfile = homedir+'/research/LCS/tables/LCS_all_size_KE_SFR_GSWLC2_X2.fits'
+    lcsfile = homedir+'/research/LCS/tables/LCS-KE-SFR-GSWLC-X2-NO-DR10-AGN-Simard2011-tab1.fits'    
     lcs = lcsgsw(lcsfile,cutBT=args.cutBT)
     #lcs = lcsgsw('/home/rfinn/research/LCS/tables/LCS_all_size_KE_SFR_GSWLC2_X2.fits',cutBT=args.cutBT)    
     #lcs.compare_sfrs()
+
     b = comp_lcs_gsw(lcs,g,minmstar=float(args.minmass))
