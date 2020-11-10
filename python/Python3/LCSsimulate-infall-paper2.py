@@ -378,6 +378,11 @@ def run_sim(tmax = 2.,nrandom=100,drdtmin=-2,drdt_step=.1,model=1,plotsingle=Tru
     fquench_sfr = np.zeros(npoints)
     fquench = np.zeros(npoints) # for both constraints    
 
+    # boost strapping
+    # randomly draw same sample size from external and core for each model
+    # try this to see how results are impacted
+
+    
     if model == 2:
         print('USING MODEL 2')
     for i in range(nstep_drdt):
@@ -733,6 +738,33 @@ def plot_boost_3panel(all_drdt,all_p,all_p_sfr,boost,tmax=2,v2=.005,model=3):
 
     plt.savefig(plotdir+'/model3-tmax'+str(tmax)+'-size-sfr-constraints-3panel.png')
     plt.savefig(plotdir+'/model'+str(model)+'-tmax'+str(tmax)+'-size-sfr-constraints-3panel.pdf')
+
+def plot_drdt_boost_ellipse(all_drdt,all_p,all_p_sfr,boost,tmax=2,levels=None,model=3,figname=None):
+    '''plot error ellipses of drdt and boost'''
+    plt.figure(figsize=(8,6))
+
+    allz = [all_p,all_p_sfr]
+
+    labels = ['size p value','sfr p value','min p value']
+    titles = ['Size Constraints','SFR Constraints','minimum(Size, SFR)']
+    if levels is None:
+        levels = [.003,.05,.32]
+    else:
+        levels = levels
+    allax = []
+    psize=30
+    for i in range(len(allz)):
+        plt.contour([all_drdt,boost],allz[i],color=mycolors[i],levels=levels,label=labels[i])
+
+        plt.title(titles[i],fontsize=20)
+
+    plt.ylabel('$I_{boost}/I_e$',fontsize=24)
+    plt.xlabel('$dr/dt$',fontsize=24)
+    plt.legend()
+    if figname is not None:
+        plt.savefig(plotdir+'/'+figname+'.png')
+        plt.savefig(plotdir+'/'+figname+'.pdf')        
+
 
 def plot_model1_3panel(all_drdt,all_p,all_p_sfr,tmax=2,v2=.005,model=1,vmin=-4):
     '''

@@ -83,10 +83,14 @@ lightblue = colorblind2
 #colorblind2 = 'c'
 colorblind3 = 'k'
 
+def get_BV_MS(logMstar):
+    ''' get MS fit that BV calculated from GSWLC '''
+    return 0.55*logMstar-5.7
+
 def colormass(x1,y1,x2,y2,name1,name2, figname, hexbinflag=False,contourflag=False, \
              xmin=7.9, xmax=11.6, ymin=-1.2, ymax=1.2, contour_bins = 40, ncontour_levels=5,\
               xlabel='$\log_{10}(M_\star/M_\odot) $', ylabel='$(g-i)_{corrected} $', color1=colorblind3,color2=colorblind2,\
-              nhistbin=50, alpha1=.1,alphagray=.1,lcsflag=False):
+              nhistbin=50, alpha1=.1,alphagray=.1,lcsflag=False,ssfrlimit=None):
 
     '''
     PARAMS:
@@ -155,7 +159,10 @@ def colormass(x1,y1,x2,y2,name1,name2, figname, hexbinflag=False,contourflag=Fal
         #plt.legend()
     #sns.kdeplot(agc['LogMstarTaylor'][keepagc],agc['gmi_corrected'][keepagc])#,bins='log',gridsize=200,cmap='blue_r')
     #plt.colorbar()
-    
+    if ssfrlimit is not None:
+        xl=np.linspace(xmin,xmax,100)
+        yl =xl + ssfrlimit
+        plt.plot(xl,yl,'k--')
     plt.axis([xmin,xmax,ymin,ymax])
     plt.xticks(fontsize=12)
     plt.yticks(fontsize=12)
@@ -843,13 +850,14 @@ class comp_lcs_gsw():
     used to compare LCS with field sample constructed from SDSS with GSWLC SFR and Mstar values
 
     '''
-    def __init__(self,lcs,gsw,minmstar = 10, minssfr = -11.5):
+    def __init__(self,lcs,gsw,minmstar = 10, minssfr = -11.5,cutBT=False):
         self.lcs = lcs
         self.gsw = gsw
         self.masscut = minmstar
         self.ssfrcut = minssfr
         self.lowssfr_flag = (self.lcs.cat['logMstar']> self.masscut)  &\
             (self.lcs.ssfr > self.ssfrcut) & (self.lcs.ssfr < -11.)
+        self.cutBT = cutBT
         
         
     def plot_sfr_mstar(self,lcsflag=None,label='LCS core',outfile1=None,outfile2=None,coreflag=True,massmatch=True,hexbinflag=False,lcsinfall=False,lcsmemb=False):
@@ -924,7 +932,7 @@ class comp_lcs_gsw():
             color2=darkblue
         else:
             color2=lightblue
-        ax1,ax2,ax3 = colormass(x1,y1,x2,y2,'GSWLC',label,'sfr-mstar-gswlc-field.pdf',ymin=-2,ymax=1.6,xmin=9.5,xmax=11.25,nhistbin=10,ylabel='$\log_{10}(SFR/(M_\odot/yr))$',contourflag=False,alphagray=.15,hexbinflag=hexbinflag,color2=color2,color1='0.5',alpha1=1)
+        ax1,ax2,ax3 = colormass(x1,y1,x2,y2,'GSWLC',label,'sfr-mstar-gswlc-field.pdf',ymin=-2,ymax=1.6,xmin=9.5,xmax=11.25,nhistbin=10,ylabel='$\log_{10}(SFR/(M_\odot/yr))$',contourflag=False,alphagray=.15,hexbinflag=hexbinflag,color2=color2,color1='0.5',alpha1=1,ssfrlimit=-11.5)
         # add marker to figure to show galaxies with size measurements
 
         #self.plot_lcs_size_sample(ax1,memb=lcsmemb,infall=lcsinfall,ssfrflag=False)
@@ -998,7 +1006,7 @@ class comp_lcs_gsw():
             print('number of lcs = ',len(x2))
 
         ax1,ax2,ax3 = colormass(x1,y1,x2,y2,'GSWLC',label,'sfr-mstar-gswlc-field.pdf',ymin=-11.6,ymax=-8.75,xmin=9.5,xmax=11.5,nhistbin=nbins,ylabel='$\log_{10}(sSFR)$',\
-                  contourflag=False,alphagray=.15,hexbinflag=hexbinflag,color1='0.5',color2=color2,alpha1=1)
+                                contourflag=False,alphagray=.15,hexbinflag=hexbinflag,color1='0.5',color2=color2,alpha1=1)
 
         #self.plot_lcs_size_sample(ax1,memb=lcsmemb,infall=lcsinfall,ssfrflag=True)
         ax1.legend(loc='upper left')
@@ -1012,7 +1020,7 @@ class comp_lcs_gsw():
         else:
             plt.savefig(outfile2)
 
-    def plot_sfr_mstar_lcs(self,outfile1=None,outfile2=None,nbins=20):
+    def plot_sfr_mstar_lcs(self,outfile1=None,outfile2=None,nbins=10):
         """
         OVERVIEW:
         * compares ssfr vs mstar within lcs samples
@@ -1040,7 +1048,7 @@ class comp_lcs_gsw():
         x2 = self.lcs.cat['logMstar'][flag2]
         y2 = self.lcs.cat['logSFR'][flag2]
         
-        ax1,ax2,ax3 = colormass(x1,y1,x2,y2,'LCS core','LCS infall','sfr-mstar-lcs-core-field.pdf',ymin=-2,ymax=1.5,xmin=9.5,xmax=11.5,nhistbin=nbins,ylabel='$\log_{10}(SFR)$',contourflag=False,alphagray=.8,alpha1=1,color1=darkblue,lcsflag=True)
+        ax1,ax2,ax3 = colormass(x1,y1,x2,y2,'LCS core','LCS infall','sfr-mstar-lcs-core-field.pdf',ymin=-2,ymax=1.5,xmin=9.5,xmax=11.5,nhistbin=nbins,ylabel='$\log_{10}(SFR)$',contourflag=False,alphagray=.8,alpha1=1,color1=darkblue,lcsflag=True,ssfrlimit=-11.5)
 
         #self.plot_lcs_size_sample(ax1,memb=True,infall=True)
         ax1.legend(loc='upper left')
@@ -1224,8 +1232,12 @@ class comp_lcs_gsw():
             outfile=homedir+'/research/LCS/plots/lcscore-sfrs'
         else:
             outfile=homedir+'/research/LCS/plots/lcscore-infall-sfrs'
-        plt.savefig(outfile+'.png')
-        plt.savefig(outfile+'.pdf')        
+        if self.cutBT:
+            plt.savefig(outfile+'-BTcut.png')
+            plt.savefig(outfile+'-BTcut.pdf')        
+        else:
+            plt.savefig(outfile+'.png')
+            plt.savefig(outfile+'.pdf')        
 if __name__ == '__main__':
     ###########################
     ##### SET UP ARGPARSE
@@ -1239,12 +1251,20 @@ if __name__ == '__main__':
     args = parser.parse_args()
     
     trimgswlc = True
+    # 10 arcsec match b/w GSWLC-X2-NO-DR10-AGN-Simard2011-tab1 and Tempel_gals_below_13.fits in topcat, best,symmetric
+    gsw_basefile = homedir+'/research/GSWLC/GSWLC-X2-NO-DR10-AGN-Simard2011-tab1-Tempel-13'
+    
+    # 10 arcsec match b/w GSWLC-X2-NO-DR10-AGN-Simard2011-tab1 and Tempel_gals_below_13_5.fits in topcat, best,symmetric
+    gsw_basefile = homedir+'/research/GSWLC/GSWLC-X2-NO-DR10-AGN-Simard2011-tab1-Tempel-13.5'
+    
+    # 10 arcsec match b/w GSWLC-X2-NO-DR10-AGN-Simard2011-tab1 and Tempel_gals_below_12.cat in topcat, best,symmetric
     gsw_basefile = homedir+'/research/GSWLC/GSWLC-X2-NO-DR10-AGN-Simard2011-tab1-Tempel-12.5'
     if trimgswlc:
         #g = gswlc_full('/home/rfinn/research/GSWLC/GSWLC-X2.dat')
         # 10 arcsec match b/s GSWLC-X2 and Tempel-12.5_v_2 in topcat, best, symmetric
         #g = gswlc_full('/home/rfinn/research/LCS/tables/GSWLC-Tempel-12.5-v2.fits')
         #g = gswlc_full(homedir+'/research/GSWLC/GSWLC-Tempel-12.5-v2-Simard2011-NSAv0-unwise.fits',cutBT=args.cutBT)
+        
         
         g = gswlc_full(gsw_basefile+'.fits',cutBT=args.cutBT)                
         g.cut_redshift()
@@ -1266,4 +1286,4 @@ if __name__ == '__main__':
     #lcs = lcsgsw('/home/rfinn/research/LCS/tables/LCS_all_size_KE_SFR_GSWLC2_X2.fits',cutBT=args.cutBT)    
     #lcs.compare_sfrs()
 
-    b = comp_lcs_gsw(lcs,g,minmstar=float(args.minmass))
+    b = comp_lcs_gsw(lcs,g,minmstar=float(args.minmass),cutBT=args.cutBT)
