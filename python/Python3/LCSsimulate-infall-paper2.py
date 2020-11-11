@@ -29,10 +29,12 @@ from astropy.io import fits,ascii
 from astropy.table import Table
 import numpy as np
 from matplotlib import pyplot as plt
+import matplotlib.tri as tri
 import argparse
 from scipy.stats import ks_2samp
 # the incomplete gamma function, for integrating the sersic profile
 from scipy.special import gammainc
+from scipy.interpolate import griddata
 #from astropy.table import Table
 import os
 import LCScommon as lcommon
@@ -189,6 +191,31 @@ if args.sampleks:
 ###########################
 ##### FUNCTIONS
 ###########################
+
+def grid_xyz(x,y,z,nbins=20,color=None):
+    ''' bin non-equally spaced data for use with contour plot  '''     
+    # https://matplotlib.org/3.3.2/gallery/images_contours_and_fields/irregulardatagrid.html
+    # griddata
+    xspan = np.linspace(int(min(x)),int(max(x)),nbins)
+    yspan = np.linspace(int(min(y)),int(max(y)),nbins)   
+    triang = tri.Triangulation(x,y)
+    interpolator = tri.LinearTriInterpolator(triang,z)
+    
+    xgrid,ygrid = np.meshgrid(xspan,yspan)
+    zgrid = interpolator(xgrid,ygrid)
+    #t = griddata((xspan,yspan),z,method='linear')
+    # plot contour levels
+    #grid = griddata((x,y),z,(xgrid,ygrid),method='linear')
+    return xgrid,ygrid,zgrid
+def contour_xyz(x,y,z,ngrid=20,color=None):
+    ''' bin non-equally spaced data for use with contour plot  ''' 
+    # griddata
+    xspan = np.arange(int(min(x)),int(max(x)),ngrid)
+    yspan = np.arange(int(min(y)),int(max(y)),ngrid)    
+    xgrid,ygrid = np.meshgrid(xspan,yspan)    
+    grid = griddata((x,y),z,(xgrid,ygrid),method='linear')
+    
+    return grid
 
 
 def model2_get_fitted_param(input,coeff):
@@ -407,7 +434,7 @@ def run_sim(tmax = 2.,nrandom=100,drdtmin=-2,drdt_step=.1,model=1,plotsingle=Tru
                 # would be boosted by the SAME factor
                 # but this is an easy place to start
                 
-                boost = np.random.random()*(maxboost-1)+1 # boost factor will range between 1 and maxboost
+                boost = np.random.uniform(1,maxboost) # boost factor will range between 1 and maxboost
                 
             else:
                 boost = 1.0
@@ -739,28 +766,34 @@ def plot_boost_3panel(all_drdt,all_p,all_p_sfr,boost,tmax=2,v2=.005,model=3):
     plt.savefig(plotdir+'/model3-tmax'+str(tmax)+'-size-sfr-constraints-3panel.png')
     plt.savefig(plotdir+'/model'+str(model)+'-tmax'+str(tmax)+'-size-sfr-constraints-3panel.pdf')
 
-def plot_drdt_boost_ellipse(all_drdt,all_p,all_p_sfr,boost,tmax=2,levels=None,model=3,figname=None):
+def plot_drdt_boost_ellipse(all_drdt,all_p,all_p_sfr,boost,tmax=2,levels=None,model=3,figname=None,alpha=.5,nbins=20):
     '''plot error ellipses of drdt and boost'''
     plt.figure(figsize=(8,6))
 
     allz = [all_p,all_p_sfr]
-
-    labels = ['size p value','sfr p value','min p value']
-    titles = ['Size Constraints','SFR Constraints','minimum(Size, SFR)']
+    allcolors = [mycolors[0],'0.5']
+    labels = ['size p value','sfr p value']
+    titles = ['Size Constraints','SFR Constraints']
     if levels is None:
-        levels = [.003,.05,.32]
+        levels = [.05,1]
     else:
         levels = levels
     allax = []
     psize=30
     for i in range(len(allz)):
-        plt.contour([all_drdt,boost],allz[i],color=mycolors[i],levels=levels,label=labels[i])
+        xgrid,ygrid,zgrid = grid_xyz(all_drdt,boost,allz[i],nbins=nbins)
+        plt.contourf(xgrid,ygrid,zgrid,colors=allcolors[i],levels=levels,label=titles[i],alpha=alpha)
+        if i == 0:
+            zgrid0=zgrid
 
-        plt.title(titles[i],fontsize=20)
+    # define region where both are above .05
 
-    plt.ylabel('$I_{boost}/I_e$',fontsize=24)
-    plt.xlabel('$dr/dt$',fontsize=24)
+    zcomb = np.minimum(zgrid0,zgrid)
+    plt.contour(xgrid,ygrid,zcomb,lineweight=4,colors='k',levels=[.05,1])
+    plt.ylabel('$Boost \ Factor \ (I_{boost}/I_o)$',fontsize=20)
+    plt.xlabel('$dr/dt \ (Gyr^{-1})$',fontsize=20)
     plt.legend()
+    plt.xlim(-2,0)
     if figname is not None:
         plt.savefig(plotdir+'/'+figname+'.png')
         plt.savefig(plotdir+'/'+figname+'.pdf')        

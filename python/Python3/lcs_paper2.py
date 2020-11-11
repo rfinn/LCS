@@ -83,9 +83,32 @@ lightblue = colorblind2
 #colorblind2 = 'c'
 colorblind3 = 'k'
 
+
+# my version, binned median for GSWLC galaxies with vr < 15,0000 
+t = Table.read(homedir+'/research/APPSS/GSWLC2-median-ssfr-mstar-vr15k.dat',format='ipac')
+log_mstar2 = t['med_logMstar']
+log_ssfr2 = t['med_logsSFR']
+
 def get_BV_MS(logMstar):
     ''' get MS fit that BV calculated from GSWLC '''
     return 0.55*logMstar-5.7
+
+def plot_BV_MS(ax,color='mediumblue',ls='-'):
+    plt.sca(ax)
+    lsfr = log_mstar2+log_ssfr2
+    #plt.plot(log_mstar2, lsfr, 'w-', lw=4)
+    plt.plot(log_mstar2, lsfr, c='m',ls='-', lw=5, label='Durbala+20')
+    
+    x1,x2 = 9.6,11.15
+    xline = np.linspace(x1,x2,100)
+    yline = get_BV_MS(xline)
+    ax.plot(xline,yline,c='w',ls=ls,lw=4,label='_nolegend_')
+    ax.plot(xline,yline,c=color,ls=ls,lw=3,label='Linear Fit')
+    
+    sigma=.3
+    ax.plot(xline,yline-1.5*sigma,c='w',ls='--',lw=4)
+    ax.plot(xline,yline-1.5*sigma,c=color,ls='--',lw=3,label='fit-1.5$\sigma$')
+
 
 def colormass(x1,y1,x2,y2,name1,name2, figname, hexbinflag=False,contourflag=False, \
              xmin=7.9, xmax=11.6, ymin=-1.2, ymax=1.2, contour_bins = 40, ncontour_levels=5,\
@@ -156,7 +179,8 @@ def colormass(x1,y1,x2,y2,name1,name2, figname, hexbinflag=False,contourflag=Fal
         plt.plot(x2,y2,'co',color=color2,alpha=alpha1, label=label,markersize=8,mec='k')
         
         
-        #plt.legend()
+
+    plt.legend()
     #sns.kdeplot(agc['LogMstarTaylor'][keepagc],agc['gmi_corrected'][keepagc])#,bins='log',gridsize=200,cmap='blue_r')
     #plt.colorbar()
     if ssfrlimit is not None:
@@ -939,7 +963,8 @@ class comp_lcs_gsw():
         #ax1.legend(loc='upper left')
         if not hexbinflag:
             ax1.legend(loc='upper left')
-        
+        plot_BV_MS(ax1)
+        ax1.legend(loc='lower right')
         plt.subplots_adjust(left=.15)
         if outfile1 is None:
             plt.savefig(homedir+'/research/LCS/plots/lcscore-gsw-sfms.pdf')
@@ -1048,11 +1073,12 @@ class comp_lcs_gsw():
         x2 = self.lcs.cat['logMstar'][flag2]
         y2 = self.lcs.cat['logSFR'][flag2]
         
-        ax1,ax2,ax3 = colormass(x1,y1,x2,y2,'LCS core','LCS infall','sfr-mstar-lcs-core-field.pdf',ymin=-2,ymax=1.5,xmin=9.5,xmax=11.5,nhistbin=nbins,ylabel='$\log_{10}(SFR)$',contourflag=False,alphagray=.8,alpha1=1,color1=darkblue,lcsflag=True,ssfrlimit=-11.5)
+        ax1,ax2,ax3 = colormass(x1,y1,x2,y2,'LCS core','LCS infall','sfr-mstar-lcs-core-field.pdf',ymin=-2,ymax=1.5,xmin=9.5,xmax=11.25,nhistbin=nbins,ylabel='$\log_{10}(SFR)$',contourflag=False,alphagray=.8,alpha1=1,color1=darkblue,lcsflag=True,ssfrlimit=-11.5)
 
         #self.plot_lcs_size_sample(ax1,memb=True,infall=True)
         ax1.legend(loc='upper left')
-        
+        plot_BV_MS(ax1)
+        ax1.legend(loc='lower right')
         plt.subplots_adjust(left=.15)
         
         if outfile1 is None:
@@ -1127,6 +1153,146 @@ class comp_lcs_gsw():
             flag = self.lcs.cat['sampleflag'] & ~self.lcs.cat['membflag']  & (self.lcs.cat['DELTA_V'] < 3.) & (self.lcs.cat['logMstar'] > self.masscut)
             ax.plot(self.lcs.cat['logMstar'][flag],y[flag],'k^',color=cinfall,alpha=.5,markersize=10,label='LCS infall w/size ('+str(sum(flag))+')')
         
+    def plot_dsfr_hist(self,nbins=15,outfile1=None,outfile2=None):
+        lcsflag = self.lcs.cat['membflag']
+        
+        flag1 = lcsflag &  (self.lcs.cat['logMstar']> self.masscut)  & (self.lcs.ssfr > self.ssfrcut)
+        # removing field1 cut because we are now using Tempel catalog that only
+        # includes galaxies in halo masses logM < 12.5
+        flag2 = (self.gsw.cat['logMstar'] > self.masscut) & (self.gsw.ssfr > self.ssfrcut)  #& self.gsw.field1
+        # GSWLC
+        x1 = self.gsw.cat['logMstar'][flag2]
+        y1 = self.gsw.cat['logSFR'][flag2]
+        dsfr1 = y1-get_BV_MS(x1)
+        #LCS core
+        x2 = self.lcs.cat['logMstar'][flag1]
+        y2 = self.lcs.cat['logSFR'][flag1]
+        dsfr2 = y2-get_BV_MS(x2)
+        #LCS infall
+        lcsflag = ~self.lcs.cat['membflag'] & (self.lcs.cat['DELTA_V'] < 3.)
+        flag3 = lcsflag &  (self.lcs.cat['logMstar']> self.masscut)  & (self.lcs.ssfr > self.ssfrcut)
+
+        x3 = self.lcs.cat['logMstar'][flag3]
+        y3 = self.lcs.cat['logSFR'][flag3]
+        dsfr3 = y3-get_BV_MS(x3)        
+        plt.figure(figsize=(8,6))
+
+        mybins = np.linspace(-1.5,1.5,nbins)
+        delta_bin = mybins[1]-mybins[0]
+        mybins = mybins + 0.5*delta_bin
+        dsfrs = [dsfr1,dsfr2,dsfr3]
+        colors = ['0.5',darkblue,lightblue]
+        labels = ['Field','LCS Core','LCS Infall']
+        hatches = ['/','\\','|']
+        for i in range(len(dsfrs)):
+            plt.hist(dsfrs[i],bins=mybins,color=colors[i],label=labels[i],normed=True,\
+                     histtype='step',lw=2,hatch=hatches[i])
+            
+        plt.xlabel('$ SFR - SFR_{MS}(M_\star) \ (M_\odot/yr) $',fontsize=20)
+        plt.ylabel('$Normalized \ Distribution$',fontsize=20)
+        plt.legend()
+        if outfile1 is not None:
+            plt.savefig(outfile1)
+        if outfile2 is not None:
+            plt.savefig(outfile2)
+
+    def plot_dsfr_sizeratio(self,nbins=15,outfile1=None,outfile2=None):
+        lcsflag = self.lcs.cat['membflag'] & self.lcs.cat['sampleflag'] 
+
+        flag2 = lcsflag &  (self.lcs.cat['logMstar']> self.masscut)  & (self.lcs.ssfr > self.ssfrcut) 
+        #LCS core
+        x2 = self.lcs.cat['logMstar'][flag2]
+        y2 = self.lcs.cat['logSFR'][flag2]
+        z2 = self.lcs.sizeratio[flag2]        
+        dsfr2 = y2-get_BV_MS(x2)
+        
+        #LCS infall
+        lcsflag = self.lcs.cat['sampleflag']  & ~self.lcs.cat['membflag'] & (self.lcs.cat['DELTA_V'] < 3.)
+        flag3 = lcsflag &  (self.lcs.cat['logMstar']> self.masscut)  & (self.lcs.ssfr > self.ssfrcut)
+        x3 = self.lcs.cat['logMstar'][flag3]
+        y3 = self.lcs.cat['logSFR'][flag3]
+        z3 = self.lcs.sizeratio[flag3]
+        dsfr3 = y3-get_BV_MS(x3)
+
+        # make figure
+        #plt.figure(figsize=(8,6))
+        sizes = [z2,z3]
+        dsfrs = [dsfr2,dsfr3]
+        colors = [darkblue,lightblue]
+        labels = ['LCS Core ({})'.format(sum(flag2)),'LCS Infall ({})'.format(sum(flag3))]
+        hatches = ['/','\\','|']
+        #for i in range(len(dsfrs)):
+        #    plt.plot(sizes[i],dsfrs[i],'bo',c=colors[i],label=labels[i])
+            
+        #plt.ylabel('$ SFR - SFR_{MS}(M_\star) \ (M_\odot/yr) $',fontsize=20)
+        #plt.xlabel('$R_{24}/R_d$',fontsize=20)
+        #plt.legend()
+        #plt.axhline(y=0,color='k')
+
+        plt.figure()
+        nbins=12
+        ax1,ax2,ax3 = colormass(z2,dsfr2,z3,dsfr3,'LCS core','LCS infall','temp.pdf',ymin=-1,ymax=1.,xmin=-.05,xmax=2,nhistbin=nbins,xlabel='$R_{24}/R_d$',ylabel='$\log_{10}(SFR)-\log_{10}(SFR_{MS})  \ (M_\odot/yr)$',contourflag=False,alphagray=.8,alpha1=1,color1=darkblue,lcsflag=True)
+        var1 = z2.tolist()+z3.tolist()
+        var2 = dsfrs[0].tolist()+dsfrs[1].tolist()
+        t = lcscommon.spearmanr(var1,var2)
+        print(t)
+
+        if outfile1 is not None:
+            plt.savefig(outfile1)
+        if outfile2 is not None:
+            plt.savefig(outfile2)
+
+    def plot_dsfr_HIdef(self,nbins=15,outfile1=None,outfile2=None):
+        lcsflag = self.lcs.cat['membflag'] & self.lcs.cat['sampleflag'] & self.lcs.cat['HIflag']
+
+        flag2 = lcsflag &  (self.lcs.cat['logMstar']> self.masscut)  & (self.lcs.ssfr > self.ssfrcut) 
+        #LCS core
+        x2 = self.lcs.cat['logMstar'][flag2]
+        y2 = self.lcs.cat['logSFR'][flag2]
+        z2 = self.lcs.cat['HIDef'][flag2]        
+        dsfr2 = y2-get_BV_MS(x2)
+        
+        #LCS infall
+        lcsflag = self.lcs.cat['sampleflag'] & self.lcs.cat['HIflag'] & ~self.lcs.cat['membflag'] & (self.lcs.cat['DELTA_V'] < 3.)
+        flag3 = lcsflag &  (self.lcs.cat['logMstar']> self.masscut)  & (self.lcs.ssfr > self.ssfrcut)
+        x3 = self.lcs.cat['logMstar'][flag3]
+        y3 = self.lcs.cat['logSFR'][flag3]
+        z3 = self.lcs.cat['HIDef'][flag3]
+        dsfr3 = y3-get_BV_MS(x3)
+
+        # make figure
+        #plt.figure(figsize=(8,6))
+        sizes = [z2,z3]
+        dsfrs = [dsfr2,dsfr3]
+        colors = [darkblue,lightblue]
+        labels = ['LCS Core ({})'.format(sum(flag2)),'LCS Infall ({})'.format(sum(flag3))]
+        hatches = ['/','\\','|']
+        #for i in range(len(dsfrs)):
+        #    plt.plot(sizes[i],dsfrs[i],'bo',c=colors[i],label=labels[i])
+            
+        #plt.ylabel('$ SFR - SFR_{MS}(M_\star) \ (M_\odot/yr) $',fontsize=20)
+        #plt.xlabel('$R_{24}/R_d$',fontsize=20)
+        #plt.legend()
+        #plt.axhline(y=0,color='k')
+
+        plt.figure()
+        nbins=12
+        ax1,ax2,ax3 = colormass(z2,dsfr2,z3,dsfr3,'LCS core','LCS infall','temp.pdf',ymin=-1,ymax=1.,xmin=-.05,xmax=2,nhistbin=nbins,xlabel='$HI \ Deficiency$',ylabel='$\log_{10}(SFR)-\log_{10}(SFR_{MS})  \ (M_\odot/yr)$',contourflag=False,alphagray=.8,alpha1=1,color1=darkblue,lcsflag=True)
+        var1 = z2.tolist()+z3.tolist()
+        var2 = dsfrs[0].tolist()+dsfrs[1].tolist()
+        t = lcscommon.spearmanr(var1,var2)
+        print(t)
+
+        if outfile1 is not None:
+            plt.savefig(outfile1)
+        if outfile2 is not None:
+            plt.savefig(outfile2)
+            
+    def plot_phasespace_dsfr(self):
+        ''' plot phase space diagram, and mark galaxies with SFR < (MS - 1.5sigma)   '''
+
+        # maybe try size that scales with size ratio
+        pass
 
     def print_lowssfr_nsaids(self,lcsflag=None,ssfrmin=None,ssfrmax=-11):
         if ssfrmin is not None:
@@ -1252,13 +1418,13 @@ if __name__ == '__main__':
     
     trimgswlc = True
     # 10 arcsec match b/w GSWLC-X2-NO-DR10-AGN-Simard2011-tab1 and Tempel_gals_below_13.fits in topcat, best,symmetric
-    gsw_basefile = homedir+'/research/GSWLC/GSWLC-X2-NO-DR10-AGN-Simard2011-tab1-Tempel-13'
+    #gsw_basefile = homedir+'/research/GSWLC/GSWLC-X2-NO-DR10-AGN-Simard2011-tab1-Tempel-13-2020Nov11'
     
     # 10 arcsec match b/w GSWLC-X2-NO-DR10-AGN-Simard2011-tab1 and Tempel_gals_below_13_5.fits in topcat, best,symmetric
-    gsw_basefile = homedir+'/research/GSWLC/GSWLC-X2-NO-DR10-AGN-Simard2011-tab1-Tempel-13.5'
+    #gsw_basefile = homedir+'/research/GSWLC/GSWLC-X2-NO-DR10-AGN-Simard2011-tab1-Tempel-13.5-2020Nov11'
     
     # 10 arcsec match b/w GSWLC-X2-NO-DR10-AGN-Simard2011-tab1 and Tempel_gals_below_12.cat in topcat, best,symmetric
-    gsw_basefile = homedir+'/research/GSWLC/GSWLC-X2-NO-DR10-AGN-Simard2011-tab1-Tempel-12.5'
+    gsw_basefile = homedir+'/research/GSWLC/GSWLC-X2-NO-DR10-AGN-Simard2011-tab1-Tempel-12.5-2020Nov11'
     if trimgswlc:
         #g = gswlc_full('/home/rfinn/research/GSWLC/GSWLC-X2.dat')
         # 10 arcsec match b/s GSWLC-X2 and Tempel-12.5_v_2 in topcat, best, symmetric
