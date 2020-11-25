@@ -768,8 +768,8 @@ def plot_boost_3panel(all_drdt,all_p,all_p_sfr,boost,tmax=2,v2=.005,model=3):
 
 def plot_drdt_boost_ellipse(all_drdt,all_p,all_p_sfr,boost,tmax=2,levels=None,model=3,figname=None,alpha=.5,nbins=20):
     '''plot error ellipses of drdt and boost'''
-    plt.figure(figsize=(8,6))
-
+    plt.figure(figsize=(6,6))
+    plt.subplots_adjust(left=.15,bottom=.2)
     allz = [all_p,all_p_sfr]
     allcolors = [mycolors[0],'0.5']
     labels = ['size p value','sfr p value']
@@ -789,11 +789,13 @@ def plot_drdt_boost_ellipse(all_drdt,all_p,all_p_sfr,boost,tmax=2,levels=None,mo
     # define region where both are above .05
 
     zcomb = np.minimum(zgrid0,zgrid)
-    plt.contour(xgrid,ygrid,zcomb,lineweight=4,colors='k',levels=[.05,1])
+    plt.contour(xgrid,ygrid,zcomb,linewidths=4,colors='k',levels=[.05,1])
     plt.ylabel('$Boost \ Factor \ (I_{boost}/I_o)$',fontsize=20)
     plt.xlabel('$dr/dt \ (Gyr^{-1})$',fontsize=20)
-    plt.legend()
-    plt.xlim(-2,0)
+    plt.xticks(fontsize=10)
+    plt.yticks(fontsize=10)    
+    #plt.legend()
+    #plt.xlim(-2,0)
     if figname is not None:
         plt.savefig(plotdir+'/'+figname+'.png')
         plt.savefig(plotdir+'/'+figname+'.pdf')        

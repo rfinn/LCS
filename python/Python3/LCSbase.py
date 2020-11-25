@@ -298,8 +298,8 @@ class galaxies:
         
         # append Kennicutt & Evans SFRs at end of table
         t = Table(self.s)
-        newcolumns = [self.membflag, self.lirflag, self.sampleflag,self.logSFR_NUV_KE, self.logSFR_IR_KE, self.logSFR_NUVIR_KE,self.logSFR_NUVIR_KE_BEST,self.sizeratio,self.sizeratioERR]
-        newnames = ['membflag','lirflag','sampleflag','logSFR_NUV_KE','logSFR_IR_KE','logSFR_NUVIR_KE','logSFR_NUVIR_KE_ZBEST','sizeratio','sizeratio_err']
+        newcolumns = [self.membflag, self.lirflag, self.sampleflag,self.gim2dflag,self.sizeflag,self.sbflag,self.logSFR_NUV_KE, self.logSFR_IR_KE, self.logSFR_NUVIR_KE,self.logSFR_NUVIR_KE_BEST,self.sizeratio,self.sizeratioERR]
+        newnames = ['membflag','lirflag','sampleflag','gim2dflag','sizeflag','sbflag','logSFR_NUV_KE','logSFR_IR_KE','logSFR_NUVIR_KE','logSFR_NUVIR_KE_ZBEST','sizeratio','sizeratio_err']
         for i in range(len(newcolumns)):
             col = Column(newcolumns[i],name=newnames[i])
             t.add_column(col)

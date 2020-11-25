@@ -11,7 +11,7 @@ from matplotlib import pyplot as plt
 import numpy as np
 import os
 import scipy.stats as st
-from scipy.stats import ks_2samp
+from scipy.stats import ks_2samp, anderson_ksamp
 import argparse# here is min mass = 9.75
 
 from urllib.parse import urlencode
@@ -67,6 +67,8 @@ shapes=['o','*','p','d','s','^','>','<','v']
 
 truncated=np.array([113107,140175,79360,79394,79551,79545,82185,166185,166687,162832,146659,99508,170903,18236,43796,43817,43821,70634,104038,104181],'i')
 
+minsize_kpc=1.3 # one mips pixel at distance of hercules
+
 ###########################
 ##### Functions
 ###########################
@@ -91,21 +93,22 @@ log_ssfr2 = t['med_logsSFR']
 
 def get_BV_MS(logMstar):
     ''' get MS fit that BV calculated from GSWLC '''
-    return 0.55*logMstar-5.7
+    return 0.53*logMstar-5.5
 
 def plot_BV_MS(ax,color='mediumblue',ls='-'):
     plt.sca(ax)
     lsfr = log_mstar2+log_ssfr2
     #plt.plot(log_mstar2, lsfr, 'w-', lw=4)
-    plt.plot(log_mstar2, lsfr, c='m',ls='-', lw=5, label='Durbala+20')
+    plt.plot(log_mstar2, lsfr, c='m',ls='-', lw=6, label='Durbala+20')
     
     x1,x2 = 9.6,11.15
     xline = np.linspace(x1,x2,100)
     yline = get_BV_MS(xline)
     ax.plot(xline,yline,c='w',ls=ls,lw=4,label='_nolegend_')
     ax.plot(xline,yline,c=color,ls=ls,lw=3,label='Linear Fit')
-    
-    sigma=.3
+
+    # scatter around MS fit
+    sigma=0.3
     ax.plot(xline,yline-1.5*sigma,c='w',ls='--',lw=4)
     ax.plot(xline,yline-1.5*sigma,c=color,ls='--',lw=3,label='fit-1.5$\sigma$')
 
@@ -186,7 +189,7 @@ def colormass(x1,y1,x2,y2,name1,name2, figname, hexbinflag=False,contourflag=Fal
     if ssfrlimit is not None:
         xl=np.linspace(xmin,xmax,100)
         yl =xl + ssfrlimit
-        plt.plot(xl,yl,'k--')
+        plt.plot(xl,yl,'k--')#,label='sSFR=-11.5')
     plt.axis([xmin,xmax,ymin,ymax])
     plt.xticks(fontsize=12)
     plt.yticks(fontsize=12)
@@ -695,6 +698,7 @@ class lcsgsw(gswlc_base):
         # I'm sure the error will pop up somewhere else...
         #self.write_file_for_simulation()
         self.get_DA()
+        self.get_sizeflag()        
         self.calculate_sizeratio()
         if cutBT:
             self.cut_BT()
@@ -712,7 +716,11 @@ class lcsgsw(gswlc_base):
                 self.DA[i] = cosmo.angular_diameter_distance(self.cat['CLUSTER_REDSHIFT'][i]).value*Mpcrad_kpcarcsec
             else:
                 self.DA[i] = cosmo.angular_diameter_distance(self.cat['ZDIST'][i]).value*Mpcrad_kpcarcsec
-        
+    def get_sizeflag(self):
+        self.sizeflag=(self.cat['SERSIC_TH50']*self.DA > minsize_kpc)
+    def get_gim2dflag(self):
+        self.gim2dflag=(self.cat['SERSIC_TH50']*self.DA > minsize_kpc)
+
     def calculate_sizeratio(self):
         self.gim2dflag = self.cat['matchflag']
         # stole this from LCSbase.py
@@ -1075,7 +1083,7 @@ class comp_lcs_gsw():
         
         ax1,ax2,ax3 = colormass(x1,y1,x2,y2,'LCS core','LCS infall','sfr-mstar-lcs-core-field.pdf',ymin=-2,ymax=1.5,xmin=9.5,xmax=11.25,nhistbin=nbins,ylabel='$\log_{10}(SFR)$',contourflag=False,alphagray=.8,alpha1=1,color1=darkblue,lcsflag=True,ssfrlimit=-11.5)
 
-        #self.plot_lcs_size_sample(ax1,memb=True,infall=True)
+        self.plot_lcs_size_sample(ax1,memb=True,infall=True)
         ax1.legend(loc='upper left')
         plot_BV_MS(ax1)
         ax1.legend(loc='lower right')
@@ -1145,14 +1153,15 @@ class comp_lcs_gsw():
             y = self.lcs.cat['logSFR'] - self.lcs.cat['logMstar']
         else:
             y = self.lcs.cat['logSFR']
-        
+        baseflag = self.lcs.cat['sampleflag']& (self.lcs.cat['logMstar'] > self.masscut)
         if memb:
             flag = self.lcs.cat['sampleflag'] & self.lcs.cat['membflag']  & (self.lcs.cat['logMstar'] > self.masscut)
-            ax.plot(self.lcs.cat['logMstar'][flag],y[flag],'ks',color=cmemb,alpha=.5,markersize=8,label='LCS memb w/size ('+str(sum(flag))+')')
+            #ax.plot(self.lcs.cat['logMstar'][flag],y[flag],'ks',color=cmemb,alpha=.5,markersize=8,label='LCS memb w/size ('+str(sum(flag))+')')
         if infall:
             flag = self.lcs.cat['sampleflag'] & ~self.lcs.cat['membflag']  & (self.lcs.cat['DELTA_V'] < 3.) & (self.lcs.cat['logMstar'] > self.masscut)
-            ax.plot(self.lcs.cat['logMstar'][flag],y[flag],'k^',color=cinfall,alpha=.5,markersize=10,label='LCS infall w/size ('+str(sum(flag))+')')
-        
+            #ax.plot(self.lcs.cat['logMstar'][flag],y[flag],'k^',color=cinfall,alpha=.5,markersize=10,label='LCS infall w/size ('+str(sum(flag))+')')
+        flag = baseflag& (self.lcs.cat['DELTA_V'] < 3.)
+        ax.plot(self.lcs.cat['logMstar'][flag],y[flag],'ks',alpha=.6,zorder=1,markersize=10,lw=2,label='LCS w/size ('+str(sum(flag))+')')
     def plot_dsfr_hist(self,nbins=15,outfile1=None,outfile2=None):
         lcsflag = self.lcs.cat['membflag']
         
@@ -1181,20 +1190,37 @@ class comp_lcs_gsw():
         delta_bin = mybins[1]-mybins[0]
         mybins = mybins + 0.5*delta_bin
         dsfrs = [dsfr1,dsfr2,dsfr3]
-        colors = ['0.5',darkblue,lightblue]
+        colors = ['.5',darkblue,lightblue]
         labels = ['Field','LCS Core','LCS Infall']
+        orders = [1,3,2]
+        alphas = [.4,0,.5]        
         hatches = ['/','\\','|']
         for i in range(len(dsfrs)):
-            plt.hist(dsfrs[i],bins=mybins,color=colors[i],label=labels[i],normed=True,\
-                     histtype='step',lw=2,hatch=hatches[i])
+            plt.hist(dsfrs[i],bins=mybins,color=colors[i],normed=True,\
+                     histtype='stepfilled',lw=3,alpha=alphas[i],zorder=orders[i])#hatch=hatches[i])
+            plt.hist(dsfrs[i],bins=mybins,color=colors[i],normed=True,\
+                     histtype='step',lw=3,zorder=orders[i],label=labels[i])#hatch=hatches[i])
             
-        plt.xlabel('$ SFR - SFR_{MS}(M_\star) \ (M_\odot/yr) $',fontsize=20)
+        plt.xlabel('$ \log_{10}SFR - \log_{10}SFR_{MS} \ (M_\odot/yr) $',fontsize=20)
         plt.ylabel('$Normalized \ Distribution$',fontsize=20)
         plt.legend()
         if outfile1 is not None:
             plt.savefig(outfile1)
         if outfile2 is not None:
             plt.savefig(outfile2)
+
+        print('KS STATISTICS: FIELD VS CORE')
+        print(ks_2samp(dsfr1,dsfr2))
+        print(anderson_ksamp([dsfr1,dsfr2]))
+        print('')
+        print('KS STATISTICS: FIELD VS INFALL')
+        print(ks_2samp(dsfr1,dsfr3))
+        print(anderson_ksamp([dsfr1,dsfr3]))
+        print('')              
+        print('KS STATISTICS: CORE VS INFALL')
+        print(ks_2samp(dsfr2,dsfr3))
+        print(anderson_ksamp([dsfr2,dsfr3]))
+        
 
     def plot_dsfr_sizeratio(self,nbins=15,outfile1=None,outfile2=None):
         lcsflag = self.lcs.cat['membflag'] & self.lcs.cat['sampleflag'] 
@@ -1237,6 +1263,31 @@ class comp_lcs_gsw():
         t = lcscommon.spearmanr(var1,var2)
         print(t)
 
+        # add line to show sb limit from LCS size measurements
+        size=np.linspace(0,2)
+        sb = .022
+        sfr = sb*(4*np.pi*size**2)
+        ax1.plot(size,np.log10(sfr),'k--',label='SB limit')
+        ax1.axhline(y=.3,ls=':',color='0.5')
+        ax1.axhline(y=-.3,ls=':',color='0.5')
+
+        # plot all galfit results
+        baseflag = (self.lcs.cat['logMstar']> self.masscut)  & (self.lcs.ssfr > self.ssfrcut)& ~self.lcs.cat['sampleflag'] & ~self.lcs.cat['agnflag'] 
+        flag4 = self.lcs.cat['membflag'] &  
+        x4 = self.lcs.cat['logMstar'][flag4]
+        y4 = self.lcs.cat['logSFR'][flag4]
+        z4 = self.lcs.sizeratio[flag4]        
+        dsfr4 = y4-get_BV_MS(x4)
+        ax1.plot(z4,dsfr4,'kx',c=darkblue,markersize=10)
+        
+        # plot all galfit results
+        flag4 = ~self.lcs.cat['membflag'] &  (self.lcs.cat['DELTA_V'] < 3.)&   (self.lcs.cat['logMstar']> self.masscut)  & (self.lcs.ssfr > self.ssfrcut) & ~self.lcs.cat['sampleflag']
+        x4 = self.lcs.cat['logMstar'][flag4]
+        y4 = self.lcs.cat['logSFR'][flag4]
+        z4 = self.lcs.sizeratio[flag4]        
+        dsfr4 = y4-get_BV_MS(x4)
+        ax1.plot(z4,dsfr4,'kx',markersize=10,c=lightblue)
+        
         if outfile1 is not None:
             plt.savefig(outfile1)
         if outfile2 is not None:
@@ -1447,7 +1498,8 @@ if __name__ == '__main__':
     #g.plot_field1()
     lcsfile = homedir+'/research/LCS/tables/lcs-gswlc-x2-match.fits'
     lcsfile = homedir+'/research/LCS/tables/LCS_all_size_KE_SFR_GSWLC2_X2.fits'
-    lcsfile = homedir+'/research/LCS/tables/LCS-KE-SFR-GSWLC-X2-NO-DR10-AGN-Simard2011-tab1.fits'    
+    lcsfile = homedir+'/research/LCS/tables/LCS-KE-SFR-GSWLC-X2-NO-DR10-AGN-Simard2011-tab1.fits'
+    lcsfile = homedir+'/research/LCS/tables/LCS-GSWLC-X2-NO-DR10-AGN-Simard2011-tab1.fits'        
     lcs = lcsgsw(lcsfile,cutBT=args.cutBT)
     #lcs = lcsgsw('/home/rfinn/research/LCS/tables/LCS_all_size_KE_SFR_GSWLC2_X2.fits',cutBT=args.cutBT)    
     #lcs.compare_sfrs()
