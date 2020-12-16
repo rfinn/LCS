@@ -68,7 +68,8 @@ shapes=['o','*','p','d','s','^','>','<','v']
 truncated=np.array([113107,140175,79360,79394,79551,79545,82185,166185,166687,162832,146659,99508,170903,18236,43796,43817,43821,70634,104038,104181],'i')
 
 minsize_kpc=1.3 # one mips pixel at distance of hercules
-
+BTkey = '__B_T_r'
+Rdkey = 'Rd_2'
 ###########################
 ##### Functions
 ###########################
@@ -537,7 +538,7 @@ class gswlc_full():
         self.gsw = self.gsw[zflag & massflag]
 
     def cut_BT(self):
-        btflag = self.gsw['(B/T)r'] < 0.3
+        btflag = self.gsw[BTkey] < 0.3
         self.gsw = self.gsw[btflag]
         
     def save_trimmed_cat(self):
@@ -697,11 +698,12 @@ class lcsgsw(gswlc_base):
         # so commenting it out for now.
         # I'm sure the error will pop up somewhere else...
         #self.write_file_for_simulation()
-        self.get_DA()
-        self.get_sizeflag()        
-        self.calculate_sizeratio()
         if cutBT:
             self.cut_BT()
+        self.get_DA()
+        self.get_sizeflag()
+        self.get_sampleflag()
+        self.calculate_sizeratio()
         self.group = self.cat['CLUSTER_SIGMA'] < sigma_split
         self.cluster = self.cat['CLUSTER_SIGMA'] > sigma_split
 
@@ -720,19 +722,24 @@ class lcsgsw(gswlc_base):
         self.sizeflag=(self.cat['SERSIC_TH50']*self.DA > minsize_kpc)
     def get_gim2dflag(self):
         self.gim2dflag=(self.cat['SERSIC_TH50']*self.DA > minsize_kpc)
+    def get_sampleflag(self):
+        self.sampleflag=   self.cat['galfitflag2'] #& ~self.cat['fcnumerical_error_flag24'] #&  #self.cat['galfitflag2'] & self.cat['sbflag'] & self.cat['lirflag'] #& self.cat['sizeflag']#& self.cat['galfitflag2'] #& &  &    #~self.cat['AGNKAUFF'] #&  # #& self.cat['gim2dflag'] #
+
 
     def calculate_sizeratio(self):
-        self.gim2dflag = self.cat['matchflag']
+        # all galaxies in the catalog have been matched to simard table 1
+        # does this mean they all have a disk scale length?
+        self.gim2dflag = np.ones(len(self.cat),'bool')#  self.cat['matchflag'] & self.cat['lirflag'] & self.cat['sizeflag'] & self.cat['sbflag']
         # stole this from LCSbase.py
         self.SIZE_RATIO_DISK = np.zeros(len(self.cat))
         a =  self.cat['fcre1'][self.gim2dflag]*mipspixelscale # fcre1 = 24um half-light radius in mips pixels
         b = self.DA[self.gim2dflag]
-        c = self.cat['Rd'][self.gim2dflag] # gim2d half light radius for disk in kpc
+        c = self.cat[Rdkey][self.gim2dflag] # gim2d half light radius for disk in kpc
 
         # this is the size ratio we use in paper 1
         self.SIZE_RATIO_DISK[self.gim2dflag] =a*b/c
         self.SIZE_RATIO_DISK_ERR = np.zeros(len(self.gim2dflag))
-        self.SIZE_RATIO_DISK_ERR[self.gim2dflag] = self.cat['fcre1err'][self.gim2dflag]*mipspixelscale*self.DA[self.gim2dflag]/self.cat['Rd'][self.gim2dflag]
+        self.SIZE_RATIO_DISK_ERR[self.gim2dflag] = self.cat['fcre1err'][self.gim2dflag]*mipspixelscale*self.DA[self.gim2dflag]/self.cat[Rdkey][self.gim2dflag]
 
         self.sizeratio = self.SIZE_RATIO_DISK
         self.sizeratioERR=self.SIZE_RATIO_DISK_ERR
@@ -754,18 +761,18 @@ class lcsgsw(gswlc_base):
         c2 = Column(self.sizeratioERR,name='sizeratio_err')
         c3 = Column(self.agnflag,name='agnflag')        
         # using all simard values of sersic fit
-        tabcols = [c1,c2,self.cat['membflag'],self.cat['B_T_r'],self.cat['Re'],self.cat['ng'],self.cat['logSFR'],c3]
+        tabcols = [c1,c2,self.cat['membflag'],self.cat[BTkey],self.cat['Re'],self.cat['ng'],self.cat['logSFR'],c3]
         tabnames = ['sizeratio','sizeratio_err','membflag','BT','Re','nsersic','logSFR','agnflag']
         newtable = Table(data=tabcols,names=tabnames)
-        newtable = newtable[self.cat['sampleflag']]
+        newtable = newtable[self.sampleflag]
         newtable.write(homedir+'/research/LCS/tables/LCS-simulation-data.fits',format='fits',overwrite=True)
 
     def cut_BT(self):
-        btflag = (self.cat['B_T_r'] < 0.3) & (self.cat['matchflag'])
+        btflag = (self.cat[BTkey] < 0.3) & (self.cat['matchflag'])
         self.cat = self.cat[btflag]
         self.ssfr = self.ssfr[btflag]
-        self.sizeratio = self.sizeratio[btflag]
-        self.sizeratioERR = self.sizeratioERR[btflag]                
+        #self.sizeratio = self.sizeratio[btflag]
+        #self.sizeratioERR = self.sizeratioERR[btflag]                
     def get_mstar_limit(self,rlimit=17.7):
         
         print(rlimit,zmax)
@@ -858,8 +865,8 @@ class lcsgsw(gswlc_base):
         '''
 
         plt.figure(figsize=(8,6))
-        flag = self.cat['sampleflag']
-        plt.scatter(self.ssfr[flag],self.sizeratio[flag],c=self.cat['B_T_r'][flag])
+        flag = self.sampleflag
+        plt.scatter(self.ssfr[flag],self.sizeratio[flag],c=self.cat[BTkey][flag])
         cb = plt.colorbar(label='B/T')
         plt.ylabel('$R_e(24)/R_e(r)$',fontsize=20)
         plt.xlabel('$sSFR / (yr^{-1})$',fontsize=20)
@@ -1153,12 +1160,12 @@ class comp_lcs_gsw():
             y = self.lcs.cat['logSFR'] - self.lcs.cat['logMstar']
         else:
             y = self.lcs.cat['logSFR']
-        baseflag = self.lcs.cat['sampleflag']& (self.lcs.cat['logMstar'] > self.masscut)
+        baseflag = self.lcs.sampleflag& (self.lcs.cat['logMstar'] > self.masscut)
         if memb:
-            flag = self.lcs.cat['sampleflag'] & self.lcs.cat['membflag']  & (self.lcs.cat['logMstar'] > self.masscut)
+            flag = self.lcs.sampleflag & self.lcs.cat['membflag']  & (self.lcs.cat['logMstar'] > self.masscut)
             #ax.plot(self.lcs.cat['logMstar'][flag],y[flag],'ks',color=cmemb,alpha=.5,markersize=8,label='LCS memb w/size ('+str(sum(flag))+')')
         if infall:
-            flag = self.lcs.cat['sampleflag'] & ~self.lcs.cat['membflag']  & (self.lcs.cat['DELTA_V'] < 3.) & (self.lcs.cat['logMstar'] > self.masscut)
+            flag = self.lcs.sampleflag & ~self.lcs.cat['membflag']  & (self.lcs.cat['DELTA_V'] < 3.) & (self.lcs.cat['logMstar'] > self.masscut)
             #ax.plot(self.lcs.cat['logMstar'][flag],y[flag],'k^',color=cinfall,alpha=.5,markersize=10,label='LCS infall w/size ('+str(sum(flag))+')')
         flag = baseflag& (self.lcs.cat['DELTA_V'] < 3.)
         ax.plot(self.lcs.cat['logMstar'][flag],y[flag],'ks',alpha=.6,zorder=1,markersize=10,lw=2,label='LCS w/size ('+str(sum(flag))+')')
@@ -1223,7 +1230,7 @@ class comp_lcs_gsw():
         
 
     def plot_dsfr_sizeratio(self,nbins=15,outfile1=None,outfile2=None):
-        lcsflag = self.lcs.cat['membflag'] & self.lcs.cat['sampleflag'] 
+        lcsflag = self.lcs.cat['membflag'] & self.lcs.sampleflag 
 
         flag2 = lcsflag &  (self.lcs.cat['logMstar']> self.masscut)  & (self.lcs.ssfr > self.ssfrcut) 
         #LCS core
@@ -1233,7 +1240,7 @@ class comp_lcs_gsw():
         dsfr2 = y2-get_BV_MS(x2)
         
         #LCS infall
-        lcsflag = self.lcs.cat['sampleflag']  & ~self.lcs.cat['membflag'] & (self.lcs.cat['DELTA_V'] < 3.)
+        lcsflag = self.lcs.sampleflag  & ~self.lcs.cat['membflag'] & (self.lcs.cat['DELTA_V'] < 3.)
         flag3 = lcsflag &  (self.lcs.cat['logMstar']> self.masscut)  & (self.lcs.ssfr > self.ssfrcut)
         x3 = self.lcs.cat['logMstar'][flag3]
         y3 = self.lcs.cat['logSFR'][flag3]
@@ -1272,8 +1279,8 @@ class comp_lcs_gsw():
         ax1.axhline(y=-.3,ls=':',color='0.5')
 
         # plot all galfit results
-        baseflag = (self.lcs.cat['logMstar']> self.masscut)  & (self.lcs.ssfr > self.ssfrcut)& ~self.lcs.cat['sampleflag'] & ~self.lcs.cat['agnflag'] 
-        flag4 = self.lcs.cat['membflag'] &  
+        baseflag = (self.lcs.cat['logMstar']> self.masscut)  & (self.lcs.ssfr > self.ssfrcut)& ~self.lcs.sampleflag #& ~self.lcs.cat['agnflag'] 
+        flag4 = self.lcs.cat['membflag'] &  baseflag
         x4 = self.lcs.cat['logMstar'][flag4]
         y4 = self.lcs.cat['logSFR'][flag4]
         z4 = self.lcs.sizeratio[flag4]        
@@ -1281,7 +1288,7 @@ class comp_lcs_gsw():
         ax1.plot(z4,dsfr4,'kx',c=darkblue,markersize=10)
         
         # plot all galfit results
-        flag4 = ~self.lcs.cat['membflag'] &  (self.lcs.cat['DELTA_V'] < 3.)&   (self.lcs.cat['logMstar']> self.masscut)  & (self.lcs.ssfr > self.ssfrcut) & ~self.lcs.cat['sampleflag']
+        flag4 = ~self.lcs.cat['membflag'] &  (self.lcs.cat['DELTA_V'] < 3.)&   (self.lcs.cat['logMstar']> self.masscut)  & (self.lcs.ssfr > self.ssfrcut) & ~self.lcs.sampleflag #& ~self.lcs.cat['agnflag'] 
         x4 = self.lcs.cat['logMstar'][flag4]
         y4 = self.lcs.cat['logSFR'][flag4]
         z4 = self.lcs.sizeratio[flag4]        
@@ -1294,7 +1301,7 @@ class comp_lcs_gsw():
             plt.savefig(outfile2)
 
     def plot_dsfr_HIdef(self,nbins=15,outfile1=None,outfile2=None):
-        lcsflag = self.lcs.cat['membflag'] & self.lcs.cat['sampleflag'] & self.lcs.cat['HIflag']
+        lcsflag = self.lcs.cat['membflag'] & self.lcs.sampleflag & self.lcs.cat['HIflag']
 
         flag2 = lcsflag &  (self.lcs.cat['logMstar']> self.masscut)  & (self.lcs.ssfr > self.ssfrcut) 
         #LCS core
@@ -1304,7 +1311,7 @@ class comp_lcs_gsw():
         dsfr2 = y2-get_BV_MS(x2)
         
         #LCS infall
-        lcsflag = self.lcs.cat['sampleflag'] & self.lcs.cat['HIflag'] & ~self.lcs.cat['membflag'] & (self.lcs.cat['DELTA_V'] < 3.)
+        lcsflag = self.lcs.sampleflag & self.lcs.cat['HIflag'] & ~self.lcs.cat['membflag'] & (self.lcs.cat['DELTA_V'] < 3.)
         flag3 = lcsflag &  (self.lcs.cat['logMstar']> self.masscut)  & (self.lcs.ssfr > self.ssfrcut)
         x3 = self.lcs.cat['logMstar'][flag3]
         y3 = self.lcs.cat['logSFR'][flag3]
@@ -1379,8 +1386,8 @@ class comp_lcs_gsw():
             plt.title("NSID {0}, sSFR={1:.1f}".format(self.lcs.cat['NSAID'][i],self.lcs.ssfr[i]))
     def lcs_compare_BT(self):
         plt.figure()
-        x1 = self.lcs.cat['B_T_r'][self.lcs.cat['membflag']]
-        x2 = self.lcs.cat['B_T_r'][~self.lcs.cat['membflag'] &( self.lcs.cat['DELTA_V'] < 3.)]
+        x1 = self.lcs.cat[BTkey][self.lcs.cat['membflag']]
+        x2 = self.lcs.cat[BTkey][~self.lcs.cat['membflag'] &( self.lcs.cat['DELTA_V'] < 3.)]
         plt.hist(x1,label='Core',histtype='step',normed=True,lw=2)
         plt.hist(x2,label='Infall',histtype='step',normed=True,lw=2)
         plt.xlabel('B/T',fontsize=20)
@@ -1390,9 +1397,9 @@ class comp_lcs_gsw():
 
         # for BT < 0.3 only
         plt.figure()
-        flag =  self.lcs.cat['B_T_r'] < 0.3
-        x1 = self.lcs.cat['B_T_r'][self.lcs.cat['membflag'] & flag]
-        x2 = self.lcs.cat['B_T_r'][~self.lcs.cat['membflag'] &( self.lcs.cat['DELTA_V'] < 3.) & flag]
+        flag =  self.lcs.cat[BTkey] < 0.3
+        x1 = self.lcs.cat[BTkey][self.lcs.cat['membflag'] & flag]
+        x2 = self.lcs.cat[BTkey][~self.lcs.cat['membflag'] &( self.lcs.cat['DELTA_V'] < 3.) & flag]
         plt.hist(x1,label='Core',histtype='step',normed=True,lw=2)
         plt.hist(x2,label='Infall',histtype='step',normed=True,lw=2)
         plt.xlabel('B/T',fontsize=20)
@@ -1475,7 +1482,8 @@ if __name__ == '__main__':
     #gsw_basefile = homedir+'/research/GSWLC/GSWLC-X2-NO-DR10-AGN-Simard2011-tab1-Tempel-13.5-2020Nov11'
     
     # 10 arcsec match b/w GSWLC-X2-NO-DR10-AGN-Simard2011-tab1 and Tempel_gals_below_12.cat in topcat, best,symmetric
-    gsw_basefile = homedir+'/research/GSWLC/GSWLC-X2-NO-DR10-AGN-Simard2011-tab1-Tempel-12.5-2020Nov11'
+    #gsw_basefile = homedir+'/research/GSWLC/GSWLC-X2-NO-DR10-AGN-Simard2011-tab1-Tempel-12.5-2020Nov11'
+    gsw_basefile = homedir+'/research/GSWLC/GSWLC-X2-NO-DR10-AGN-Simard2011-tab1-Tempel-13-2020Nov25'    
     if trimgswlc:
         #g = gswlc_full('/home/rfinn/research/GSWLC/GSWLC-X2.dat')
         # 10 arcsec match b/s GSWLC-X2 and Tempel-12.5_v_2 in topcat, best, symmetric
@@ -1499,7 +1507,7 @@ if __name__ == '__main__':
     lcsfile = homedir+'/research/LCS/tables/lcs-gswlc-x2-match.fits'
     lcsfile = homedir+'/research/LCS/tables/LCS_all_size_KE_SFR_GSWLC2_X2.fits'
     lcsfile = homedir+'/research/LCS/tables/LCS-KE-SFR-GSWLC-X2-NO-DR10-AGN-Simard2011-tab1.fits'
-    lcsfile = homedir+'/research/LCS/tables/LCS-GSWLC-X2-NO-DR10-AGN-Simard2011-tab1.fits'        
+    lcsfile = homedir+'/research/LCS/tables/LCS-GSWLC-X2-NO-DR10-AGN-Simard2011-tab1-vizier-10arcsec.fits'        
     lcs = lcsgsw(lcsfile,cutBT=args.cutBT)
     #lcs = lcsgsw('/home/rfinn/research/LCS/tables/LCS_all_size_KE_SFR_GSWLC2_X2.fits',cutBT=args.cutBT)    
     #lcs.compare_sfrs()
