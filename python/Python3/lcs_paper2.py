@@ -113,7 +113,17 @@ def plot_BV_MS(ax,color='mediumblue',ls='-'):
     ax.plot(xline,yline-1.5*sigma,c='w',ls='--',lw=4)
     ax.plot(xline,yline-1.5*sigma,c=color,ls='--',lw=3,label='fit-1.5$\sigma$')
 
+def plot_GSWLC_sssfr(ax=None,ls='-'):
+    if ax is None:
+        ax = plt.gca()
 
+    ssfr = -11.5
+    x1,x2 = 9.6,11.15
+    xline = np.linspace(x1,x2,100)
+    yline = ssfr+xline
+    ax.plot(xline,yline,c='w',ls=ls,lw=4,label='_nolegend_')
+    ax.plot(xline,yline,c='0.5',ls=ls,lw=3,label='log(sSFR)=-11.5')
+    
 def colormass(x1,y1,x2,y2,name1,name2, figname, hexbinflag=False,contourflag=False, \
              xmin=7.9, xmax=11.6, ymin=-1.2, ymax=1.2, contour_bins = 40, ncontour_levels=5,\
               xlabel='$\log_{10}(M_\star/M_\odot) $', ylabel='$(g-i)_{corrected} $', color1=colorblind3,color2=colorblind2,\
@@ -233,10 +243,14 @@ def colormass(x1,y1,x2,y2,name1,name2, figname, hexbinflag=False,contourflag=Fal
     print('KS test comparising galaxies within range shown on the plot')
     print('')
     print('STELLAR MASS')
-    t = lcscommon.ks(x1,x2,run_anderson=False)
+    t = lcscommon.ks(x1,x2,run_anderson=True)
+    #t = anderson_ksamp(x1,x2)
+    #print('Anderson-Darling: ',t)
     print('')
     print('COLOR')
-    t = lcscommon.ks(y1,y2,run_anderson=False)
+    t = lcscommon.ks(y1,y2,run_anderson=True)
+    #t = anderson_ksamp(y1,y2)
+    #print('Anderson-Darling: ',t)
     return ax1,ax2,ax3
 
 def plotsalim07():
@@ -698,14 +712,26 @@ class lcsgsw(gswlc_base):
         # so commenting it out for now.
         # I'm sure the error will pop up somewhere else...
         #self.write_file_for_simulation()
+
         if cutBT:
             self.cut_BT()
+        self.nsadict=dict((a,b) for a,b in zip(self.cat['NSAID'],np.arange(len(self.cat))))                    
         self.get_DA()
         self.get_sizeflag()
+        self.get_sbflag()
+        self.get_galfitflag()
+        self.get_membflag()
+        self.get_infallflag()
         self.get_sampleflag()
         self.calculate_sizeratio()
         self.group = self.cat['CLUSTER_SIGMA'] < sigma_split
         self.cluster = self.cat['CLUSTER_SIGMA'] > sigma_split
+        self.get_NUV24()
+    def get_NUV24(self):
+        self.NUVr=self.cat['ABSMAG'][:,1] - self.cat['ABSMAG'][:,4]
+        self.NUV = 22.5 - 2.5*np.log10(self.cat['NMGY'][:,1])
+        self.MAG24 = 2.5*np.log10(3631./(self.cat['FLUX24']*1.e-6))
+        self.NUV24 =self.NUV-self.MAG24
 
         #lcspath = homedir+'/github/LCS/'
         #self.lcsbase = lb.galaxies(lcspath)
@@ -719,11 +745,64 @@ class lcsgsw(gswlc_base):
             else:
                 self.DA[i] = cosmo.angular_diameter_distance(self.cat['ZDIST'][i]).value*Mpcrad_kpcarcsec
     def get_sizeflag(self):
+        ''' calculate size flag '''
         self.sizeflag=(self.cat['SERSIC_TH50']*self.DA > minsize_kpc)
+    def get_sbflag(self):
+        '''  surface brightness flag '''
+        self.sb_obs = 999*np.ones(len(self.cat))
+        mipsflag = self.cat['FLUX24'] > 0
+        self.sb_obs[mipsflag]=(self.cat['fcmag1'][mipsflag] + 2.5*np.log10(np.pi*((self.cat['fcre1'][mipsflag]*mipspixelscale)**2)*self.cat['fcaxisratio1'][mipsflag]))
+        self.sbflag = self.sb_obs < 20.
+        print('got sb flag')
     def get_gim2dflag(self):
+        # don't need this b/c the catalog has already been match to the simard table
         self.gim2dflag=(self.cat['SERSIC_TH50']*self.DA > minsize_kpc)
+    def get_galfitflag(self):
+        ''' calculate galfit flag '''
+        
+        self.galfitflag = (self.cat['fcmag1'] > .01)  & ~self.cat['fcnumerical_error_flag24']
+        
+        
+        galfit_override = [70588,70696,43791,69673,146875,82170, 82182, 82188, 82198, 99058, 99660, 99675, 146636, 146638, 146659, 113092, 113095, 72623,72631,72659, 72749, 72778, 79779, 146121, 146130, 166167, 79417, 79591, 79608, 79706, 80769, 80873, 146003, 166044,166083, 89101, 89108,103613,162792,162838, 89063,99509,72800,79381,10368]
+        for id in galfit_override:
+            try:
+                self.galfitflag[self.nsadict[int(id)]] = True
+                #print('HEY! found a match, just so you know, with NSAID ',id,'\n\tCould be from sources that were removed with AGN/BT/GSWLC matches')
+            except KeyError:
+                pass
+                #print('got a key error, just so you know, with NSAID ',id,'\n\tCould be from sources that were removed with AGN/BT/GSWLC matches')
+            except IndexError:
+                pass
+                #print('WARNING: got an index error in nsadict for NSAID', id,'\n\tCould be from sources that were removed with AGN/BT/GSWLC matches')
+        #self.galfitflag = self.galfitflag
+        
+        self.galfitflag[self.nsadict[79378]] = False
+
+        # bringing this over from LCSbase.py
+        self.badfits=np.zeros(len(self.cat),'bool')
+        nearbystar=[142655, 143485, 99840, 80878] # bad NSA fit; 24um is ok
+        #nearbygalaxy=[103927,143485,146607, 166638,99877,103933,99056]#,140197] # either NSA or 24um fit is unreliable
+        # checked after reworking galfit
+        nearbygalaxy=[143485,146607, 166638,99877,103933,99056]#,140197] # either NSA or 24um fit is unreliable
+        #badNSA=[166185,142655,99644,103825,145998]
+        #badNSA = [
+        badfits= nearbygalaxy#+nearbystar+nearbygalaxy
+        badfits=np.array(badfits,'bool')
+        for gal in badfits:
+            flag = self.cat['NSAID'] == gal
+            if sum(flag) == 1:
+                self.badfits[flag]  = True
+
+        # fold badfits into galfit flag
+        self.galfitflag = self.galfitflag & ~self.badfits
+    def get_membflag(self):
+        self.membflag = (abs(self.cat['DELTA_V']) < (-4./3.*self.cat['DR_R200'] + 2))
+    def get_infallflag(self):
+        self.infallflag = (abs(self.cat['DELTA_V']) < 3) & ~self.membflag
     def get_sampleflag(self):
-        self.sampleflag=   self.cat['galfitflag2'] #& ~self.cat['fcnumerical_error_flag24'] #&  #self.cat['galfitflag2'] & self.cat['sbflag'] & self.cat['lirflag'] #& self.cat['sizeflag']#& self.cat['galfitflag2'] #& &  &    #~self.cat['AGNKAUFF'] #&  # #& self.cat['gim2dflag'] #
+        print(len(self.galfitflag),len(self.sbflag),len(self.cat['lirflag']),len(self.sizeflag))
+        self.sampleflag=  self.sbflag & self.cat['lirflag'] & self.sizeflag  & self.galfitflag
+        #& self.cat['galfitflag2'] #& &  &    #~self.cat['AGNKAUFF'] #&  # #& self.cat['gim2dflag'] ##& ~self.cat['fcnumerical_error_flag24'] 
 
 
     def calculate_sizeratio(self):
@@ -898,7 +977,7 @@ class comp_lcs_gsw():
             (self.lcs.ssfr > self.ssfrcut) & (self.lcs.ssfr < -11.)
         self.cutBT = cutBT
         
-        
+        self.mass_sfr_flag = (self.lcs.cat['logMstar']> self.masscut)  & (self.lcs.ssfr > self.ssfrcut)         
     def plot_sfr_mstar(self,lcsflag=None,label='LCS core',outfile1=None,outfile2=None,coreflag=True,massmatch=True,hexbinflag=False,lcsinfall=False,lcsmemb=False):
         """
         OVERVIEW:
@@ -1229,23 +1308,33 @@ class comp_lcs_gsw():
         print(anderson_ksamp([dsfr2,dsfr3]))
         
 
-    def plot_dsfr_sizeratio(self,nbins=15,outfile1=None,outfile2=None):
-        lcsflag = self.lcs.cat['membflag'] & self.lcs.sampleflag 
+    def plot_dsfr_sizeratio(self,nbins=15,outfile1=None,outfile2=None,sampleflag=None):
+        if sampleflag is None:
+            sampleflag = self.lcs.sampleflag
 
-        flag2 = lcsflag &  (self.lcs.cat['logMstar']> self.masscut)  & (self.lcs.ssfr > self.ssfrcut) 
+        print('number in sampleflag = ',sum(sampleflag),len(sampleflag))
+        print('number in membflag = ',sum(self.lcs.membflag),len(self.lcs.membflag))
+        lcsflag = self.lcs.membflag & sampleflag        
+        print('number in both = ',sum(lcsflag))
+        print('number in both and in sfr/mstar cut = ',sum(lcsflag & self.mass_sfr_flag))
+
+        flag2 = lcsflag &  self.mass_sfr_flag
         #LCS core
         x2 = self.lcs.cat['logMstar'][flag2]
         y2 = self.lcs.cat['logSFR'][flag2]
         z2 = self.lcs.sizeratio[flag2]        
         dsfr2 = y2-get_BV_MS(x2)
+        print('fraction of core with dsfr below 0.3dex = {:.3f} ({:d}/{:d})'.format(sum(dsfr2 < -0.3)/len(dsfr2),sum(dsfr2 < -0.3),len(dsfr2)))
         
         #LCS infall
-        lcsflag = self.lcs.sampleflag  & ~self.lcs.cat['membflag'] & (self.lcs.cat['DELTA_V'] < 3.)
-        flag3 = lcsflag &  (self.lcs.cat['logMstar']> self.masscut)  & (self.lcs.ssfr > self.ssfrcut)
+        lcsflag = sampleflag  &self.lcs.infallflag
+        flag3 = lcsflag &  self.mass_sfr_flag
         x3 = self.lcs.cat['logMstar'][flag3]
         y3 = self.lcs.cat['logSFR'][flag3]
         z3 = self.lcs.sizeratio[flag3]
         dsfr3 = y3-get_BV_MS(x3)
+        print('fraction of core with dsfr below 0.3dex = {:.3f} ({:d}/{:d})'.format(sum(dsfr3 < -0.3)/len(dsfr3),sum(dsfr3 < -0.3),len(dsfr3)) )       
+
 
         # make figure
         #plt.figure(figsize=(8,6))
@@ -1264,7 +1353,7 @@ class comp_lcs_gsw():
 
         plt.figure()
         nbins=12
-        ax1,ax2,ax3 = colormass(z2,dsfr2,z3,dsfr3,'LCS core','LCS infall','temp.pdf',ymin=-1,ymax=1.,xmin=-.05,xmax=2,nhistbin=nbins,xlabel='$R_{24}/R_d$',ylabel='$\log_{10}(SFR)-\log_{10}(SFR_{MS})  \ (M_\odot/yr)$',contourflag=False,alphagray=.8,alpha1=1,color1=darkblue,lcsflag=True)
+        ax1,ax2,ax3 = colormass(z2,dsfr2,z3,dsfr3,'LCS core','LCS infall','temp.pdf',ymin=-1.5,ymax=1.,xmin=-.05,xmax=2,nhistbin=nbins,xlabel='$R_{24}/R_d$',ylabel='$\log_{10}(SFR)-\log_{10}(SFR_{MS})  \ (M_\odot/yr)$',contourflag=False,alphagray=.8,alpha1=1,color1=darkblue,lcsflag=True)
         var1 = z2.tolist()+z3.tolist()
         var2 = dsfrs[0].tolist()+dsfrs[1].tolist()
         t = lcscommon.spearmanr(var1,var2)
@@ -1279,7 +1368,7 @@ class comp_lcs_gsw():
         ax1.axhline(y=-.3,ls=':',color='0.5')
 
         # plot all galfit results
-        baseflag = (self.lcs.cat['logMstar']> self.masscut)  & (self.lcs.ssfr > self.ssfrcut)& ~self.lcs.sampleflag #& ~self.lcs.cat['agnflag'] 
+        baseflag = self.mass_sfr_flag & ~sampleflag #& ~self.lcs.cat['agnflag'] 
         flag4 = self.lcs.cat['membflag'] &  baseflag
         x4 = self.lcs.cat['logMstar'][flag4]
         y4 = self.lcs.cat['logSFR'][flag4]
@@ -1288,7 +1377,7 @@ class comp_lcs_gsw():
         ax1.plot(z4,dsfr4,'kx',c=darkblue,markersize=10)
         
         # plot all galfit results
-        flag4 = ~self.lcs.cat['membflag'] &  (self.lcs.cat['DELTA_V'] < 3.)&   (self.lcs.cat['logMstar']> self.masscut)  & (self.lcs.ssfr > self.ssfrcut) & ~self.lcs.sampleflag #& ~self.lcs.cat['agnflag'] 
+        flag4 = self.lcs.infallflag&   self.mass_sfr_flag & ~sampleflag #& ~self.lcs.cat['agnflag'] 
         x4 = self.lcs.cat['logMstar'][flag4]
         y4 = self.lcs.cat['logSFR'][flag4]
         z4 = self.lcs.sizeratio[flag4]        
@@ -1299,6 +1388,7 @@ class comp_lcs_gsw():
             plt.savefig(outfile1)
         if outfile2 is not None:
             plt.savefig(outfile2)
+        return ax1,ax2,ax3
 
     def plot_dsfr_HIdef(self,nbins=15,outfile1=None,outfile2=None):
         lcsflag = self.lcs.cat['membflag'] & self.lcs.sampleflag & self.lcs.cat['HIflag']
