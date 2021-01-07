@@ -73,6 +73,13 @@ args.pvalue = float(args.pvalue)
 
 mycolors = plt.rcParams['axes.prop_cycle'].by_key()['color']
 mipspixelscale=2.45
+
+###########################
+##### PLOTTING LABELS
+###########################
+drdt_label1 = r'$\dot{R}_{24} \ (R_{24}/Gyr^{-1}) $'
+drdt_label2 = r'$\dot{R}_{trunc} \ (R_24}/Gyr^{-1}) $'
+
 ######################################################
 ## FROM FITTING FIT VS INPUT
 ## SERSIC PARAMETERS AS A FUNCTION OF RTRUNC
@@ -98,6 +105,7 @@ if args.gsw:
     print('USING GSWLC SFRS')
     # data for the 1490 galaxies that are matched to GSWLC
     infile = homedir+'/research/LCS/tables/LCS_all_size_KE_SFR_GSWLC2_X2.fits'
+    infile = homedir+'/research/LCS/tables/LCS-simulation-data.fits'    
 else:
     print('USING MIPS+GALEX NUV SFRS')
     # data for the full sample of 1800 galaxies
@@ -106,7 +114,9 @@ else:
 
 sizes = Table.read(infile)
 # keep only galaxies in paper 1 sample
-sizes = sizes[sizes['sampleflag']]
+
+### skipping this b/c file only contains those in the sample
+# sizes = sizes[sizes['sampleflag']]
 
 # cut on stellar mass
 mflag = sizes['logMstar'] > float(args.masscut)
@@ -134,7 +144,7 @@ size_err = sizes['sizeratio_err']
 core_flag= sizes['membflag']
 nsersic = sizes['ng'] # simard sersic index
 infall_flag = (sizes['DELTA_V'] <= 3.) & ~core_flag
-Re = sizes['Re'] # rband disk scale length from simard
+Re = sizes['Rd'] # rband disk scale length from simard
 Re24 = sizes['fcre1']*mipspixelscale # 24um Re in arcsec
 nsersic24 = sizes['fcnsersic1']*mipspixelscale # 24um Re in arcsec
 
@@ -168,6 +178,9 @@ external_nsersic = nsersic[infall_flag]
 
 core_Re24 = Re24[core_flag]
 external_Re24 = Re24[infall_flag]
+
+core_Re = Re[core_flag]
+external_Re = Re[infall_flag]
 
 core_nsersic24 = nsersic24[core_flag]
 external_nsersic24 = nsersic24[infall_flag]
@@ -471,10 +484,15 @@ def run_sim(tmax = 2.,nrandom=100,drdtmin=-2,drdt_step=.1,model=1,plotsingle=Tru
                 # get the truncation radius (actual physical radius)
                 #sim_core_Re24 = external_Re24 + drdt*actual_infall_times
                 # our choice of rmax will affect the inferred infall time
-                sim_core_Re24 = (rmax + drdt*actual_infall_times)*external_Re24
 
+                # sim core Re24 is in units of Re24
+                # rmax is in units of Re24
+                # dr/dt is in units of Re24
+                sim_core_Re24 = (rmax + drdt*actual_infall_times) 
+                
                 # new size ratio
-                sim_core = model2_get_fitted_param(sim_core_Re24/external_Re24,sersicRe_fit)*external
+                sim_core = model2_get_fitted_param(sim_core_Re24,sersicRe_fit)*external
+                
 
                 # don't allow shrunk radii to go negative
 
@@ -583,7 +601,7 @@ def plot_hexbin(all_drdt,all_p,best_drdt,tmax,gridsize=10,plotsingle=True):
     plt.hexbin(all_drdt, all_p,gridsize=gridsize,cmap='gray_r',vmin=0,vmax=myvmax)
     if plotsingle:
         plt.colorbar(fraction=0.08)
-    plt.xlabel(r'$dr/dt \ (Gyr^{-1}) $',fontsize=18)
+    plt.xlabel(drdt_label1,fontsize=18)
     plt.ylabel(r'$p-value$',fontsize=18)
     #s = r'$t_{max} = %.1f \ Gyr, \ dr/dt = %.2f \ Gyr^{-1}, \ t_{quench} = %.1f \ Gyr$'%(tmax, best_drdt,1./abs(best_drdt))
     s = r'$t_{max} = %.1f \ Gyr$'%(tmax)
@@ -617,7 +635,7 @@ def plot_frac_below_pvalue(all_drdt,all_p,all_p_sfr,tmax,nbins=100,plotsingle=Tr
     plt.plot(xplt,y2,'rs',color=mycolors[1],markersize=6,label='SFR')
     plt.legend()
 
-    plt.xlabel(r'$dr/dt \ (Gyr^{-1}) $',fontsize=18)
+    plt.xlabel(drdt_label1,fontsize=18)
     plt.ylabel(r'$Fraction(p<{:.3f})$'.format(pvalue),fontsize=18)
     #s = r'$t_{max} = %.1f \ Gyr, \ dr/dt = %.2f \ Gyr^{-1}, \ t_{quench} = %.1f \ Gyr$'%(tmax, best_drdt,1./abs(best_drdt))
     s = r'$t_{max} = %.1f \ Gyr$'%(tmax)
@@ -729,7 +747,7 @@ def plot_model3(all_drdt,all_p,all_p_sfr,boost,tmax=2):
         plt.scatter(all_drdt,boost,c=colors[i],vmin=0,vmax=v2,s=15)
     
         plt.title(titles[i])
-        plt.xlabel('dr/dt',fontsize=16)
+        plt.xlabel(drdt_label1,fontsize=16)
         plt.ylabel('I boost/I0',fontsize=16)
         allax.append(plt.gca())
     cb = plt.colorbar()
@@ -757,7 +775,10 @@ def plot_boost_3panel(all_drdt,all_p,all_p_sfr,boost,tmax=2,v2=.005,model=3):
             #print(t)
             plt.yticks([])
             plt.ylim(y1,y2)
-        plt.xlabel('$dr/dt$',fontsize=24)
+        if model == 1:
+            plt.xlabel(drdt_label1,fontsize=24)
+        else:
+            plt.xlabel(drdt_label2,fontsize=24)
         
         allax.append(plt.gca())
     cb = plt.colorbar(ax=allax,fraction=.08)
@@ -790,12 +811,16 @@ def plot_drdt_boost_ellipse(all_drdt,all_p,all_p_sfr,boost,tmax=2,levels=None,mo
 
     zcomb = np.minimum(zgrid0,zgrid)
     plt.contour(xgrid,ygrid,zcomb,linewidths=4,colors='k',levels=[.05,1])
-    plt.ylabel('$Boost \ Factor \ (I_{boost}/I_o)$',fontsize=20)
-    plt.xlabel('$dr/dt \ (Gyr^{-1})$',fontsize=20)
+    plt.ylabel('$SFR \ Boost \ Factor \ (I_{boost}/I_o)$',fontsize=20)
+    if model == 1:
+        plt.xlabel(drdt_label1,fontsize=20)
+    else:
+        plt.xlabel(drdt_label2,fontsize=20)
     plt.xticks(fontsize=10)
     plt.yticks(fontsize=10)    
     #plt.legend()
     #plt.xlim(-2,0)
+    plt.text(.05,.9,'Model '+str(model),transform=plt.gca().transAxes,horizontalalignment='left',fontsize=20)
     if figname is not None:
         plt.savefig(plotdir+'/'+figname+'.png')
         plt.savefig(plotdir+'/'+figname+'.pdf')        
@@ -827,7 +852,11 @@ def plot_model1_3panel(all_drdt,all_p,all_p_sfr,tmax=2,v2=.005,model=1,vmin=-4):
     plt.subplots_adjust(wspace=.5,bottom=.15)
     xvars = [all_drdt, all_drdt, all_p]
     yvars = [all_p, all_p_sfr, all_p_sfr]
-    xlabels=['dr/dt','dr/dt','pvalue Size']
+    if model == 1:
+        drdt_label = drdt_label1
+    else:
+        drdt_label = drdt_label2
+    xlabels=[drdt_label,drdt_label,'pvalue Size']
     ylabels=['pvalue Size','pvalue SFR','pvalue SFR']    
     titles = ['Size Constraints','SFR Constraints','']
     allax = []
@@ -858,7 +887,7 @@ def plot_model1_3panel(all_drdt,all_p,all_p_sfr,tmax=2,v2=.005,model=1,vmin=-4):
     plt.savefig(plotdir+'/model'+str(model)+'-tmax'+str(tmax)+'-size-sfr-constraints-3panel.png')
     plt.savefig(plotdir+'/model'+str(model)+'-tmax'+str(tmax)+'-size-sfr-constraints-3panel.pdf')
 
-def plot_quenched_fraction(all_drdt,all_boost, fquench_size,fquench_sfr,fquench,vmax=.5):
+def plot_quenched_fraction(all_drdt,all_boost, fquench_size,fquench_sfr,fquench,vmax=.5,model=1):
     plt.figure(figsize=(14,4))
     #plt.subplots_adjust(bottom=.15,left=.1)
     plt.subplots_adjust(wspace=.01,bottom=.2)    
@@ -871,7 +900,11 @@ def plot_quenched_fraction(all_drdt,all_boost, fquench_size,fquench_sfr,fquench,
         plt.subplot(1,3,i+1)
         plt.scatter(all_drdt,all_boost,c=colors[i],vmin=0,vmax=vmax)
         allax.append(plt.gca())
-        plt.xlabel('$dr/dt$',fontsize=24)
+        if model == 1:
+            drdt_label = drdt_label1
+        else:
+            drdt_label = drdt_label2
+        plt.xlabel(drdt_label,fontsize=24)
         
         if i == 0:
             plt.ylabel('$I_{boost}/I_e$',fontsize=24)
