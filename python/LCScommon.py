@@ -6,8 +6,7 @@ from scipy.stats import ks_2samp
 from scipy.stats import scoreatpercentile
 from scipy.stats.mstats import normaltest
 from anderson import *
-from astropy.stats import bootstrap
-import numpy as np
+
 pscale24=2.45#arcsec per pixel
 
 pscalesdss=1.#arcsec per pixel
@@ -194,10 +193,10 @@ bellconv=4.5e-44#Kenn 98 conversion from erg/s to SFR/yr, assumes salpeter IMF
 catalog_radial_cut = 3. # mastertable radial cut in degrees
 mypath=os.getcwd()
 if mypath.find('Users') > -1:
-    print "Running on Rose's mac pro"
+    print("Running on Rose's mac pro")
     homedir='/Users/rfinn/'
 elif mypath.find('home') > -1:
-    print "Running on coma"
+    print("Running on coma")
     homedir='/home/rfinn/'
 
 mipsflux2umJyconv=141.086
@@ -246,9 +245,9 @@ def spearman_boot(x,y,N=5000,cont_int=68.):
 def spearman(x,y):
     #rho,pvalue=spearmanr(x,y)
     rho,pvalue=spearman_boot(x,y)
-    print 'Spearman Rank Test:'
-    print 'rho = %6.2f'%(rho)
-    print 'p-vale = %6.5f (prob that samples are uncorrelated)'%(pvalue) 
+    print('Spearman Rank Test:')
+    print('rho = %6.2f'%(rho))
+    print('p-vale = %6.5f (prob that samples are uncorrelated)'%(pvalue)) 
     return rho,pvalue
 
 def spearman_with_errors(x,y,yerr,Nmc=1000,plotflag=False,verbose=False):
@@ -265,11 +264,11 @@ def spearman_with_errors(x,y,yerr,Nmc=1000,plotflag=False,verbose=False):
     lower=np.percentile(rhosim,q1)
     q2=50+34 # mean minus one std
     upper=np.percentile(rhosim,q2)
-    print 'mean (median) = %5.2f (%5.2f), std = %5.2f'%(cave,np.median(rhosim),cstd)
-    print 'confidence interval from sorted list of MC fit values:'
-    print 'lower = %5.2f (%5.2f), upper = %5.2f (%5.2f)'%(lower,cave-cstd, upper,cave+cstd)
+    print('mean (median) = %5.2f (%5.2f), std = %5.2f'%(cave,np.median(rhosim),cstd))
+    print('confidence interval from sorted list of MC fit values:')
+    print('lower = %5.2f (%5.2f), upper = %5.2f (%5.2f)'%(lower,cave-cstd, upper,cave+cstd))
     k,pnorm=normaltest(rhosim)
-    print 'probability that distribution of slopes is normal = %5.2f'%(pnorm)
+    print('probability that distribution of slopes is normal = %5.2f'%(pnorm))
     if plotflag:
         plt.figure(figsize=(10,4))
         plt.subplot(1,2,1)
@@ -283,29 +282,49 @@ def spearman_with_errors(x,y,yerr,Nmc=1000,plotflag=False,verbose=False):
         plt.xlabel(r'$\log_{10}(p \ value)$')
     return rhosim,psim
 
-def ks_boot(x,y,N=1000,conf_int=68.):
+def ks_boot(x,y,N=1,conf_int=68.):
     boot_p=zeros(N,'f')
     boot_D=zeros(N,'f')
     for i in range(N):
         xboot=x[randint(0,len(x)-1,len(x))]
         yboot=y[randint(0,len(y)-1,len(y))]
         boot_D[i],boot_p[i]=ks_2samp(xboot,yboot)
-    return scoreatpercentile(boot_D,per=50),scoreatpercentile(boot_p,per=50)
-def ks(x,y,run_anderson=True):
-    #D,pvalue=ks_2samp(x,y)
-    D,pvalue=ks_boot(x,y)
-    print 'KS Test (median of bootstrap):'
-    print 'D = %6.2f'%(D)
-    print 'p-vale = %6.5f (prob that samples are from same distribution)'%(pvalue)
+    return scoreatpercentile(boot_D,per=50),scoreatpercentile(boot_p,per=50) 
+def ks(x,y,run_anderson=True,Nboot=1):
+    '''
+    GOAL:
+    * compute KS test on two input arrays
+    * print results
+    * optional : run anderson-darling test
+
+    INPUT:
+    * x : one sample for comparison
+    * y : second sample for comparison
+    * run_anderson : set to true to run anderson-darling test
+    * Nboot : default=1; number of bootstrap resamples to do for KS test;
+              will calculate mean value of D and p-value
+
+    OUTPUT:
+    * D : KS D statistic
+    * pvalue : KS p value
+
+    '''
+    if Nboot == 1:
+        D,pvalue=ks_2samp(x,y)
+    else:
+        D,pvalue=ks_boot(x,y,N=Nboot)
+    print('KS Test:')
+    print('D = %6.2f'%(D))
+    print('p-vale = %1.3e (prob that samples are from same distribution)'%(pvalue))
     if run_anderson:
         anderson(x,y)
     return D,pvalue
 
 def anderson(x,y):
     t=anderson_ksamp([x,y])
-    print 'Anderson-Darling test Test:'
-    print 'D = %6.2f'%(t[0])
-    print 'p-vale = %6.5f (prob that samples are from same distribution)'%(t[2]) 
+    print('Anderson-Darling test Test:')
+    print('D = %6.2f'%(t[0]))
+    print('p-vale = %6.5f (prob that samples are from same distribution)'%(t[2])) 
     return t[0],t[2]
 
 def findnearest(x1,y1,x2,y2,delta):#use where command
@@ -344,7 +363,7 @@ def drawbox(data,style):#feed in center x,y,dx,dy,rotation E of N
     xp=data[0]+xp
     yp=data[1]+yp
     #draw rotated box
-    plot(xp,yp,style)
+    plot(xp,yp,style,zorder=20)
 
 def transcoords(imge,coords):
     outcoords='junk.xy'
@@ -376,17 +395,13 @@ def convert_sb_to_fluxperpixel(sb):
     flux_sb=flux_sb/conv_MJysr_uJy
     
     return flux_sb
-def binxycolor(x,y,color,nbin=5,yweights=None,yerr=True,use_median=False,equal_pop_bins=False,bins=None):
+def binxycolor(x,y,color,nbin=5,erry=False,use_median=False,equal_pop_bins=False):
     '''
     - bin x in nbin equally spaced bins
     - calculate the median y value in each bin
     - calculate the median color in each bin
     '''
-    if bins != None:
-        xbins = bins
-        nbin = len(xbins)
-    else:
-        xbins = np.zeros(nbin,'f')
+    xbins = np.zeros(nbin,'f')
     ybins = np.zeros(nbin,'f')
     ybinerr = np.zeros(len(xbins),'f')
     colorbins = np.zeros(len(xbins),'f')
@@ -400,43 +415,20 @@ def binxycolor(x,y,color,nbin=5,yweights=None,yerr=True,use_median=False,equal_p
         #print xbin_number
         #print x
     else:
-        #xbin_number = np.array(((x-min(x))*nbin/(max(x)-min(x))),'i')
-        xbin_number = -1*np.ones(len(x),'i')
-        for i in range(len(xbins)-1):
-            flag = (x >= xbins[i]) & (x < xbins[i+1])
-            xbin_number[flag] = i*np.ones(sum(flag),'i')
-
-        xbins = xbins + 0.5*(xbins[1]-xbins[0])
+        xbin_number = np.array(((x-min(x))*nbin/(max(x)-min(x))),'i')
     for i in range(nbin):
-        if sum(xbin_number == i) < 1:
-            continue
         if use_median:
-            if bins == None:
-                xbins[i] = np.median(x[xbin_number == i])
+            xbins[i] = np.median(x[xbin_number == i])
             ybins[i] = np.median(y[xbin_number == i])
             colorbins[i] = np.median(color[xbin_number == i])
-            t = bootstrap(y[xbin_number == i], bootnum=100, bootfunc = np.median)
-            #print t
-            ybinerr[i]= (scoreatpercentile(t,84) - scoreatpercentile(t,16))/2. # not worrying about asymmetric errors right now
         else:
-            if bins == None:
-                xbins[i] = np.mean(x[xbin_number == i])
-            if yweights != None:
-                print i
-                print 'xbin = ',xbins[i]
-                print 'yweights = ',yweights[xbin_number == i]
-                print 'y = ',y[xbin_number == i]
-                ybins[i] = np.average(y[xbin_number ==i], weights = yweights[xbin_number == i])
-                ybinerr[i] = np.std(y[xbin_number == i])/np.sqrt(sum(xbin_number == i))
-
-            else:
-                ybins[i] = np.mean(y[xbin_number == i])
-                ybinerr[i] = np.std(y[xbin_number == i])/np.sqrt(sum(xbin_number == i))
+            xbins[i] = np.mean(x[xbin_number == i])
+            ybins[i] = np.mean(y[xbin_number == i])
             colorbins[i] = np.mean(color[xbin_number == i])
 
-        
-
-    if yerr:
+        ybinerr[i] = np.std(y[xbin_number == i])/np.sqrt(sum(xbin_number == i))
+                      
+    if erry:
         return xbins,ybins,ybinerr,colorbins
     else:
         return xbins,ybins,colorbins
