@@ -1773,14 +1773,21 @@ class comp_lcs_gsw():
             lcsflag = self.lcs.membflag | self.lcs.infallflag
             labels = ['Field','LCS all']            
         field_cols=[BTkey,'ng']
-        catalogs = [self.gsw.cat,self.lcs.cat] 
-        sampleflags = [self.gsw_mass_sfr_flag,self.lcs_mass_sfr_flag & lcsflag]
-        lowflags = [self.gsw.lowsfr_flag, self.lcs.lowsfr_flag]
+        catalogs = [self.gsw.cat,self.lcs.cat,self.lcs.cat] 
+        sampleflags = [self.gsw_mass_sfr_flag,self.lcs_mass_sfr_flag & self.lcs.membflag,self.lcs_mass_sfr_flag & self.lcs.infallflag]
+        lowflags = [self.gsw.lowsfr_flag, self.lcs.lowsfr_flag,self.lcs.lowsfr_flag]
 
-        colors = ['0.5',darkblue] # color for field and LCS
-        alphas = [.8,.5]
-        lws = [2,2]
-        zorders = [2,2]
+        #colors = ['0.5',darkblue,lightblue] # color for field and LCS
+        #alphas = [.8,.5,.5]
+        #lws = [2,2]
+        #zorders = [2,2]
+        
+        colors = ['.5',darkblue,lightblue]
+        labels = ['Field','LCS Core','LCS Infall']
+        zorders = [1,3,2]
+        lws = [3,4,3]
+        alphas = [.4,0,.5]        
+        
         #for i,col in enumerate(field_cols):
         xlabels = ['B/T','Sersic n','g-i','prob Sc','logMstar','$\Delta SFR$']
         xlabels = ['B/T','Sersic n','prob Sc','logMstar','$\Delta SFR$']        
@@ -1824,8 +1831,12 @@ class comp_lcs_gsw():
                 # plot on top row normal SF galaxies
                 plt.subplot(nrow,ncol,1+colnumber)            
                 flag1 = sampleflags[i] & ~lowflags[i]
+                print(labels[i],': number of galaxies in subsample = ',sum(flag1))
                 plt.hist(xvar[flag1],color=colors[i],normed=True,bins=allbins[col],\
-                         histtype='stepfilled',lw=lws[i],alpha=alphas[i],zorder=zorders[i],label=labels[i])#hatch=hatches[i])
+                         histtype='stepfilled',lw=lws[i],alpha=alphas[i],zorder=zorders[i])
+                plt.hist(xvar[flag1],color=colors[i],normed=True,bins=allbins[col],\
+                         histtype='step',lw=lws[i],zorder=zorders[i],label=labels[i])#hatch=hatches[i])
+                
                 if col == 0:
                     plt.ylabel(ylabels[0],fontsize=16)
                     plt.legend()
@@ -1844,6 +1855,9 @@ class comp_lcs_gsw():
                     
                 plt.hist(xvar[flag2],color=colors[i],normed=True,bins=allbins[col],\
                      histtype='stepfilled',lw=lws[i],alpha=alphas[i],zorder=zorders[i],label=labels[i])#hatch=hatches[i])
+                plt.hist(xvar[flag2],color=colors[i],normed=True,bins=allbins[col],\
+                         histtype='step',lw=lws[i],zorder=zorders[i],label=labels[i])#hatch=hatches[i])
+
                 plt.xlabel(xlabels[col],fontsize=16)
             plt.subplot(nrow,ncol,1+colnumber)
             colnumber += 1
@@ -1959,12 +1973,15 @@ class comp_lcs_gsw():
             plt.subplot(nrow,ncol,1+col)
             
 
-    def compare_BT_lowsfr_field_core(self,nbins=12,coreonly=False):
+    def compare_BT_lowsfr_field_core(self,nbins=12,coreonly=False,infallonly=False,BTmax=1):
         ''' compare the B/T distribution of LCS low SFR galaxies with mass-matched sample drawn from low SFR field galaxies '''
 
         if coreonly:
             lcsflag = self.lcs.membflag #| self.lcs.infallflag
-            labels = ['Field','LCS core']                        
+            labels = ['Field','LCS core']
+        elif infallonly:
+            lcsflag = self.lcs.infallflag #| self.lcs.infallflag
+            labels = ['Field','LCS infall']
         else:
             lcsflag = self.lcs.membflag | self.lcs.infallflag
             labels = ['Field','LCS all']            
@@ -2012,7 +2029,7 @@ class comp_lcs_gsw():
         labels = ['Field','LCS','Low SFR Field']
         if coreonly:
             labels = ['Field','LCS Core','Low SFR Field']
-        allbins = [np.linspace(0,0.3,nbins),np.linspace(1,6,nbins),\
+        allbins = [np.linspace(0,BTmax,nbins),np.linspace(1,6,nbins),\
                    np.linspace(0,1,nbins),\
                    np.linspace(9.7,11,nbins),np.linspace(-1,1,nbins)]
         
@@ -2045,7 +2062,8 @@ class comp_lcs_gsw():
             t = ks_2samp(xvars[0][flags2[0]][keep_indices],xvars[1][flags2[1]])
             print('statistic={:.2f}, pvalue={:.2e}'.format(t[0],t[1]))
             print('')
-
+            print('anderson-darling test')
+            print(anderson_ksamp([xvars[0][flags2[0]][keep_indices],xvars[1][flags2[1]]]))
             plt.xlabel(xlabels[col],fontsize=16)
 
         plt.legend()
