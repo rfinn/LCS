@@ -2549,6 +2549,85 @@ class comp_lcs_gsw():
             outtab = Table([self.lcs.cat['NSAID'][flag2][flag],self.lcs.cat['RA_1'][flag2][flag],self.lcs.cat['DEC_1'][flag2][flag]],names=['NSAID','RA','DEC'])
             outtab.write('infall-btgt03-dsfrlt045.fits',overwrite=True)
         return xvars,yvars
+    def plot_dsfr_mstar(self,nbins=15,xmax=.3,writefiles=False,nsersic_cut=10,ecut=1,BTline=None):
+        nflag = (self.lcs.cat['ng_2'] < nsersic_cut)
+        sflag = (self.lcs.cat['p_el'] < ecut)
+        flag1 = sflag &  nflag & self.lcs.membflag &  (self.lcs.cat['logMstar']> self.masscut)  & (self.lcs.ssfr > self.ssfrcut)        
+        coreBT = self.lcs.cat[BTkey][flag1]
+        x1 = self.lcs.cat['logMstar'][flag1]
+        y1 = self.lcs.cat['logSFR'][flag1]
+        #core_dsfr = y1-get_BV_MS(x1)
+        core_dsfr = y1-self.gsw.get_MS(x1)
+        
+        flag2 = sflag & nflag & self.lcs.infallflag &  (self.lcs.cat['logMstar']> self.masscut)  & (self.lcs.ssfr > self.ssfrcut)
+        infallBT = self.lcs.cat[BTkey][flag2]
+        x2 = self.lcs.cat['logMstar'][flag2]
+        y2 = self.lcs.cat['logSFR'][flag2]
+        #infall_dsfr = y2-get_BV_MS(x2)
+        infall_dsfr = y2-self.gsw.get_MS(x2)        
+
+        nflag = (self.gsw.cat['ng'] < nsersic_cut)
+        flag3 = nflag & (self.gsw.cat['logMstar'] > self.masscut) & (self.gsw.ssfr > self.ssfrcut)   #& self.gsw.field1
+        fieldBT = self.gsw.cat[BTkey][flag3]
+        x3 = self.gsw.cat['logMstar'][flag3]
+        y3 = self.gsw.cat['logSFR'][flag3]
+        #field_dsfr = y3-get_BV_MS(x3)
+        field_dsfr = y3-self.gsw.get_MS(x3)
+        
+        plt.figure()
+        mybins = np.linspace(9.7,11.25,nbins)        
+        xvars = [x3,x1,x2]
+        yvars = [field_dsfr,core_dsfr,infall_dsfr]        
+        colors = ['.5',darkblue,lightblue]
+        labels = ['Field','LCS Core','LCS Infall']
+        orders = [1,3,2]
+        lws = [3,4,3]
+        alphas = [.5,.6,.6]
+        markers = ['o','s','o']
+        markersizes = [1,8,8]
+        hatches = ['/','\\','|']
+        allBT=[]
+        alldsfr=[]
+        for i in range(len(xvars)):
+            if i > 0:
+                plt.plot(xvars[i],yvars[i],'k.',color=colors[i],alpha=alphas[i],zorder=orders[i],markersize=markersizes[i],\
+                     marker=markers[i],label=labels[i])
+            t = lcscommon.spearmanr(xvars[i],yvars[i])
+            ybin,xbin,binnumb = binned_statistic(xvars[i],yvars[i],statistic='mean',bins=mybins)
+            yerr,xbin,binnumb = binned_statistic(xvars[i],yvars[i],statistic='std',bins=mybins)
+            nyerr,xbin,binnumb = binned_statistic(xvars[i],yvars[i],statistic='count',bins=mybins)            
+            yerr = yerr/np.sqrt(nyerr)
+            dbin = xbin[1]-xbin[0]
+            if i == 0:
+                plt.plot(xbin[:-1]+0.5*dbin,ybin,color=colors[i],lw=3,label=labels[i])
+            else:
+                plt.plot(xbin[:-1]+0.5*dbin,ybin,color=colors[i],lw=3)
+            plt.fill_between(xbin[:-1]+0.5*dbin,ybin+yerr,ybin-yerr,color=colors[i],alpha=.4)            
+            print('\n'+labels[i])
+            print('r={:.4f}, pvalue={:.3e}'.format(t[0],t[1]))
+            allBT.append(xvars[i].tolist())
+            alldsfr.append(yvars[i].tolist())            
+        plt.xlabel('$\log_{10}(M_\star)$',fontsize=20)
+        plt.ylabel('$\Delta \log_{10}(SFR \ (M_\odot/yr))$',fontsize=20)
+
+        plt.axhline(y=.45,ls='--',color='k',label='$1.5\sigma_{MS}$')
+        plt.axhline(y=-.45,ls='--',color='k')
+        plt.legend()
+        if BTline is not None:
+            plt.axvline(x=BTline,ls=':',color='k')
+        print('\n Combined Samples: Spearman Rank')
+        #t = lcscommon.spearmanr(allBT,alldsfr)
+        #print(t)
+
+        if writefiles:
+            coreflag = (core_dsfr < -0.45) & (coreBT > 0.3)
+            outtab = Table([self.lcs.cat['NSAID'][flag1][coreflag],self.lcs.cat['RA_1'][flag1][coreflag],self.lcs.cat['DEC_1'][flag1][coreflag]],names=['NSAID','RA','DEC'])
+            outtab.write('core-btgt03-dsfrlt045.fits',overwrite=True)
+            # write out infall
+            flag = (infall_dsfr < -0.45) & (infallBT > 0.3)
+            outtab = Table([self.lcs.cat['NSAID'][flag2][flag],self.lcs.cat['RA_1'][flag2][flag],self.lcs.cat['DEC_1'][flag2][flag]],names=['NSAID','RA','DEC'])
+            outtab.write('infall-btgt03-dsfrlt045.fits',overwrite=True)
+
 
     def plot_BThist_env(self,nbins=10,xmax=.3,writefiles=False):
         ''' Plot normalized hist of BT for different environments '''
