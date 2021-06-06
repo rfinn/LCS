@@ -1110,6 +1110,36 @@ class comp_lcs_gsw():
         self.gsw_uvir_flag = (self.gsw.cat['flag_uv']> 0)  & (self.gsw.cat['flag_midir'] > 0)
         self.lcs_uvir_flag = (self.lcs.cat['flag_uv']> 0)  & (self.lcs.cat['flag_midir'] > 0)
         self.fit_gsw_ms()
+    def write_tables_for_SFR_sim(self):
+        '''  write out field and LCS core samples to use in SFR simulation '''
+
+        # LCS sample
+        # above ssfr and mstar limits, and core galaxy (membflag)
+        lcs = self.lcs.cat[self.lcs_mass_sfr_flag & self.lcs.membflag]
+
+        # create new table with Mstar and SFR
+        newtab = Table([lcs['logMstar'],lcs['logSFR']])
+        
+        # write out table with Mstar and SFR
+        outfile = os.path.join(homedir,'research/LCS/tables/','lcs-sfr-sim.fits')
+        newtab.write(outfile,overwrite=True,format='fits')
+
+        
+        # FIELD SAMPLE
+        # above ssfr and mstar limits
+        gsw = self.gsw.cat[self.gsw_mass_sfr_flag]
+        
+        # mass matched to LCS core
+        findices = mass_match(lcs['logMstar'],gsw['logMstar'],nmatch=10)            
+        gsw_massmatch = gsw[findices]
+
+        # create new table with Mstar and SFR
+        newtab = Table([gsw_massmatch['logMstar'],gsw_massmatch['logSFR']],names=['logMstar','logSFR'])
+        # write out table with Mstar and SFR
+        outfile = os.path.join(homedir,'research/LCS/tables/','gsw-sfr-sim.fits')
+        newtab.write(outfile,overwrite=True,format='fits')
+
+        
     def fit_gsw_ms(self):
         #self.gsw.fit_MS(flag=self.gsw_mass_sfr_flag)
         flag =  self.gsw_mass_sfr_flag #& (self.gsw.cat[BTkey]< .5) 
