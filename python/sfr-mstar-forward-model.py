@@ -50,7 +50,7 @@ def get_fraction_mass_retained(t):
     * time in yr since the birth of the stellar pop
 
     RETURNS:
-    * fraction of the mass that is retained after mass loss
+    * fraction of the mass that is retained after mass loss when age of population is t_yr
 
     '''
 
@@ -117,8 +117,8 @@ def evolve_galaxy(logmstar_tmax,delta_SFR,tmax,ntimestep,tmin=0):
     # convert
     timearray = np.linspace(tmax,tmin,ntimestep)
     redshiftarray = get_z_from_lookbackt(timearray)
-    mstar = np.zeros(len(timearray),'f')
-    sfr = np.zeros(len(timearray),'f')
+    mstar = np.zeros(len(timearray),'d')
+    sfr = np.zeros(len(timearray),'d')
     # convert tmax to redshift
     zmax = get_z_from_lookbackt(tmax)
     logsfr_tmax = SFR_MS(logmstar_tmax,zmax) + delta_SFR
@@ -130,29 +130,50 @@ def evolve_galaxy(logmstar_tmax,delta_SFR,tmax,ntimestep,tmin=0):
     sfr[0] = 10.**logsfr_tmax
     mstar[0] = 10.**logmstar_tmax
     delta_mass = np.zeros(len(timearray))
+    mass_loss = np.zeros(len(timearray))    
 
     for i in range(1,len(timearray)):
-        # calc new sfr
 
-        sfr[i] = sfr[i-1]*10.**(SFR_MS(np.log10(mstar[i-1]),redshiftarray[i])-SFR_MS(np.log10(mstar[i-1]),redshiftarray[i-1]))
-        dmass = (sfr[i]+sfr[i-1])*0.5*(timearray[i]-timearray[i-1])*1.e9 # 1e9 to convert from Gyr to yr
-        mstar[i] = mstar[i-1]+dmass
+        # we are assuming that the mass doesn't change enough to affect our value of delta_sfr_ms
+        # so we are using mstar[i-1] to get the previous and current SFR_MS
+        delta_sfr_ms_ratio = 10.**(SFR_MS(np.log10(mstar[i-1]),redshiftarray[i]))/10.**(SFR_MS(np.log10(mstar[i-1]),redshiftarray[i-1]))
+        # calc new sfr        
+        sfr[i] = sfr[i-1]*delta_sfr_ms_ratio
+        # calculate the mass increment and track it so we can calculate mass loss
+        # 1e9 to convert from Gyr to yr because time array is in Gyr
+        delta_mass[i] = (sfr[i]+sfr[i-1])*0.5*(timearray[i-1]-timearray[i])*1.e9 
+        # calculate new stellar mass
+        mstar[i] = mstar[i-1]+delta_mass[i]
 
-        # track mass increments in order to calculate mass loss
-        delta_mass[i]= dmass
+        # now setting up mass loss, which we need to calculate for each mass increment
+        # calculate age of each mass increment
+        # this is the original array of times minus the current time of step i
         age_of_mass = timearray - timearray[i]
 
-        # should really cut according to age of first mass loss in Poggianti+2013
-        flag = age_of_mass > 0
+        
+        # cut according to age of first mass loss in Poggianti+2013
+        # this will eliminate any points that are downstream of the current step i
+        # 
+        # this also limits any time step that occurred less than 1.9 Myr ago b/c
+        # no mass loss will have occurred yet.
+        flag = (age_of_mass > 1.9e6/1e9) 
+        # convert age from Gyr to yr
+        # use Poggianti+2013 relation to get the fraction of mass retained in each delta_mass
         frac_retained = get_fraction_mass_retained(age_of_mass[flag]*1.e9)
-        #print('hey hey')
-        #print(sum(flag),len(frac_retained),frac_retained)
-        mass_loss = np.sum(delta_mass[flag]*(1-frac_retained))
-        mstar[i] -= mass_loss
+
+        # calculate the sum of each mass increment times the amount of mass lost from that increment
+        mass_loss[i] = np.sum(delta_mass[flag]*(1-frac_retained))
+
+        # mass loss in this increment is mass_loss[i] - mass_loss[i-1]
+        # because the formula gives the cumulative mass loss up until time of step i
+        new_mass_loss = mass_loss[i] - mass_loss[i-1]
+
+        # subtract the additional mass that was lost in this time step
+        mstar[i] -= new_mass_loss
 
     logmstar= np.log10(mstar)
     logsfr = np.log10(sfr)
-    return timearray,redshiftarray,logmstar,logsfr,mstar,sfr
+    return timearray,redshiftarray,logmstar,logsfr,mstar,sfr,mass_loss
 
 
 
@@ -173,32 +194,35 @@ def forward_model(minmass=8,maxmass=12,massstep=0.2,minsfr=-2,maxsfr=2,sfrstep=0
 
     mstar_mesh, sfr_mesh = create_grid(minmass=minmass,maxmass=maxmass,massstep=massstep,\
                                        minsfr=minsfr,maxsfr=maxsfr,sfrstep=sfrstep)
-    print(len(mstar_mesh),mstar_mesh)
-    print(mstar_mesh[0])
-    print(mstar_mesh[:,0])
-    print(sfr_mesh)
+    #print(len(mstar_mesh),mstar_mesh)
+    #print(mstar_mesh[0])
+    #print(mstar_mesh[:,0])
+    #print(sfr_mesh)
     # create arrays to store z=0 values of mass and sfr
     size_output_arrays = mstar_mesh.shape[0]*mstar_mesh.shape[1]*ntimestep
-    logmstar_all = np.zeros(size_output_arrays,'f')
-    logsfr_all = np.zeros(size_output_arrays,'f')    
-    logmstar0_all = np.zeros(size_output_arrays,'f')
-    logsfr0_all = np.zeros(size_output_arrays,'f')    
-    lookbackt_all = np.zeros(size_output_arrays,'f')
-    redshift_all = np.zeros(size_output_arrays,'f')
-    timestep_all = np.zeros(size_output_arrays,'f')
-    massnumber_all = np.zeros(size_output_arrays,'f')
-    sfrnumber_all = np.zeros(size_output_arrays,'f')        
+    logmstar_all = np.zeros(size_output_arrays,'d')
+    logsfr_all = np.zeros(size_output_arrays,'d')    
+    logmstar0_all = np.zeros(size_output_arrays,'d')
+    logsfr0_all = np.zeros(size_output_arrays,'d')    
+    lookbackt_all = np.zeros(size_output_arrays,'d')
+    redshift_all = np.zeros(size_output_arrays,'d')
+    timestep_all = np.zeros(size_output_arrays,'d')
+    massnumber_all = np.zeros(size_output_arrays,'d')
+    sfrnumber_all = np.zeros(size_output_arrays,'d')
+    mass_loss_all = np.zeros(size_output_arrays,'d')
+    galnumber_all = np.zeros(size_output_arrays,'d')                
     # for each galaxy, evolve it to z=0
-
+    galnumber = 0
     for i in range(len(mstar_mesh[:,0])):
         for j in range(len(sfr_mesh[0])):
             # forward model galaxy
-            lookbackt,redshift,logmstar,logsfr = evolve_galaxy(mstar_mesh[i,j],sfr_mesh[i,j],tmax,ntimestep)
-            #print(lookbackt,logmstar,logsfr)
+
+            lookbackt,redshift,logmstar,logsfr,mstar,sfr,mass_loss = evolve_galaxy(mstar_mesh[i,j],sfr_mesh[i,j],tmax,ntimestep)
+            #print(mstar_mesh[i,j],sfr_mesh[i,j])
             logmstar0 = np.ones(len(logmstar))*logmstar[-1]
             logsfr0 = np.ones(len(logmstar))*logsfr[-1]            
             # save logmstar_0 and logsfr_0
-            startindex = (i*len(sfr_mesh)+j)*ntimestep
+            startindex = (i*len(sfr_mesh[0])+j)*ntimestep
             stopindex = startindex+ntimestep
             #print(i,j,startindex,stopindex)
             logmstar_all[startindex:stopindex] = logmstar
@@ -207,16 +231,21 @@ def forward_model(minmass=8,maxmass=12,massstep=0.2,minsfr=-2,maxsfr=2,sfrstep=0
             logsfr0_all[startindex:stopindex] = logsfr0
             lookbackt_all[startindex:stopindex] = lookbackt
             redshift_all[startindex:stopindex] = redshift
+            mass_loss_all[startindex:stopindex] = mass_loss           
             timestep_all[startindex:stopindex] = np.arange(ntimestep)            
             massnumber_all[startindex:stopindex] = np.ones(ntimestep)*mstar_mesh[i,j]
-            sfrnumber_all[startindex:stopindex] = np.ones(ntimestep)*sfr_mesh[i,j]         
+            sfrnumber_all[startindex:stopindex] = np.ones(ntimestep)*sfr_mesh[i,j]
+            galnumber_all[startindex:stopindex] = np.ones(ntimestep)*galnumber
+            galnumber += 1
+
 
     # def write output
-    newtable = Table([lookbackt_all,redshift_all,massnumber_all,sfrnumber_all,timestep_all,logmstar_all,logsfr_all,logmstar0_all,logsfr0_all],\
-                     names=['lookbackt','redshift','massstep','sfrstep','timestep','logMstar','logSFR','logMstar0','logSFR0'])
+    newtable = Table([galnumber_all,lookbackt_all,redshift_all,massnumber_all,sfrnumber_all,timestep_all,logmstar_all,logsfr_all,logmstar0_all,logsfr0_all, mass_loss_all],\
+                     names=['galnumber','lookbackt','redshift','massstep','sfrstep','timestep','logMstar','logSFR','logMstar0','logSFR0','mass_loss'])
     
     outfile = 'forward_model_sfms.fits'
     newtable.write(outfile,overwrite=True,format='fits')
+    return mstar_mesh, sfr_mesh, newtable
 #########################################################
 ####  MAIN PROGRAM
 #########################################################
@@ -230,14 +259,14 @@ if __name__ == '__main__':
     parser.add_argument('--tmax', dest = 'tmax', default=3,help = 'Lookback time (Gyr) to start modeling at.  Default is 3 Gyr.')
     parser.add_argument('--minmass', dest = 'minmass', default = 9, help = 'Min logMstar for grid of models.  Default is 8')
     parser.add_argument('--maxmass', dest = 'maxmass', default = 11, help = 'Max logMstar for grid of models.  Default is 12')
-    parser.add_argument('--massstep', dest = 'massstep', default = .5, help = 'Step size for gridding models in stellar mass.  default is 0.1')        
+    parser.add_argument('--massstep', dest = 'massstep', default = .1, help = 'Step size for gridding models in stellar mass.  default is 0.1')        
     parser.add_argument('--minsfr', dest = 'minsfr', default = -2, help = 'Min SFR relative to main sequence log(SFR/SFR_MS) for grid of models.  Default is -2')
     parser.add_argument('--maxsfr', dest = 'maxsfr', default = 2, help = 'Max SFR relative to main sequence log(SFR/SFR_MS) for grid of models.  Default is 2')
-    parser.add_argument('--sfrstep', dest = 'sfrstep', default = 1, help = 'Step size for gridding models in sfr.  default is 0.1')        
-    parser.add_argument('--ntimestep', dest = 'ntimestep', default = 10, help = 'Number of time steps to use when evolving models.  The default is 30, which corresponds to 100 Myr = 0.1 Gyr. ')    
+    parser.add_argument('--sfrstep', dest = 'sfrstep', default = .1, help = 'Step size for gridding models in sfr.  default is 0.1')        
+    parser.add_argument('--ntimestep', dest = 'ntimestep', default = 50, help = 'Number of time steps to use when evolving models.  The default is 30, which corresponds to 100 Myr = 0.1 Gyr. ')    
 
     args = parser.parse_args()
     
-    forward_model(minmass=args.minmass,maxmass=args.maxmass,massstep=args.massstep,\
+    t = forward_model(minmass=args.minmass,maxmass=args.maxmass,massstep=args.massstep,\
                   minsfr=args.minsfr,maxsfr=args.maxsfr,sfrstep=args.sfrstep,
                   tmax=args.tmax,ntimestep=args.ntimestep)
