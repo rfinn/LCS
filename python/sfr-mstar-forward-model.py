@@ -1,11 +1,20 @@
 #!/usr/bin/env python
 
 '''
+OVERVIEW:
+This program was developed to link the SFR,Mstar values of the z=0 field galaxies with their expected values 
+in the past.  We are using the field galaxies as the starting point for simulating what happens to SFR when a
+galaxy falls into a cluster.  However, the field galaxies have a higher sfr and lower Mstar value at the time 
+of infall, and we want to take this into account.  This program creates a grid of galaxies at a user-selected
+value of tmax.  The SFR is evolved using the Whitaker+XX evolution of the SF MS, and the mass loss is modeled
+uing a relationship from Poggianti+XX.  The SFR and Mstar values at tmax are linked to their lower-redshift 
+counterparts.  Additional programs can be used to link the z=0 field galaxies with their progenitors.
+
 GOAL:
 * create a set of galaxies with a range of stellar mass and sSFR relative to MS
 * evolve galaxies from some epoch tmax to the present
 * evolve SFRs according to MS evolution given in Whitaker+2012
-* evolve stellar mass based on SFR evolution and mass loss as describe in Poggianti+2013
+* evolve stellar mass based on SFR evolution and mass loss as described in Poggianti+2013
 
 INPUT:
 * tmax
@@ -44,7 +53,9 @@ cosmo = WMAP9
 
 def get_fraction_mass_retained(t):
     ''' 
-    use Poggianti+2013 relation to determine fraction of mass retained  
+    use Poggianti+2013 relation to determine fraction of mass retained.  This applies to 
+    stellar populations with ages greater than 1.9E6 yrs.  For younger pops, the fraction 
+    retained is just one.
 
     INPUT:
     * time in yr since the birth of the stellar pop
@@ -53,9 +64,20 @@ def get_fraction_mass_retained(t):
     * fraction of the mass that is retained after mass loss when age of population is t_yr
 
     '''
+    #try:
+    #print('in get_fraction_mass_retained, t = ',t)
 
-    return 1.749 - 0.124*np.log10(t)
-    pass
+    frac = np.ones(len(t))
+    flag = t > 1.9e6
+    frac[flag] = 1.749 - 0.124*np.log10(t[flag])
+
+    #except:
+    #    if t < 1.9e6:
+    #        frac = 1
+    #    else:
+    #        frac = 1.749 - 0.124*np.log10(t) 
+    return frac
+
 
 
 def SFR_MS(logMstar,z):
@@ -199,7 +221,8 @@ def forward_model(minmass=8,maxmass=12,massstep=0.2,minsfr=-2,maxsfr=2,sfrstep=0
     #print(mstar_mesh[:,0])
     #print(sfr_mesh)
     # create arrays to store z=0 values of mass and sfr
-    size_output_arrays = mstar_mesh.shape[0]*mstar_mesh.shape[1]*ntimestep
+    size_output_arrays = int(mstar_mesh.shape[0]*mstar_mesh.shape[1]*ntimestep)
+    #size_output_arrays = 20*40*30
     logmstar_all = np.zeros(size_output_arrays,'d')
     logsfr_all = np.zeros(size_output_arrays,'d')    
     logmstar0_all = np.zeros(size_output_arrays,'d')
@@ -243,7 +266,7 @@ def forward_model(minmass=8,maxmass=12,massstep=0.2,minsfr=-2,maxsfr=2,sfrstep=0
     newtable = Table([galnumber_all,lookbackt_all,redshift_all,massnumber_all,sfrnumber_all,timestep_all,logmstar_all,logsfr_all,logmstar0_all,logsfr0_all, mass_loss_all],\
                      names=['galnumber','lookbackt','redshift','massstep','sfrstep','timestep','logMstar','logSFR','logMstar0','logSFR0','mass_loss'])
     
-    outfile = 'forward_model_sfms.fits'
+    outfile = 'forward_model_sfms_tmax_{}.fits'.format(args.tmax)
     newtable.write(outfile,overwrite=True,format='fits')
     return mstar_mesh, sfr_mesh, newtable
 #########################################################
@@ -263,10 +286,12 @@ if __name__ == '__main__':
     parser.add_argument('--minsfr', dest = 'minsfr', default = -2, help = 'Min SFR relative to main sequence log(SFR/SFR_MS) for grid of models.  Default is -2')
     parser.add_argument('--maxsfr', dest = 'maxsfr', default = 2, help = 'Max SFR relative to main sequence log(SFR/SFR_MS) for grid of models.  Default is 2')
     parser.add_argument('--sfrstep', dest = 'sfrstep', default = .1, help = 'Step size for gridding models in sfr.  default is 0.1')        
-    parser.add_argument('--ntimestep', dest = 'ntimestep', default = 50, help = 'Number of time steps to use when evolving models.  The default is 30, which corresponds to 100 Myr = 0.1 Gyr. ')    
+    parser.add_argument('--ntimestep', dest = 'ntimestep', default = 50, help = 'Number of time steps to use when evolving models.  The default is 50, which corresponds to tmax/50 Gyr.  If tmax is 5 Gyr, then the timestep is 100 Myr = 0.1 Gyr. ')    
 
     args = parser.parse_args()
     
-    t = forward_model(minmass=args.minmass,maxmass=args.maxmass,massstep=args.massstep,\
-                  minsfr=args.minsfr,maxsfr=args.maxsfr,sfrstep=args.sfrstep,
-                  tmax=args.tmax,ntimestep=args.ntimestep)
+    t = forward_model(minmass=float(args.minmass),maxmass=float(args.maxmass),\
+                      massstep=float(args.massstep),\
+                      minsfr=float(args.minsfr),maxsfr=float(args.maxsfr),\
+                      sfrstep=float(args.sfrstep),tmax=float(args.tmax),\
+                      ntimestep=int(args.ntimestep))

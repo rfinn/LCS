@@ -39,10 +39,16 @@ from scipy.interpolate import griddata
 import os
 import LCScommon as lcommon
 
-#from anderson import *
 
 homedir = os.getenv("HOME")
 plotdir = homedir+'/research/LCS/plots/'
+
+
+# import mass-matching function from lcs_paper2
+import sys
+sys.path.append(homedir+'/github/LCS/python/')
+from lcs_paper2 import mass_match
+
 ###########################
 ##### SET UP ARGPARSE
 ###########################
@@ -115,8 +121,8 @@ core_sfr = 10.**(lcs['logSFR'])
 external_sfr = 10.**(field['logSFR'])
 
 core_dsfr = lcs['logSFR'] - get_MS(lcs['logMstar'])
-core_mstar = (lcs['logMstar'])
-external_mstar = (field['logMstar'])
+core_logmstar = (lcs['logMstar'])
+external_logmstar = (field['logMstar'])
 
 
 ###########################
@@ -124,7 +130,7 @@ external_mstar = (field['logMstar'])
 ###########################
 if args.sampleks:
     print('\ncore vs external: logMstar distribution')
-    lcommon.ks(core_mstar,external_mstar,run_anderson=True)
+    lcommon.ks(core_logmstar,external_logmstar,run_anderson=True)
     print()
     print('\ncore vs external: SFR distribution')
     lcommon.ks(core_sfr,external_sfr,run_anderson=True)
@@ -293,12 +299,93 @@ def get_frac_flux_retained_model2(n,Re,rtrunc=1,rmax=4,version=1,Iboost=1):
 def get_whitaker_ms(logmstar,z):
     ''' get whitaker  '''
     pass
+
+
+def get_sfr_mstar_at_infall(sfr0,mstar0,tinfall):
+    ''' 
+    get the sfr and stellar mass at the time of infall, 
+    using a grid of models created by sfr-mstar-forward-model.py 
+
+    INPUT:
+    * sfr0 : array with redshift zero log10 SFRs of field galaxies
+    * mstar0 : an array with z=0 log10 stellar mass values of field galaxies
+    * tinfall : an array with the infall time for each field galaxy
+
+    RETURNS:
+    * sfr_infall : an array with the log10 sfr of each galaxy at the time of infall
+    * mstar_infall : an array with the log10 stellar mass of each galaxy at the time of infall
+
+    '''
+    
+    sfr_infall = np.zeros(len(sfr0))
+    mstar_infall = np.zeros(len(sfr0))
+    allindex = np.arange(len(lookup_table))
+    for i in range(len(tinfall)):
+        dsfr = np.abs(sfr0[i] - lookup_table['logSFR0'])
+        dmstar = np.abs(mstar0[i] - lookup_table['logMstar0'])
+        dtinfall = np.abs(tinfall[i] - lookup_table['lookbackt'])        
+        
+        distance = dsfr + dmstar + dtinfall
+
+        # find entry that falls closest to input galaxy
+
+        match_index = distance == np.min(distance)
+        match_index = allindex[match_index]
+        sfr_infall[i] = lookup_table['logSFR'][match_index]
+        mstar_infall[i] = lookup_table['logMstar'][match_index]        
+    
+    
+    # find closest match in using sfr0, mstar0, tinfall-tab['lookbackt']
+    return sfr_infall,mstar_infall
+
+def get_fraction_mass_retained(t):
+    ''' 
+    use Poggianti+2013 relation to determine fraction of mass retained.  This applies to 
+    stellar populations with ages greater than 1.9E6 yrs.  For younger pops, the fraction 
+    retained is just one.
+
+    INPUT:
+    * time in yr since the birth of the stellar pop
+
+    RETURNS:
+    * fraction of the mass that is retained after mass loss when age of population is t_yr
+
+    '''
+    frac = np.ones(len(t))
+    flag = t > 1.9e6
+    frac[flag] = 1.749 - 0.124*np.log10(t[flag])
+    return frac
+
+def get_delta_mass(infall_sfr,infall_times,tau):
+    '''
+    compute the amount of mass gained by the galaxy since tinfall.
+    this includes mass added from star formation, and mass lost.
+
+    INPUT
+    * infall_sfr : array of infall sfrs
+    * infall_times : array containing time since infall for each galaxy in Gyr
+    * tau : e-folding time associated with sfr decline in Gyr
+
+    RETURNS
+    * dMstar : mass created since t infall, including mass loss
+    '''
+
+
+    dMstar = np.zeros(len(infall_sfr))
+
+    for i in range(len(infall_sfr)):
+        t = np.linspace(.002,infall_times[i],1000)
+        dt = t[1] - t[0]
+        dMstar[i] = infall_sfr[i]*dt*1.e9*np.sum(np.exp(-1*(infall_times[i]-t)/tau)*get_fraction_mass_retained(t*1.e9))
+    return dMstar
+    
+    pass
 ###############################
 ##### MAIN SIMULATION FUNCTION
 ###############################
 
 
-def run_sim(tmax = 2.,nrandom=100,drdtmin=-2,drdt_step=.1,model=1,plotsingle=True,maxboost=5,plotflag=True,rmax=4,boostflag=False):
+def run_sim(tmax = 3.,taumax=6,nstep_tau=10,nrandom=10,nmassmatch=10,drdtmin=-2,drdt_step=.1,model=1,plotsingle=True,maxboost=5,plotflag=True,rmax=4,boostflag=False,debug=False):
     '''
     run simulations of disk shrinking
 
@@ -335,8 +422,14 @@ def run_sim(tmax = 2.,nrandom=100,drdtmin=-2,drdt_step=.1,model=1,plotsingle=Tru
     #rmax = float(args.rmax)
     ks_D_min = 0
     ks_p_max = 0
-    nstep_dt = 50    
-    npoints = int(nstep_dt*nrandom)
+    if debug:
+        nstep_tau = 2
+        nrandom = 2
+        nmassmatch = 2
+        all_mstar_simcore = []
+        all_sfr_simcore = []
+
+    npoints = int(nstep_tau*nrandom*nmassmatch)
     all_p_dsfr = np.zeros(npoints)
     all_p_sfr = np.zeros(npoints)
     all_tau = np.zeros(npoints)
@@ -345,19 +438,32 @@ def run_sim(tmax = 2.,nrandom=100,drdtmin=-2,drdt_step=.1,model=1,plotsingle=Tru
     fquench_sfr = np.zeros(npoints)
     fquench = np.zeros(npoints) # for both constraints    
 
+    tau_min = 0.5
+    dtau = (taumax-tau_min)/nstep_tau
+        
     # boost strapping
     # randomly draw same sample size from external and core for each model
     # try this to see how results are impacted
-    tau_min = 0.5
-    dtau = (tmax-tau_min)/nstep_dt
-    
-    for i in range(nstep_dt):
-        tau = tau_min + i*dtau
-        # repeat nrandom times for each value of tau and tmax
-        for j in range(nrandom):
-            aindex = nrandom*i+j
-            infall_times = np.linspace(0,tmax,len(external_sfr))
-            actual_infall_times = np.random.choice(infall_times, len(infall_times))
+    # repeat nrandom times for each time we select an infall sample from the field
+    for j in range(nrandom):
+
+        # GET SFR AND MSTAR AT t_infall
+        infall_times = np.linspace(0,tmax,len(external_sfr))
+        actual_infall_times = np.random.choice(infall_times, len(infall_times))
+        # external_sfr and external_mstar are linear
+        # need to match using log values
+        infall_logsfr, infall_logmstar = get_sfr_mstar_at_infall(np.log10(external_sfr),\
+                                                                 (external_logmstar),\
+                                                                 actual_infall_times)
+
+
+        # select different values of tau
+        for i in range(nstep_tau):
+            tau = tau_min + i*dtau
+
+            # UPDATING PROCEDURE TO ACCOUNT FOR EVOLUTION OF SFR AND STELLAR MASS
+            # OF FIELD GALAXIES BETWEEN t_infall AND PRESENT.
+            
             if boostflag:
                 # model 3 involves boosting Ie in addition to truncating the disk,
                 # so this requires another loop where Iboost/Ie0 ranges from 1 to 5
@@ -382,33 +488,59 @@ def run_sim(tmax = 2.,nrandom=100,drdtmin=-2,drdt_step=.1,model=1,plotsingle=Tru
             # flux ratio you would expect from shrinking the
             # external sizes to the sim_core sizes
             # SFRs are logged, so add log of frac_retained 
-            sim_core_sfr = boost*external_sfr*np.exp(-1*actual_infall_times/tau)
-            sim_core_dsfr = np.log10(sim_core_sfr) - get_MS(external_mstar)
+            sim_core_sfr = boost*(10.**infall_logsfr)*np.exp(-1*actual_infall_times/tau)
+
+            # calculate Mstar at z=0, give sfr decline and mass loss
+
+            sim_core_mstar = 10.**(infall_logmstar) + get_delta_mass(10.**infall_logsfr,\
+                                                                     actual_infall_times,tau)
+            sim_core_dsfr = np.log10(sim_core_sfr) - get_MS(sim_core_mstar)
+
+            if debug:
+                # these figures are just checking that our SFR quenching and
+                # mass increments are reasonable
+                plt.figure()
+                plt.plot(infall_logmstar, np.log10(sim_core_mstar) - infall_logmstar,'b.')
+                plt.xlabel('Mstar at Infall')
+                plt.ylabel('Mstar at z=0 - Infall')
+                plt.axhline(y=0,c='k',ls='--')
+                s = 'tau={}'.format(tau)
+                plt.title(s)
+                plt.figure()
+                plt.plot(infall_logsfr,infall_logsfr - np.log10(sim_core_sfr),'b.')
+                plt.axhline(y=0,c='k',ls='--')
+                plt.xlabel('SFR at Infall')
+                plt.ylabel('SFR at Infall - SFR at z=0')
+                plt.title(s)                           
+            # CREATE A SIMULATED CORE SAMPLE THAT IS MASS-MATCHED TO THE CORE
+            # repeat this 1000 times
+            for k in range(nmassmatch):
+                #aindex = nrandom*i+j
+                aindex = nstep_tau*nmassmatch*j + nmassmatch*i + k
+                #print(sim_core_mstar[0:10])
+                #print(core_logmstar[0:10])                
+                matched_indices = mass_match(core_logmstar,np.log10(sim_core_mstar),nmatch=1)
+
+                # KEEP THE MASS-MATCHED VALUES
+                sim_core_mstar_matched = sim_core_mstar[matched_indices]
+                sim_core_sfr_matched = sim_core_sfr[matched_indices]
+                sim_core_dsfr_matched = sim_core_dsfr[matched_indices]             
 
 
-
-            ## NEED TO CUT SIMULATED GALAXIES BASED ON SFR AND SIZE
-            ## EASIEST IS TO USE MIN VALUE OF SFR AND SIZE IN THE CATALOG
-            ## WE COULD PUT THE ACTUAL CUTS IN
+                # keep track of # that drop out due to size
+                # should be specific SFR rather than SFR limit
+                # should apply the ssfr > 11.5
+                quench_flag = sim_core_sfr_matched < min(external_sfr)
+                fquench_sfr[aindex] = sum(quench_flag)/len(quench_flag)
             
-            #print('\nFraction of Galaxies with sim_core < 0 = %.2f (%i/%i) (drdt = %.2f)'%(sum(sim_core <= 0)/len(sim_core),sum(sim_core <=0),len(sim_core),drdt))
-            # compare distribution of sizes between core (measured)
-            # and the simulated core
-
-            # keep track of # that drop out due to size
-            # should be specific SFR rather than SFR limit
-            # should apply the ssfr > 11.5
-            quench_flag = sim_core_sfr < min(external_sfr)
-            fquench_sfr[aindex] = sum(quench_flag)/len(quench_flag)
-            
-            # removing flag to make sure things work as expected
-            D1,p1 = ks_2samp(core_sfr,sim_core_sfr[~quench_flag])
-            D2,p2 = ks_2samp(core_dsfr,sim_core_dsfr[~quench_flag])
-            #D2,p2 = ks_2samp(core_sfr,sim_core_sfr)            
-            all_p_sfr[aindex] = p1
-            all_p_dsfr[aindex] = p2            
-            all_boost[aindex] = boost
-            all_tau[aindex] = tau
+                # removing flag to make sure things work as expected
+                D1,p1 = ks_2samp(core_sfr,sim_core_sfr_matched[~quench_flag])
+                D2,p2 = ks_2samp(core_dsfr,sim_core_dsfr_matched[~quench_flag])
+                #D2,p2 = ks_2samp(core_sfr,sim_core_sfr)            
+                all_p_sfr[aindex] = p1
+                all_p_dsfr[aindex] = p2            
+                all_boost[aindex] = boost
+                all_tau[aindex] = tau
                 
 
     
@@ -469,6 +601,51 @@ def plot_frac_below_pvalue(all_drdt,all_p,all_p_sfr,tmax,nbins=100,plotsingle=Tr
     #plt.text(0.02,.7,s,transform = plt.gca().transAxes)
     plt.title(s,fontsize=18)
     output = 'frac_pvalue_infall_tmax_%.1f.png'%(tmax)
+    plt.savefig(output)
+
+def plot_sfr_size(all_p,all_p_sfr,all_drdt,tmax,plotsingle=True):
+    if plotsingle:
+        plt.figure(figsize=(8,6))
+    plt.scatter(all_p,all_p_sfr,c=all_drdt,s=10,vmin=-1,vmax=0)
+    plt.xlabel('$p-value \ size$',fontsize=18)
+    plt.ylabel('$p-value \ SFR$',fontsize=18)
+
+    plt.axhline(y=.05,ls='--')
+    plt.axvline(x=.05,ls='--')
+    plt.axis([-.09,1,-.09,1])
+    ax = plt.gca()
+    #ax.set_yscale('log')
+    if plotsingle:
+        plt.colorbar(label='$dr/dt$')        
+        plt.savefig('pvalue-SFR-size-tmax'+str(tmax)+'Gyr-shrink0.png')
+def plot_frac_below_pvalue_sfr(all_tau,all_p_sfr,tmax,nbins=50,plotsingle=True,pvalue=0.05):
+    #pvalue = args.pvalue
+    if plotsingle:
+        plt.figure()
+    plt.subplots_adjust(bottom=.15,left=.12)
+    mybins = np.linspace(min(all_tau),max(all_tau),100)
+    t= np.histogram(all_tau,bins=mybins)
+    #print(t)
+    ytot = t[0]
+    xtot = t[1]
+    flag = all_p_sfr < pvalue
+    t = np.histogram(all_tau[flag],bins=mybins)
+    y2 = t[0]/ytot
+    #plt.figure()
+
+    # calculate the position of the bin centers
+    xplt = 0.5*(xtot[0:-1]+xtot[1:])
+    plt.plot(xplt,y2,'rs',color=mycolors[1],markersize=6,label='SFR')
+    plt.legend()
+
+    plt.xlabel(r'$\tau (Gyr)$',fontsize=18)
+    print('pvalue = ',pvalue)
+    plt.ylabel(r'$Fraction(p<{:.3f})$'.format(pvalue),fontsize=18)
+    #s = r'$t_{max} = %.1f \ Gyr, \ dr/dt = %.2f \ Gyr^{-1}, \ t_{quench} = %.1f \ Gyr$'%(tmax, best_drdt,1./abs(best_drdt))
+    s = r'$max \ t_{infall} = %.1f \ Gyr$'%(tmax)
+    #plt.text(0.02,.7,s,transform = plt.gca().transAxes)
+    plt.title(s,fontsize=18)
+    output = 'frac_pvalue_sfr_infall_tmax_%.1f.png'%(tmax)
     plt.savefig(output)
 
 def plot_sfr_size(all_p,all_p_sfr,all_drdt,tmax,plotsingle=True):
@@ -798,4 +975,10 @@ if __name__ == '__main__':
     #    best_drdt, best_sim_core,ks_p_max,all_drdt,all_p,all_p_sfr = run_sim(tmax=args.tmax,drdt_step=0.05,nrandom=100,rmax=6)
     # plot
     #plot_frac_below_pvalue(all_drdt,all_p,best_drdt,args.tmax,nbins=100,pvalue=0.05,plotsingle=True)
+
+
+    
+    # read in data file (should only do this once though, right?)
+    lookup_table = fits.getdata('/home/rfinn/research/LCS/sfr_modeling/forward_model_sfms.fits')
+
     pass
