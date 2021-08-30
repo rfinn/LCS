@@ -1178,6 +1178,7 @@ class comp_lcs_gsw():
         self.gsw_lowsfr_flag = self.gsw_dsfr < -0.45
         self.lcs_dsfr = self.lcs.cat['logSFR'] - self.gsw.get_MS(self.lcs.cat['logMstar'])
         self.lcs_lowsfr_flag = self.lcs_dsfr < -0.45
+        self.lcs.lowsfr_flag = self.lcs_dsfr < -0.45        
 
     def write_tables_for_SFR_sim(self):
         '''  write out field and LCS core samples to use in SFR simulation '''
