@@ -38,6 +38,7 @@ from scipy.interpolate import griddata
 #from astropy.table import Table
 import os
 import LCScommon as lcommon
+import multiprocessing as mp
 
 
 homedir = os.getenv("HOME")
@@ -54,6 +55,7 @@ from lcs_paper2 import mass_match
 ###########################
 
 parser = argparse.ArgumentParser(description ='Program to run simulation for LCS paper 2')
+parser.add_argument('--BTcut', dest = 'BTcut', default = False, action='store_true',help = 'use sample with BTcut imposed')
 parser.add_argument('--use24', dest = 'use24', default = True, action='store_false',help = 'use 24um profile parameters when calculating expected SFR of sim galaxies.  default is true')
 parser.add_argument('--model', dest = 'model', default = 1, help = 'infall model to use.  default is 1.  \n\tmodel 1 is shrinking 24um effective radius \n\tmodel 2 is truncatingthe 24um emission')
 parser.add_argument('--sfrint', dest = 'sfrint', default = 1, help = 'method for integrating the SFR in model 2.  \n\tmethod 1 = integrate external sersic profile out to truncation radius.\n\tmethod 2 = integrate fitted sersic profile out to rmax.')
@@ -109,9 +111,14 @@ tmax = 2. # max infall time in Gyr
 #infile = homedir+'/research/LCS/tables/LCS-simulation-data.fits'
 
 
-infile1 = homedir+'/research/LCS/tables/lcs-sfr-sim.fits'
-infile2 = homedir+'/research/LCS/tables/gsw-sfr-sim.fits'
+if args.BTcut:
+    infile1 = homedir+'/research/LCS/tables/lcs-sfr-sim-BTcut.fits'
+    infile2 = homedir+'/research/LCS/tables/gsw-sfr-sim-BTcut.fits'
+else:
+    infile1 = homedir+'/research/LCS/tables/lcs-sfr-sim.fits'
+    infile2 = homedir+'/research/LCS/tables/gsw-sfr-sim.fits'
 
+    
 lcs = Table.read(infile1)
 field = Table.read(infile2)
 
@@ -391,6 +398,9 @@ def run_sim(tmax = 3.,taumax=6,nstep_tau=10,nrandom=10,nmassmatch=10,drdtmin=-2,
 
     PARAMS
     ------
+    * taumax : max value for e-folding time associated with SFR decline, in Gyr
+    * nstep_tau : number of steps to take between taumax and zero
+    * nmassmatch : number of times to repeat the mass matching between sim-core and core, at each step of tau
     * tmax: maximum time that core galaxies have been in cluster, in Gyr; default = 2
     * nrandom : number of random iterations for each value of dr/dt
     * drdt_step : step size for drdt; range is between -2 and 0
@@ -440,7 +450,7 @@ def run_sim(tmax = 3.,taumax=6,nstep_tau=10,nrandom=10,nmassmatch=10,drdtmin=-2,
 
     tau_min = 0.5
     dtau = (taumax-tau_min)/nstep_tau
-        
+       
     # boost strapping
     # randomly draw same sample size from external and core for each model
     # try this to see how results are impacted
@@ -452,11 +462,12 @@ def run_sim(tmax = 3.,taumax=6,nstep_tau=10,nrandom=10,nmassmatch=10,drdtmin=-2,
         actual_infall_times = np.random.choice(infall_times, len(infall_times))
         # external_sfr and external_mstar are linear
         # need to match using log values
+        print('getting sfr/mstar at infall')
         infall_logsfr, infall_logmstar = get_sfr_mstar_at_infall(np.log10(external_sfr),\
                                                                  (external_logmstar),\
                                                                  actual_infall_times)
 
-
+        print('done getting sfr/mstar at infall')        
         # select different values of tau
         for i in range(nstep_tau):
             tau = tau_min + i*dtau
@@ -514,13 +525,23 @@ def run_sim(tmax = 3.,taumax=6,nstep_tau=10,nrandom=10,nmassmatch=10,drdtmin=-2,
                 plt.title(s)                           
             # CREATE A SIMULATED CORE SAMPLE THAT IS MASS-MATCHED TO THE CORE
             # repeat this 1000 times
+
+            # try parallelizing the mass_match call
+            #nproc = my.cpu_count()
+            #if nmassmatch < nproc:
+            #    nproc = nmassmatch
+            #pool = mp.Pool(nproc)
+            #results = pool.apply(mass_match,args=(core_logmstar,np.log10(sim_core_mstar),nmatch=1)
             for k in range(nmassmatch):
+            #for k in range(1):            
+                print('\t ',k)
                 #aindex = nrandom*i+j
                 aindex = nstep_tau*nmassmatch*j + nmassmatch*i + k
                 #print(sim_core_mstar[0:10])
-                #print(core_logmstar[0:10])                
+                #print(core_logmstar[0:10])
+                #print('getting mass matched sample')                            
                 matched_indices = mass_match(core_logmstar,np.log10(sim_core_mstar),nmatch=1)
-
+                #print('done getting mass matched sample')            
                 # KEEP THE MASS-MATCHED VALUES
                 sim_core_mstar_matched = sim_core_mstar[matched_indices]
                 sim_core_sfr_matched = sim_core_sfr[matched_indices]
@@ -602,6 +623,8 @@ def plot_frac_below_pvalue(all_drdt,all_p,all_p_sfr,tmax,nbins=100,plotsingle=Tr
     plt.title(s,fontsize=18)
     output = 'frac_pvalue_infall_tmax_%.1f.png'%(tmax)
     plt.savefig(output)
+    output = 'frac_pvalue_infall_tmax_%.1f.pdf'%(tmax)
+    plt.savefig(output)
 
 def plot_sfr_size(all_p,all_p_sfr,all_drdt,tmax,plotsingle=True):
     if plotsingle:
@@ -618,12 +641,12 @@ def plot_sfr_size(all_p,all_p_sfr,all_drdt,tmax,plotsingle=True):
     if plotsingle:
         plt.colorbar(label='$dr/dt$')        
         plt.savefig('pvalue-SFR-size-tmax'+str(tmax)+'Gyr-shrink0.png')
-def plot_frac_below_pvalue_sfr(all_tau,all_p_sfr,tmax,nbins=50,plotsingle=True,pvalue=0.05):
+def plot_frac_below_pvalue_sfr(all_tau,all_p_sfr,tmax,nbins=100,plotsingle=True,pvalue=0.05,color=None):
     #pvalue = args.pvalue
     if plotsingle:
         plt.figure()
     plt.subplots_adjust(bottom=.15,left=.12)
-    mybins = np.linspace(min(all_tau),max(all_tau),100)
+    mybins = np.linspace(min(all_tau),max(all_tau),nbins)
     t= np.histogram(all_tau,bins=mybins)
     #print(t)
     ytot = t[0]
@@ -635,18 +658,28 @@ def plot_frac_below_pvalue_sfr(all_tau,all_p_sfr,tmax,nbins=50,plotsingle=True,p
 
     # calculate the position of the bin centers
     xplt = 0.5*(xtot[0:-1]+xtot[1:])
-    plt.plot(xplt,y2,'rs',color=mycolors[1],markersize=6,label='SFR')
-    plt.legend()
-
-    plt.xlabel(r'$\tau (Gyr)$',fontsize=18)
-    print('pvalue = ',pvalue)
-    plt.ylabel(r'$Fraction(p<{:.3f})$'.format(pvalue),fontsize=18)
+    plotflag = ~np.isnan(y2)
+    x = xplt[plotflag]
+    y = y2[plotflag]
+    if color is None:
+        plt.plot(x,y,marker='s',markersize=6,label='tmax={:d}Gyr'.format(tmax))
+    else:
+        plt.plot(x,y,marker='s',markersize=6,label='tmax={:d}Gyr'.format(tmax),color=color)
+    print('pvalue = ',pvalue)    
     #s = r'$t_{max} = %.1f \ Gyr, \ dr/dt = %.2f \ Gyr^{-1}, \ t_{quench} = %.1f \ Gyr$'%(tmax, best_drdt,1./abs(best_drdt))
-    s = r'$max \ t_{infall} = %.1f \ Gyr$'%(tmax)
+    s = r'$t_{max} = %.1f \ Gyr$'%(tmax)
     #plt.text(0.02,.7,s,transform = plt.gca().transAxes)
-    plt.title(s,fontsize=18)
-    output = 'frac_pvalue_sfr_infall_tmax_%.1f.png'%(tmax)
-    plt.savefig(output)
+    #plt.title(s,fontsize=18)
+
+    if plotsingle:
+        plt.legend()
+        plt.xlabel(r'$\tau (Gyr)$',fontsize=18)
+        plt.ylabel(r'$Fraction(p<{:.3f})$'.format(pvalue),fontsize=18)
+        output = 'frac_pvalue_sfr_infall_tmax_%.1f.png'%(tmax)
+        plt.savefig(output)
+        output = 'frac_pvalue_sfr_infall_tmax_%.1f.pdf'%(tmax)
+        plt.savefig(output)
+    return x,y
 
 def plot_sfr_size(all_p,all_p_sfr,all_drdt,tmax,plotsingle=True):
     if plotsingle:

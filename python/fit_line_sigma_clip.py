@@ -12,6 +12,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from astropy.stats import sigma_clip
 from astropy.modeling import models, fitting
+from scipy.optimize import curve_fit
 
 
 def fit_line_sigma_clip(x,y,yunc=None,niter=5,sigma=3):
