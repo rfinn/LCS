@@ -636,9 +636,11 @@ def run_sim(tmax = 3.,taumax=6,nstep_tau=10,nrandom=10,nmassmatch=10,ndrawmass=1
 
             mass_list = []
             myresults = []
+
             mykwargs = {'nmatch':ndrawmass,'dm':0.15}
             for q in range(nmassmatch):
-                myresults.append(massmatch_pool.apply_async(mass_match,args=(core_logmstar,np.log10(sim_core_mstar),45*q+7*q),kwargs=mykwargs))
+                myargs = (core_logmstar,np.log10(sim_core_mstar),45*q+7*q)                
+                myresults.append(massmatch_pool.apply_async(mass_match,myargs,mykwargs))
             massmatch_pool.close()
             massmatch_pool.join()
             massmatch_results = [r.get() for r in myresults]
