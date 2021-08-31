@@ -472,7 +472,7 @@ def get_delta_mass(infall_sfr,infall_times,tau):
 ###############################
 
 
-def run_sim(tmax = 3.,taumax=6,nstep_tau=10,nrandom=10,nmassmatch=10,drdtmin=-2,drdt_step=.1,model=1,plotsingle=True,maxboost=5,plotflag=True,rmax=4,boostflag=False,debug=False):
+def run_sim(tmax = 3.,taumax=6,nstep_tau=10,nrandom=10,nmassmatch=10,ndrawmass=1,drdtmin=-2,drdt_step=.1,model=1,plotsingle=True,maxboost=5,plotflag=True,rmax=4,boostflag=False,debug=False):
     '''
     run simulations of disk shrinking
 
@@ -516,18 +516,30 @@ def run_sim(tmax = 3.,taumax=6,nstep_tau=10,nrandom=10,nmassmatch=10,drdtmin=-2,
         nstep_tau = 2
         nrandom = 2
         nmassmatch = 2
-        all_mstar_simcore = []
-        all_sfr_simcore = []
 
+    # turns out that using lists is faster - doing that instead
     npoints = int(nstep_tau*nrandom*nmassmatch)
-    all_p_dsfr = np.zeros(npoints)
-    all_p_sfr = np.zeros(npoints)
-    all_tau = np.zeros(npoints)
-    all_boost = np.zeros(npoints)
-    fquench_size = np.zeros(npoints)
-    fquench_sfr = np.zeros(npoints)
-    fquench = np.zeros(npoints) # for both constraints    
+    #all_p_dsfr = np.zeros(npoints)
+    #all_p_sfr = np.zeros(npoints)
+    #all_tau = np.zeros(npoints)
+    #all_boost = np.zeros(npoints)
+    #fquench_size = np.zeros(npoints)
+    #fquench_sfr = np.zeros(npoints)
+    #fquench = np.zeros(npoints) # for both constraints
 
+    all_p_dsfr = []
+    all_p_sfr = []
+    all_tau = []
+    all_boost = []
+    fquench_size = []
+    fquench_sfr = []
+    fquench = []
+
+    #save the sfr and mstar values of the sim core
+    all_simcore_sfr = []
+    all_simcore_dsfr = []
+    all_simcore_mstar = []    
+    all_simcore_tau = []
     tau_min = 0.5
     dtau = (taumax-tau_min)/nstep_tau
        
@@ -598,7 +610,6 @@ def run_sim(tmax = 3.,taumax=6,nstep_tau=10,nrandom=10,nmassmatch=10,drdtmin=-2,
             sim_core_mstar = 10.**(infall_logmstar) + get_delta_mass(10.**infall_logsfr,\
                                                                      actual_infall_times,tau)
             sim_core_dsfr = np.log10(sim_core_sfr) - get_MS(sim_core_mstar)
-
             if debug:
                 # these figures are just checking that our SFR quenching and
                 # mass increments are reasonable
@@ -625,8 +636,9 @@ def run_sim(tmax = 3.,taumax=6,nstep_tau=10,nrandom=10,nmassmatch=10,drdtmin=-2,
 
             mass_list = []
             myresults = []
+            mykwargs = {'nmatch':ndrawmass,'dm':0.15}
             for q in range(nmassmatch):
-                myresults.append(massmatch_pool.apply_async(mass_match,args=(core_logmstar,np.log10(sim_core_mstar),45*q+7*q,10)))
+                myresults.append(massmatch_pool.apply_async(mass_match,args=(core_logmstar,np.log10(sim_core_mstar),45*q+7*q),kwargs=mykwargs))
             massmatch_pool.close()
             massmatch_pool.join()
             massmatch_results = [r.get() for r in myresults]
@@ -646,24 +658,38 @@ def run_sim(tmax = 3.,taumax=6,nstep_tau=10,nrandom=10,nmassmatch=10,drdtmin=-2,
                 sim_core_sfr_matched = sim_core_sfr[matched_indices]
                 sim_core_dsfr_matched = sim_core_dsfr[matched_indices]             
 
-
                 # keep track of # that drop out due to size
                 # should be specific SFR rather than SFR limit
                 # should apply the ssfr > 11.5
                 quench_flag = sim_core_sfr_matched < min(external_sfr)
-                fquench_sfr[aindex] = sum(quench_flag)/len(quench_flag)
+
             
                 # removing flag to make sure things work as expected
                 D1,p1 = ks_2samp(core_sfr,sim_core_sfr_matched[~quench_flag])
                 D2,p2 = ks_2samp(core_dsfr,sim_core_dsfr_matched[~quench_flag])
-                #D2,p2 = ks_2samp(core_sfr,sim_core_sfr)            
+                #D2,p2 = ks_2samp(core_sfr,sim_core_sfr)
+
+                fquench_sfr[aindex] = sum(quench_flag)/len(quench_flag)                
                 all_p_sfr[aindex] = p1
                 all_p_dsfr[aindex] = p2            
                 all_boost[aindex] = boost
                 all_tau[aindex] = tau
-                
 
-    
+                fquench_sfr.append(sum(quench_flag)/len(quench_flag))
+                all_p_sfr.append(p1)
+                all_p_dsfr.append(p2)            
+                all_boost.append(boost)
+                all_tau.append(tau)
+                
+                all_simcore_mstar.append(np.log10(sim_core_mstar_matched))
+                all_simcore_sfr.append(np.log10(sim_core_sfr_matched))
+                all_simcore_dsfr.append(np.log10(sim_core_dsfr_matched))            
+                all_simcore_tau.append(tau*np.ones(len(sim_core_mstar_massmatched)))
+
+    newtab = Table([all_simcore_mstar,all_simcore_sfr,all_simcore_dsfr,all_simcore_tau],names=['mstar','sfr','dsfr','tau'])
+    newtab_name = 'simcore_tmax{:.0f}_ninfall{:d}_nmassmatch{:d}_ndrawmass{:d}.fits'.format(tmax,nrandom,nmassmatch,ndrawmass)
+    newtab.write(newtab_name,format='fits',overwrite=True)
+                   
     return all_tau,all_boost,all_p_sfr,all_p_dsfr,fquench_sfr
 
 ###########################
