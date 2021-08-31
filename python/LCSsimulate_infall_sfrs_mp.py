@@ -609,7 +609,8 @@ def run_sim(tmax = 3.,taumax=6,nstep_tau=10,nrandom=10,nmassmatch=10,ndrawmass=1
 
             sim_core_mstar = 10.**(infall_logmstar) + get_delta_mass(10.**infall_logsfr,\
                                                                      actual_infall_times,tau)
-            sim_core_dsfr = np.log10(sim_core_sfr) - get_MS(sim_core_mstar)
+            
+            sim_core_dsfr = np.log10(sim_core_sfr) - get_MS(np.log10(sim_core_mstar))
             if debug:
                 # these figures are just checking that our SFR quenching and
                 # mass increments are reasonable
@@ -671,11 +672,11 @@ def run_sim(tmax = 3.,taumax=6,nstep_tau=10,nrandom=10,nmassmatch=10,ndrawmass=1
                 D2,p2 = ks_2samp(core_dsfr,sim_core_dsfr_matched[~quench_flag])
                 #D2,p2 = ks_2samp(core_sfr,sim_core_sfr)
 
-                fquench_sfr[aindex] = sum(quench_flag)/len(quench_flag)                
-                all_p_sfr[aindex] = p1
-                all_p_dsfr[aindex] = p2            
-                all_boost[aindex] = boost
-                all_tau[aindex] = tau
+                #fquench_sfr[aindex] = sum(quench_flag)/len(quench_flag)                
+                #all_p_sfr[aindex] = p1
+                #all_p_dsfr[aindex] = p2            
+                #all_boost[aindex] = boost
+                #all_tau[aindex] = tau
 
                 fquench_sfr.append(sum(quench_flag)/len(quench_flag))
                 all_p_sfr.append(p1)
@@ -683,15 +684,20 @@ def run_sim(tmax = 3.,taumax=6,nstep_tau=10,nrandom=10,nmassmatch=10,ndrawmass=1
                 all_boost.append(boost)
                 all_tau.append(tau)
                 
-                all_simcore_mstar.append(np.log10(sim_core_mstar_matched))
-                all_simcore_sfr.append(np.log10(sim_core_sfr_matched))
-                all_simcore_dsfr.append(np.log10(sim_core_dsfr_matched))            
-                all_simcore_tau.append(tau*np.ones(len(sim_core_mstar_massmatched)))
+                all_simcore_mstar += np.log10(sim_core_mstar_matched).tolist()
+                all_simcore_sfr += np.log10(sim_core_sfr_matched).tolist()
+                all_simcore_dsfr += (sim_core_dsfr_matched).tolist()
+                all_simcore_tau += (tau*np.ones(len(sim_core_mstar_matched))).tolist()
 
-    newtab = Table([all_simcore_mstar,all_simcore_sfr,all_simcore_dsfr,all_simcore_tau],names=['mstar','sfr','dsfr','tau'])
+    newtab = Table([all_simcore_mstar,all_simcore_sfr,all_simcore_dsfr,all_simcore_tau],names=['logmstar','logsfr','dlogsfr','tau'])
     newtab_name = 'simcore_tmax{:.0f}_ninfall{:d}_nmassmatch{:d}_ndrawmass{:d}.fits'.format(tmax,nrandom,nmassmatch,ndrawmass)
     newtab.write(newtab_name,format='fits',overwrite=True)
-                   
+
+    newtab = Table([all_tau,all_boost,all_p_sfr,all_p_dsfr,fquench_sfr],names=['tau','boost','p_sfr','p_dsfr','fquench'])
+    newtab_name = 'pvalues_tmax{:.0f}_ninfall{:d}_nmassmatch{:d}_ndrawmass{:d}.fits'.format(tmax,nrandom,nmassmatch,ndrawmass)
+    newtab.write(newtab_name,format='fits',overwrite=True)
+    
+    
     return all_tau,all_boost,all_p_sfr,all_p_dsfr,fquench_sfr
 
 ###########################
