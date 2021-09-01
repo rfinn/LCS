@@ -781,6 +781,11 @@ def plot_frac_below_pvalue_sfr(all_tau,all_p_sfr,tmax,nbins=100,plotsingle=True,
         plt.subplots_adjust(bottom=.15,left=.12)
     mybins = np.linspace(min(all_tau),max(all_tau),nbins)
     t= np.histogram(all_tau,bins=mybins)
+    # convert input to arrays
+
+    all_tau = np.array(all_tau,'d')
+    all_p_sfr = np.array(all_p_sfr,'d')
+
     #print(t)
     ytot = t[0]
     xtot = t[1]
