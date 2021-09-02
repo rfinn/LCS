@@ -14,16 +14,18 @@ APPROACH:
 NOTES:
 * using this as a reference: https://indico.cern.ch/category/6015/attachments/192/631/Statistics_Fitting_II.pdf
 
+* https://stackoverflow.com/questions/38248595/likelihood-ratio-test-in-python
 
 '''
 
 from astropy.table import Table
 import numpy as np
 from matplotlib import pyplot as plt
-from scipy.stats import binned_statistic
+from scipy.stats import binned_statistic, chi2.sf
 import glob
 import multiprocessing as mp
 import os
+from scipy.special import factorial
 
 ###############################################
 ##### DEFINITIONS
@@ -84,9 +86,55 @@ def get_chisq(model,data,nbin=15,plothist=False):
         
 
     return chisq
+def likelihood_ratio(llmin,llmax):
+    return(2*(llmax-llmin))
+
+def get_max_likelihood(model,data,nbin=15,plothist=False):
+    '''  
+    Binned Maximum Likelihood Fits
+
+    INPUT:
+    * model : e.g. sfrs of simcore galaxies
+    * data : e.g. sfrs of core galaxies
+    * nbin : number of bins to use for computing chisq
+
+    OUTPUT: 
+    * chisq
+
+    REFERENCE:
+    * pg 90 https://indico.cern.ch/category/6015/attachments/192/631/Statistics_Fitting_II.pdf
+
+    '''
+
+    # set up bins using range of model
+    mbins = np.linspace(min(model),max(model),nbin)
+
+    # bin the model and data
+    nmodel,xbin,binnumb = binned_statistic(model,model,statistic='count',bins=mbins)
+    ndata,xbin,binnumb = binned_statistic(data,data,statistic='count',bins=mbins)
+
+    # expected counts is model/Nmodel*Ndata
+    mu = nmodel/len(model)*len(data)
+    
+    # calculate log-likelihood
+    Li = np.log(factorial(ndata)) + mu -ndata*np.log(mu)
+
+    
+    # sum difference
+    maxlikelihood = np.sum(Li)
+
+    if plothist:
+        dnin = mybin[1]-mybin[0]
+        plt.figure(figsize=(8,6))
+        plt.errorbar(xbin[:-1]+0.5*dbin,nmodel,yerr=np.sqrt(nmodel),label='model')
+        plt.errorbar(xbin[:-1]+0.5*dbin,ndata,yerr=np.sqrt(ndata),label='data')
+        plt.ylabel('Counts')
+        
+
+    return maxlikelihood
 
 
-def get_chisq_models(model_file,core_sfr):
+def get_best_models(model_file,core_sfr):
     '''compare model to core sfrs for each unique value of tau   '''
     mtable = Table.read(model_file)
 
@@ -98,7 +146,8 @@ def get_chisq_models(model_file,core_sfr):
     all_chisq=[]
     for i,f in enumerate(all_flags):
         # compare
-        all_chisq.append(get_chisq(mtable['logsfr'][f],core_sfr))
+        #all_chisq.append(get_chisq(mtable['logsfr'][f],core_sfr))
+        all_chisq.append(get_max_likelihood(mtable['logsfr'][f],core_sfr))
     return tau_values, all_chisq
         
 def plot_chisq_tau(chisq,tau,labels):
@@ -131,7 +180,7 @@ if __name__ == '__main__':
 
 
     chisq_pool = mp.Pool(mp.cpu_count())
-    myresults = [chisq_pool.apply_async(get_chisq_models,args=(f,core_logsfr)) for f in filelist]
+    myresults = [chisq_pool.apply_async(get_best_models,args=(f,core_logsfr)) for f in filelist]
     chisq_pool.close()
     chisq_pool.join()
     chisq_results = [r.get() for r in myresults]    
