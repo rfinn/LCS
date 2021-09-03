@@ -21,7 +21,8 @@ NOTES:
 from astropy.table import Table
 import numpy as np
 from matplotlib import pyplot as plt
-from scipy.stats import binned_statistic, chi2.sf
+from scipy.stats import binned_statistic
+#from scipy.stats.chi2 import sf
 import glob
 import multiprocessing as mp
 import os
@@ -156,9 +157,15 @@ def plot_chisq_tau(chisq,tau,labels):
     for i in range(len(labels)):
         lab = 'tmax={:.0f}Gyr'.format(labels[i])
         plt.plot(tau[i],chisq[i],label=lab,marker='o')
+        ttau = np.array(tau[i])
+        L = np.array(chisq[i])        
+        print(lab)
+        taumin = ttau[L == np.min(L)]
+        print('min at tau = {}, logL = {}'.format(taumin,np.min(L)))
     plt.legend()
     plt.xlabel(r'$ \tau \ (Gyr)$')
-    plt.ylabel('$\chi^2 $')    
+    #plt.ylabel('$\chi^2 $')
+    plt.ylabel('$\log L $')    
 
 
 if __name__ == '__main__':
