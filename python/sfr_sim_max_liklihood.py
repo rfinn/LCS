@@ -135,20 +135,68 @@ def get_max_likelihood(model,data,nbin=15,plothist=False):
     return maxlikelihood
 
 
+def get_log_ratio(model,data,nbin=15,plothist=False):
+    '''  
+    Binned Maximum Likelihood Fits
+
+    INPUT:
+    * model : e.g. sfrs of simcore galaxies
+    * data : e.g. sfrs of core galaxies
+    * nbin : number of bins to use for computing chisq
+
+    OUTPUT: 
+    * chisq
+
+    REFERENCE:
+    * pg 90 https://indico.cern.ch/category/6015/attachments/192/631/Statistics_Fitting_II.pdf
+
+    '''
+
+    # set up bins using range of model
+    mbins = np.linspace(min(model),max(model),nbin)
+
+    # bin the model and data
+    nmodel,xbin,binnumb = binned_statistic(model,model,statistic='count',bins=mbins)
+    ndata,xbin,binnumb = binned_statistic(data,data,statistic='count',bins=mbins)
+
+    # expected counts is model/Nmodel*Ndata
+    mu = nmodel/len(model)*len(data)
+    
+    # calculate log-ratio using eqn 10 from Dolphin 2002
+    # http://articles.adsabs.harvard.edu/pdf/2002MNRAS.332...91D
+
+    # not using simplified model, b/c if we have ndata=0, we get nan when taking log
+    log_ratio_i = nmodel - ndata + np.log((ndata/nmodel)**ndata)
+
+    # we instead use eqn 8
+    # PLR_i = m_i^n_i e^n_i /
+    # calculate eqn 8
+    #nmodel*ndata
+    # take log of each element
+    # then sum to get ln(PLR)
+    
+    # sum the log ratio for each bin
+    sum_log_ratio = 2*np.sum(log_ratio_i)
+
+    return sum_log_ratio
+
+
 def get_best_models(model_file,core_sfr):
     '''compare model to core sfrs for each unique value of tau   '''
     mtable = Table.read(model_file)
 
-    # get list of unique tau values
+    # get list of unique tau values from the data file
     tau_values = list(set(mtable['tau']))
+
+    # sort the tau values
     tau_values.sort()
     
     all_flags = [mtable['tau'] == t for t in tau_values]
     all_chisq=[]
     for i,f in enumerate(all_flags):
         # compare
-        #all_chisq.append(get_chisq(mtable['logsfr'][f],core_sfr))
-        all_chisq.append(get_max_likelihood(mtable['logsfr'][f],core_sfr))
+        # get -2ln Ratio (eqn 10 from dolphin)
+        all_chisq.append(get_log_ratio(mtable['logsfr'][f],core_sfr))
     return tau_values, all_chisq
         
 def plot_chisq_tau(chisq,tau,labels):
@@ -165,7 +213,7 @@ def plot_chisq_tau(chisq,tau,labels):
     plt.legend()
     plt.xlabel(r'$ \tau \ (Gyr)$')
     #plt.ylabel('$\chi^2 $')
-    plt.ylabel('$\log L $')    
+    plt.ylabel('$-2 \log(Poisson \ Likelihood \ Ratio) $')    
 
 
 if __name__ == '__main__':
