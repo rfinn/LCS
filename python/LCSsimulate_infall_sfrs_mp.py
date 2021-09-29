@@ -31,7 +31,7 @@ import numpy as np
 from matplotlib import pyplot as plt
 import matplotlib.tri as tri
 import argparse
-from scipy.stats import ks_2samp
+from scipy.stats import ks_2samp, anderson_ksamp
 # the incomplete gamma function, for integrating the sersic profile
 from scipy.special import gammainc
 from scipy.interpolate import griddata
@@ -529,6 +529,7 @@ def run_sim(tmax = 3.,taumax=6,nstep_tau=10,nrandom=10,nmassmatch=10,ndrawmass=1
 
     all_p_dsfr = []
     all_p_sfr = []
+    all_p_sfr_AD = []    
     all_tau = []
     all_boost = []
     fquench_size = []
@@ -672,6 +673,11 @@ def run_sim(tmax = 3.,taumax=6,nstep_tau=10,nrandom=10,nmassmatch=10,ndrawmass=1
                 D2,p2 = ks_2samp(core_dsfr,sim_core_dsfr_matched[~quench_flag])
                 #D2,p2 = ks_2samp(core_sfr,sim_core_sfr)
 
+                # include anderson darling test
+                # just comparing sfr and not dsfr b/c the samples are already
+                # mass matched
+                D, crit_values, p3 = anderson_ksamp([core_sfr,sim_core_sfr_matched[~quench_flag]])
+
                 #fquench_sfr[aindex] = sum(quench_flag)/len(quench_flag)                
                 #all_p_sfr[aindex] = p1
                 #all_p_dsfr[aindex] = p2            
@@ -680,6 +686,7 @@ def run_sim(tmax = 3.,taumax=6,nstep_tau=10,nrandom=10,nmassmatch=10,ndrawmass=1
 
                 fquench_sfr.append(sum(quench_flag)/len(quench_flag))
                 all_p_sfr.append(p1)
+                all_p_sfr_AD.append(p3)                                                    
                 all_p_dsfr.append(p2)            
                 all_boost.append(boost)
                 all_tau.append(tau)
@@ -693,12 +700,12 @@ def run_sim(tmax = 3.,taumax=6,nstep_tau=10,nrandom=10,nmassmatch=10,ndrawmass=1
     newtab_name = 'simcore_tmax{:.0f}_ninfall{:d}_nmassmatch{:d}_ndrawmass{:d}.fits'.format(tmax,nrandom,nmassmatch,ndrawmass)
     newtab.write(newtab_name,format='fits',overwrite=True)
 
-    newtab = Table([all_tau,all_boost,all_p_sfr,all_p_dsfr,fquench_sfr],names=['tau','boost','p_sfr','p_dsfr','fquench'])
+    newtab = Table([all_tau,all_boost,all_p_sfr,all_p_dsfr,fquench_sfr,all_p_sfr_AD],names=['tau','boost','p_sfr','p_dsfr','fquench','p_sfr_AD'])
     newtab_name = 'pvalues_tmax{:.0f}_ninfall{:d}_nmassmatch{:d}_ndrawmass{:d}.fits'.format(tmax,nrandom,nmassmatch,ndrawmass)
     newtab.write(newtab_name,format='fits',overwrite=True)
     
     
-    return all_tau,all_boost,all_p_sfr,all_p_dsfr,fquench_sfr
+    return all_tau,all_boost,all_p_sfr,all_p_dsfr,fquench_sfr, all_p_sfr_AD
 
 ###########################
 ##### PLOT FUNCTIONS

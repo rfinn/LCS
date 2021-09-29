@@ -8,10 +8,13 @@ import LCSbase as lb
 import LCScommon as lcscommon
 
 from matplotlib import pyplot as plt
+from mpl_toolkits.axes_grid1 import make_axes_locatable
+
 import numpy as np
 import os
 import scipy.stats as st
 from scipy.stats import ks_2samp, anderson_ksamp, binned_statistic
+
 import argparse# here is min mass = 9.75
 
 from urllib.parse import urlencode
@@ -1180,7 +1183,7 @@ class lcsgsw(gswlc_base):
 
     def plot_HIdef(self):
         ''' compare delta sfr and HI def of field, core and infall  '''
-        
+        pass
 
 #######################################################################
 #######################################################################
@@ -3223,6 +3226,87 @@ class comp_lcs_gsw():
             else:
                 sfile = basename+'.fits'.format(outnames[i])
             stab.write(sfile,format='fits',overwrite=True)
+    def compare_HIdef(self):
+        ''' 
+        GOAL: compare HIdef for field and LCS core, infall
+
+        '''
+
+        # select LCS galaxies with:
+        # HI measurements
+        # in sfr and stellar mass cuts
+
+        lcsFlag = self.lcs.cat['HIdef_flag'] & self.lcs_mass_sfr_flag
+
+        lcsCoreFlag = lcsFlag & self.lcs.membflag
+        lcsInfallFlag = lcsFlag & self.lcs.infallflag        
+        # select field galaxies with:
+        # HI measurements
+        # in sfr and stellar mass cuts
+
+        fieldFlag = self.gsw.HIdef['HIdef_flag'] & self.gsw_mass_sfr_flag        
+        # plot HIdef vs dSFR
+
+        HIdef_cats = [self.lcs.cat,self.lcs.cat,self.gsw.HIdef]
+        HIdefKey = 'HIdef_Boselli'
+        dsfr_vars = [self.lcs_dsfr,self.lcs_dsfr,self.gsw_dsfr]
+        flags = [lcsCoreFlag,lcsInfallFlag,fieldFlag]
+        labels = ['Core','Infall','Field']
+        colors = [darkblue, lightblue,'0.5']
+        alphas = [1,1,.2]
+        msize = [8,8,4]
+        fig, ax = plt.subplots(figsize=(8,6))
+        
+        divider = make_axes_locatable(ax)
+        # below height and pad are in inches
+        ax_histx = divider.append_axes("top", 1.2, pad=0.1, sharex=ax)
+        ax_histy = divider.append_axes("right", 1.2, pad=0.1, sharey=ax)
+
+        # make some labels invisible
+        ax_histx.xaxis.set_tick_params(labelbottom=False)
+        ax_histy.yaxis.set_tick_params(labelleft=False)        
+        for i in [2,0,1]:
+            # plot LCS core        
+            # plot LCS infall
+            # plot field
+            x = dsfr_vars[i][flags[i]]
+            y = HIdef_cats[i][HIdefKey][flags[i]]
+            nbins=8
+            ax.plot(x,y,'bo',color=colors[i],alpha=alphas[i],markersize=msize[i],label=labels[i])
+            ax_histx.hist(x,bins=nbins,cumulative=False,normed=True,histtype='step',color=colors[i])
+            ax_histy.hist(y,bins=nbins,cumulative=False,normed=True,histtype='step',orientation='horizontal',color=colors[i])            
+
+        ax.legend()
+        ax.set_xlabel('$\Delta SFR$',fontsize=20)
+        ax.set_ylabel('$HI \ Def $',fontsize=20)
+        # test for correlation between HIdef and dSFR
+        # field
+        x = dsfr_vars[2][flags[2]]
+        y = HIdef_cats[2][HIdefKey][flags[2]]
+
+        t = lcscommon.spearmanr(x,y)
+        print(t)
+
+        # ks test comparing LCS core and field
+        x1 = dsfr_vars[0][flags[0]]
+        x2 = dsfr_vars[2][flags[2]]
+        print()
+        print('comparing LCS core vs Field: dSFR')
+        print(ks_2samp(x1,x2))
+
+        t = anderson_ksamp([x1,x2])
+        print('Anderson-Darling: ',t)
+        
+        
+        y1 = HIdef_cats[0][HIdefKey][flags[0]]
+        y2 = HIdef_cats[2][HIdefKey][flags[2]]
+        print()
+        print('comparing LCS core vs Field: HIdef')
+        print(ks_2samp(y1,y2))        
+        t = anderson_ksamp([y1,y2])
+        print('Anderson-Darling: ',t)
+        
+        pass
 
 if __name__ == '__main__':
     ###########################
@@ -3281,6 +3365,11 @@ if __name__ == '__main__':
     lcsfile = homedir+'/research/LCS/tables/LCS_all_size_KE_SFR_GSWLC2_X2.fits'
     lcsfile = homedir+'/research/LCS/tables/LCS-KE-SFR-GSWLC-X2-NO-DR10-AGN-Simard2011-tab1.fits'
     lcsfile = homedir+'/research/LCS/tables/LCS-GSWLC-X2-NO-DR10-AGN-Simard2011-tab1-vizier-10arcsec.fits'
+
+    # added HI def measurements from A100 catalog
+    # this adds columns AGC, ..., logMH, logMH_err,
+    # HIdef_Toribio, HIdef_Boselli, HIdef_Jones
+    # HIdef_flag - this means it has HI, not that it is deficient!
     lcsfile = homedir+'/research/LCS/tables/LCS-GSWLC-X2-NO-DR10-AGN-Simard2011-tab1-vizier-10arcsec-Tempel-Simard-tab3-2021Apr21-HIdef-2021Aug28.fits'            
     lcs = lcsgsw(lcsfile,cutBT=args.cutBT)
     #lcs = lcsgsw('/home/rfinn/research/LCS/tables/LCS_all_size_KE_SFR_GSWLC2_X2.fits',cutBT=args.cutBT)    
