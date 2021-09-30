@@ -3226,7 +3226,7 @@ class comp_lcs_gsw():
             else:
                 sfile = basename+'.fits'.format(outnames[i])
             stab.write(sfile,format='fits',overwrite=True)
-    def compare_HIdef(self):
+    def compare_HIdef(self,combineLCS=False):
         ''' 
         GOAL: compare HIdef for field and LCS core, infall
 
@@ -3253,9 +3253,14 @@ class comp_lcs_gsw():
         flags = [lcsCoreFlag,lcsInfallFlag,fieldFlag]
         labels = ['Core','Infall','Field']
         colors = [darkblue, lightblue,'0.5']
-        alphas = [1,1,.2]
+        alphas = [1,1,.1]
         msize = [8,8,4]
         fig, ax = plt.subplots(figsize=(8,6))
+        #colors = ['.5',darkblue,lightblue]
+        #labels = ['Field','LCS Core','LCS Infall']
+        orders = [3,2,1]
+        lws = [4,3,3]
+        histalphas = [0,.5,.4]        
         
         divider = make_axes_locatable(ax)
         # below height and pad are in inches
@@ -3273,20 +3278,42 @@ class comp_lcs_gsw():
             y = HIdef_cats[i][HIdefKey][flags[i]]
             nbins=8
             ax.plot(x,y,'bo',color=colors[i],alpha=alphas[i],markersize=msize[i],label=labels[i])
-            ax_histx.hist(x,bins=nbins,cumulative=False,normed=True,histtype='step',color=colors[i])
-            ax_histy.hist(y,bins=nbins,cumulative=False,normed=True,histtype='step',orientation='horizontal',color=colors[i])            
+
+            # plot filled histogram, then same histogram with a heavier line
+            ax_histx.hist(x,bins=nbins,cumulative=False,normed=True,histtype='stepfilled',color=colors[i],lw=lws[i],alpha=histalphas[i],zorder=orders[i])
+            ax_histx.hist(x,bins=nbins,cumulative=False,normed=True,histtype='step',color=colors[i],lw=lws[i],zorder=orders[i])
+
+            # plot y histograms
+            ax_histy.hist(y,bins=nbins,cumulative=False,normed=True,histtype='stepfilled',orientation='horizontal',color=colors[i],lw=lws[i],alpha=histalphas[i],zorder=orders[i])
+            ax_histy.hist(y,bins=nbins,cumulative=False,normed=True,histtype='step',orientation='horizontal',color=colors[i],lw=lws[i],zorder=orders[i])            
 
         ax.legend()
         ax.set_xlabel('$\Delta SFR$',fontsize=20)
-        ax.set_ylabel('$HI \ Def $',fontsize=20)
+        ax.set_ylabel('$HI \ Deficiency $',fontsize=20)
+
+        # add linear fit to dSFR vs HIdef for field galaxies
+        x = dsfr_vars[2][flags[2]]
+        y = HIdef_cats[2][HIdefKey][flags[2]]
+        
+        popt,V = np.polyfit(x,y,1,cov=True)
+        xline = np.linspace(-.75,.75,100)
+        yline = np.polyval(popt,xline)
+        ax.plot(xline,yline,'k-',lw=2)
+
+        # print best-fit line slope and error
+        print()
+        print('best-field line for field = {:.3f}+/-{:.3f}'.format(popt[0],np.sqrt(V[0][0])))
+        print()
         # test for correlation between HIdef and dSFR
         # field
         x = dsfr_vars[2][flags[2]]
         y = HIdef_cats[2][HIdefKey][flags[2]]
-
+        print('Spearman Rank test between dSFR and HIdef for field:')
         t = lcscommon.spearmanr(x,y)
         print(t)
+        print()
 
+        
         # ks test comparing LCS core and field
         x1 = dsfr_vars[0][flags[0]]
         x2 = dsfr_vars[2][flags[2]]
@@ -3306,7 +3333,28 @@ class comp_lcs_gsw():
         t = anderson_ksamp([y1,y2])
         print('Anderson-Darling: ',t)
         
-        pass
+
+
+        # repeat test, but use all LCS vs field
+        x1 = dsfr_vars[0][lcsFlag]
+        x2 = dsfr_vars[2][flags[2]]
+        print()
+        print('comparing all LCS vs Field: dSFR')
+        print(ks_2samp(x1,x2))
+
+        t = anderson_ksamp([x1,x2])
+        print('Anderson-Darling: ',t)
+        
+        
+        y1 = HIdef_cats[0][HIdefKey][lcsFlag]
+        y2 = HIdef_cats[2][HIdefKey][flags[2]]
+        print()
+        print('comparing all LCS vs Field: HIdef')
+        print(ks_2samp(y1,y2))        
+        t = anderson_ksamp([y1,y2])
+        print('Anderson-Darling: ',t)
+        
+
 
 if __name__ == '__main__':
     ###########################
