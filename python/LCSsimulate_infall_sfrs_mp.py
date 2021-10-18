@@ -665,7 +665,9 @@ def run_sim(tmax = 3.,taumax=6,nstep_tau=10,nrandom=10,nmassmatch=10,ndrawmass=1
                 # keep track of # that drop out due to size
                 # should be specific SFR rather than SFR limit
                 # should apply the ssfr > 11.5
-                quench_flag = sim_core_sfr_matched < min(external_sfr)
+                #quench_flag = sim_core_sfr_matched/ < min(external_sfr)
+                # SFR and Mstar are linear, so need to take the log
+                quench_flag = np.log10(sim_core_sfr_matched/sim_core_mstar_matched) < -11.5
 
             
                 # removing flag to make sure things work as expected

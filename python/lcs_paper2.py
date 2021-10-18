@@ -9,6 +9,7 @@ import LCScommon as lcscommon
 
 from matplotlib import pyplot as plt
 from mpl_toolkits.axes_grid1 import make_axes_locatable
+import matplotlib.gridspec as gridspec
 
 import numpy as np
 import os
@@ -211,8 +212,8 @@ def colormass(x1,y1,x2,y2,name1,name2, figname, hexbinflag=False,contourflag=Fal
     '''
     fig = plt.figure(figsize=(8,8))
     plt.subplots_adjust(left=.15,bottom=.15)
-    nrow = 4
-    ncol = 4
+    nrow = 2
+    ncol = 2
     
     # for purposes of this plot, only keep data within the 
     # window specified by [xmin:xmax, ymin:ymax]
@@ -227,6 +228,7 @@ def colormass(x1,y1,x2,y2,name1,name2, figname, hexbinflag=False,contourflag=Fal
     y2 = y2[keepflag2]
     n1 = sum(keepflag1)
     n2 = sum(keepflag2)
+
     ax1 = plt.subplot2grid((nrow,ncol),(1,0),rowspan=nrow-1,colspan=ncol-1, fig=fig)
     if hexbinflag:
         #t1 = plt.hist2d(x1,y1,bins=100,cmap='gray_r')
@@ -3015,7 +3017,7 @@ class comp_lcs_gsw():
         x2 = x[lowsfrflag]
         y2 = y[lowsfrflag]
         label='low SFR LCS'
-        ax1,ax2,ax3 = colormass(x1,y1,x2,y2,'Normal SFR LCS',label,'temp.pdf',ymin=-.02,ymax=3.02,xmin=0,xmax=3,nhistbin=10,ylabel='$\Delta v/\sigma$',xlabel='$\Delta R/R_{200}$',contourflag=False,alphagray=.15,hexbinflag=False,color2='k',color1='0.5',alpha1=1,ssfrlimit=-11.5,cumulativeFlag=True)
+        ax1,ax2,ax3 = colormass(x1,y1,x2,y2,'Normal SFR LCS',label,'temp.pdf',ymin=-.02,ymax=3.02,xmin=0,xmax=3,nhistbin=10,ylabel='$\Delta v/\sigma$',xlabel='$\Delta R/R_{200}$',contourflag=False,alphagray=.7,hexbinflag=False,color2='k',color1='0.5',alpha1=1,ssfrlimit=-11.5,cumulativeFlag=True)
 
         
         
@@ -3037,7 +3039,161 @@ class comp_lcs_gsw():
             plt.savefig(figname1)
         if figname2 is not None:
             plt.savefig(figname2)            
+
+    def plot_dvdr_sfgals_2panel(self, figname1=None,figname2=None,coreflag=False,HIflag=False):
+        # log10(chabrier) = log10(Salpeter) - .25 (SFR estimate)
+        # log10(chabrier) = log10(diet Salpeter) - 0.1 (Stellar mass estimates)
+        xmin,xmax,ymin,ymax = 0,3.5,0,3.5
+        #if plotsingle:
+        #    plt.figure(figsize=(8,6))
+        #    ax=plt.gca()
+        #    plt.subplots_adjust(left=.1,bottom=.15,top=.9,right=.9)
+        #    plt.ylabel('$ \Delta v/\sigma $',fontsize=26)
+        #    plt.xlabel('$ \Delta R/R_{200}  $',fontsize=26)
+        #    plt.legend(loc='upper left',numpoints=1)
+
+        # plot low sfr galaxies
+
+        #lowsfrcoreflag = self.lowsfr_flag & self.membflag
+        #lowsfrinfallflag = self.lowsfr_flag & self.infallflag
+        if coreflag:
+            lcsflag = self.lcs.membflag
+        else:
+            lcsflag = (self.lcs.membflag | self.lcs.infallflag)
+        parentflag = self.lcs_mass_sfr_flag & lcsflag
+        lowsfrflag = parentflag & self.lcs.lowsfr_flag #& self.infallflag
+        normalsfrflag = parentflag & ~self.lcs.lowsfr_flag
+        #####
+        ## CHECK NUMBERS
+        #####
+        print('number in parent sample = ',sum(parentflag))        
+        print('number in low SFR sample = ',sum(lowsfrflag))
+        print('number in normal SFR sample = ',sum(normalsfrflag))        
         
+        x=(self.lcs.cat['DR_R200'])
+        y=abs(self.lcs.cat['DELTA_V'])
+        x1 = x[normalsfrflag]
+        y1 = y[normalsfrflag]        
+        x2 = x[lowsfrflag]
+        y2 = y[lowsfrflag]
+        label2='Suppressed SFR'
+
+        ##  COMPARE POPULATIONS
+        print("")
+        print("delta R: normal vs suppressed")
+        t = anderson_ksamp([x1,x2])
+        print('Anderson-Darling: ',t)
+        pvalue_x = t[2]
+        print('pvalue = {:.3e}'.format(pvalue_x))
+        print("")
+        print("delta v/sigma: normal vs suppressed")
+        t = anderson_ksamp([y1,y2])
+        print('Anderson-Darling: ',t)
+        pvalue_y = t[2]
+        print('pvalue = {:.3e}'.format(pvalue_y))
+        
+
+        #ax1,ax2,ax3 = colormass(x1,y1,x2,y2,'Normal SFR LCS',label,'temp.pdf',ymin=-.02,ymax=3.02,xmin=0,xmax=3,nhistbin=10,ylabel='$\Delta v/\sigma$',xlabel='$\Delta R/R_{200}$',contourflag=False,alphagray=.7,hexbinflag=False,color2='k',color1='0.5',alpha1=1,ssfrlimit=-11.5,cumulativeFlag=True)
+
+        ## USING SUBPLOT2GRID INSTEAD
+
+        label1 = 'Normal SFR'
+        ymin=-.02
+        ymax=3.02
+        xmin=0
+        xmax=3
+
+        nhistbin=10,
+        ylabel='$\Delta v/\sigma$'
+        xlabel='$\Delta R/R_{200}$'
+        color1='0.5'
+        color2='k'        
+
+        nplotx=4
+        nploty=4
+        plt.figure(figsize=(12,5))
+
+        gs = gridspec.GridSpec(2,2)
+        ax1 = plt.subplot(gs[:,0])
+        ax2 = plt.subplot(gs[0,1])
+        ax3 = plt.subplot(gs[1,1])
+        plt.subplots_adjust(wspace=.25,hspace=.5)        
+        #ax1 = plt.subplot2grid((nplotx,nploty),(0,0),rowspan=4,colspan=2)
+        #ax2 = plt.subplot2grid((nplotx,nploty),(0,2),colspan=2,rowspan=2)
+        #ax3 = plt.subplot2grid((nplotx,nploty),(2,2),colspan=2,rowspan=2)
+
+        ax1.plot(x1,y1,'ko',markersize=5,label=label1,color=color1)
+        ## POINTS FOR LOW SFR CORE/INFALL        
+        ax1.plot(x2,y2,'ko',markersize=10,label=label2,color=color2)
+        ax1.axis([xmin,xmax,ymin,ymax])
+        
+        ax1.set_xlabel(xlabel,fontsize=20)
+        ax1.set_ylabel(ylabel,fontsize=20)        
+        
+        ## DIVISION BETWEEN CORE/INFALL
+        xl=np.arange(0,2,.1)
+        ax1.plot(xl,-4./3.*xl+2,'k-',lw=3,color=darkblue)
+
+        ## LABELS FOR CORE/INFALL
+        props = dict(boxstyle='square', facecolor=darkblue, alpha=0.9)
+        ax1.text(.03,.32,'CORE',transform=ax1.transAxes,fontsize=18,color='k',bbox=props)
+        props = dict(boxstyle='square', facecolor=lightblue, alpha=0.6)        
+        ax1.text(.6,.6,'INFALL',transform=ax1.transAxes,fontsize=18,color='k',bbox=props)        
+
+
+
+        
+        ## ADD HISTOGRAMS ON THE RIGHT
+
+        # HISTOGRAM OF DELTA V/SIGMA
+
+        ax2.hist(x1,bins=len(x1),cumulative=True,normed=True,label=label1,histtype='step',color=color1,lw=2)
+        ax2.hist(x2,bins=len(x2),cumulative=True,normed=True,label=label2,histtype='step',color=color2,lw=3)
+
+        ax2.set_xlabel(xlabel,fontsize=20)
+        ax2.text(0,.9,'AD pvalue={:.2f}'.format(pvalue_x),fontsize=16)        
+        # HISTOGRAM OF DELTA R/R200
+
+        ax3.hist(y1,bins=len(x1),cumulative=True,normed=True,label=label1,histtype='step',color=color1,lw=2)
+        ax3.hist(y2,bins=len(x2),cumulative=True,normed=True,label=label2,histtype='step',color=color2,lw=3)
+
+        ax3.set_xlabel(ylabel,fontsize=20)
+        ax3.text(0,.9,'AD pvalue={:.2f}'.format(pvalue_y),fontsize=16)
+
+        ## ADD THE HI SOURCES
+        if HIflag:
+            lcsHIFlag = self.lcs.cat['HIdef_flag'] & self.lcs_mass_sfr_flag & (self.lcs.membflag | self.lcs.infallflag)
+            ax1.plot(x[lcsHIFlag],y[lcsHIFlag],'bo',markerfacecolor='None',markersize=14,label='HI')
+            ax2.hist(x[lcsHIFlag],bins=sum(lcsHIFlag),cumulative=True,normed=True,label='HI',histtype='step',color='b')
+            ax3.hist(y[lcsHIFlag],bins=sum(lcsHIFlag),cumulative=True,normed=True,label='HI',histtype='step',color='b')
+            # fraction of normal SF galaxies with HI detections
+            Nnormal = np.sum(normalsfrflag)
+            NnormalHI = np.sum(normalsfrflag & lcsHIFlag)
+            Nsuppressed = np.sum(lowsfrflag)
+            NsuppressedHI = np.sum(lowsfrflag & lcsHIFlag)
+
+            binom_err = binom_conf_interval(NnormalHI,Nnormal)#lower, upper
+            frac =  NnormalHI/Nnormal
+            print('fraction of normal galaxies with HI detections = {:.2f}-{:.2f}+{:.2f}'.format(frac,frac-binom_err[0],binom_err[1]-frac))
+            print(binom_err)
+            binom_err = binom_conf_interval(NsuppressedHI,Nsuppressed)#lower, upper
+            frac =  NsuppressedHI/Nsuppressed
+                  
+            print('fraction of suppressed galaxies with HI detections = {:.2f}-{:.2f}+{:.2f}'.format(frac,frac-binom_err[0],binom_err[1]-frac))
+            
+            
+            # fraction of suppressed SF galaxies with HI detections
+
+        ## ADD LEGENDS AFTER HI
+        ax1.legend(loc='upper right')
+        ax2.legend(loc='lower right')
+        ax3.legend(loc='lower right')
+            
+        if figname1 is not None:
+            plt.savefig(figname1)
+        if figname2 is not None:
+            plt.savefig(figname2)            
+            
     def plot_frac_suppressed(self,uvirflag=False,BTcut=None,plotsingle=True):
         '''fraction of suppressed galaxies vs environment'''
 
@@ -3314,11 +3470,14 @@ class comp_lcs_gsw():
         print()
 
         
+        print('number is core={}, infall={},field={}'.format(sum(flags[0]),sum(flags[1]),sum(flags[2])))
+        print()
         # ks test comparing LCS core and field
         x1 = dsfr_vars[0][flags[0]]
         x2 = dsfr_vars[2][flags[2]]
         print()
         print('comparing LCS core vs Field: dSFR')
+
         print(ks_2samp(x1,x2))
 
         t = anderson_ksamp([x1,x2])
@@ -3354,6 +3513,8 @@ class comp_lcs_gsw():
         t = anderson_ksamp([y1,y2])
         print('Anderson-Darling: ',t)
         
+        plt.savefig(plotdir+'/dsfr-HIdef.png')
+        plt.savefig(plotdir+'/dsfr-HIdef.pdf')
 
 
 if __name__ == '__main__':
@@ -3366,7 +3527,7 @@ if __name__ == '__main__':
     parser.add_argument('--cutBT', dest = 'cutBT', default = False, action='store_true', help = 'Set this to cut the sample by B/T < 0.3.')
     parser.add_argument('--BT', dest = 'BT', default = 0.4, help = 'B/T cut to use. Default is 0.4.')
     parser.add_argument('--HIdef', dest = 'HIdef', default=False,action='store_true', help = 'Include HIdef information for GSWLC')    
-    parser.add_argument('--ellip', dest = 'ellip', default = 1.1, help = 'ellipt cut to use.  Default is 1.1 (= no cut)')    
+    parser.add_argument('--ellip', dest = 'ellip', default = .75, help = 'ellipt cut to use.  Default is 1.1 (= no cut)')    
     #parser.add_argument('--cutBT', dest = 'diskonly', default = 1, help = 'True/False (enter 1 or 0). normalize by Simard+11 disk size rather than Re for single-component sersic fit.  Default is true.  ')    
 
     args = parser.parse_args()

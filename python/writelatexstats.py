@@ -59,13 +59,14 @@ class writetable():
         BTf = field['BT']
         
         if massmatch:
-            keep_indices = mass_match(mc,mf)            
+            seed = 23654
+            keep_indices = mass_match(mc,mf,seed)            
             mf_matchc = mf[keep_indices]
             sfrf_matchc = sfrf[keep_indices]
             dsfrf_matchc = dsfrf[keep_indices]
             BTf_matchc = BTf[keep_indices]            
             ### match to infall
-            keep_indices = mass_match(mi,mf)            
+            keep_indices = mass_match(mi,mf,seed)            
             mf_matchi = mf[keep_indices]
             sfrf_matchi = sfrf[keep_indices]
             dsfrf_matchi = dsfrf[keep_indices]
@@ -250,7 +251,7 @@ class writetable():
         c = self.allstatsBT[i][1]
         d = self.allstatsBT_mm[i][1]        
         self.outfile.write('\\hline \n')
-        self.outfile.write('LCS Infall-Field  & $\log$ SFR &\\bf {:.2e} &\\bf {:.2e} & {:.2e} &  {:.2e}\\\\ \n'.format(a,b,c,d))
+        self.outfile.write('LCS Infall-Field  & $\log$ SFR &\\bf {:.2e} &\\bf {:.2e} & \\bf {:.2e} & \\bf {:.2e}\\\\ \n'.format(a,b,c,d))
 
         i += 1
         
@@ -258,7 +259,7 @@ class writetable():
         b = self.allstats_mm[i][1]
         c = self.allstatsBT[i][1]
         d = self.allstatsBT_mm[i][1]        
-        self.outfile.write('& $\Delta \log$SFR  & \\bf {:.2e}   & \\bf {:.2e} & {:.2e} &    {:.2e}\\\\ \n'.format(a,b,c,d))
+        self.outfile.write('& $\Delta \log$SFR  & \\bf {:.2e}   & \\bf {:.2e} & \\bf {:.2e} & \\bf   {:.2e}\\\\ \n'.format(a,b,c,d))
 
         i += 1
         
@@ -274,7 +275,7 @@ class writetable():
         b = self.allstats_mm[i][1]
         c = self.allstatsBT[i][1]
         d = self.allstatsBT_mm[i][1]        
-        self.outfile.write('&$B/T$   &  {:.2e} &  {:.2e} & {:.2e}  & {:.2e} \\\\ \n'.format(a,b,c,d))
+        self.outfile.write('&$B/T$   &  \\bf {:.2e} & \\bf {:.2e} & \\bf {:.2e}  & {:.2e} \\\\ \n'.format(a,b,c,d))
         
         
         self.outfile.write('\\hline \n')
@@ -310,7 +311,7 @@ class writetable():
     def write_footer(self):
         self.outfile.write('\\hline \n')
         self.outfile.write('\\end{tabular} \n')
-        self.outfile.write('\\caption{Summary statistics for SFR, $\Delta$SFR, and stellar mass comparisons.  Bold text indicates when the two populations differ at the 99.7\% or $\ge 3\sigma$ confidence interval (KS p-value$<$3.0e-03). } \n')
+        self.outfile.write('\\caption{Summary statistics for SFR, $\Delta$SFR, stellar mass, and $B/T$ comparisons.  Bold text indicates when the two populations differ at the 99.7\% or $\ge 3\sigma$ confidence interval (KS p-value$<$3.0e-03). } \n')
 
         self.outfile.write('\\label{tab:stats} \n')
         self.outfile.write('\\end{table*} \n')
