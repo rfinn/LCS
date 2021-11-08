@@ -188,8 +188,8 @@ def plot_GSWLC_sssfr(ax=None,ls='-'):
     
 def colormass(x1,y1,x2,y2,name1,name2, figname, hexbinflag=False,contourflag=False, \
              xmin=7.9, xmax=11.6, ymin=-1.2, ymax=1.2, contour_bins = 40, ncontour_levels=5,\
-              xlabel='$\log_{10}(M_\star/M_\odot) $', ylabel='$(g-i)_{corrected} $', color1=colorblind3,color2=colorblind2,\
-              nhistbin=50, alpha1=.1,alphagray=.1,lcsflag=False,ssfrlimit=None,cumulativeFlag=False):
+              xlabel=r'$\rm \log_{10}(M_\star/M_\odot) $', ylabel='$(g-i)_{corrected} $', color1=colorblind3,color2=colorblind2,\
+              nhistbin=50, alpha1=.1,alphagray=.1,lcsflag=False,ssfrlimit=None,cumulativeFlag=False,marker2='o'):
 
     '''
     PARAMS:
@@ -253,7 +253,7 @@ def colormass(x1,y1,x2,y2,name1,name2, figname, hexbinflag=False,contourflag=Fal
         #plt.legend()
     else:
         label=name2+' (%i)'%(n2)
-        plt.plot(x2,y2,'co',color=color2,alpha=alpha1, label=label,markersize=8,mec='k')
+        plt.plot(x2,y2,'co',color=color2,alpha=alpha1, label=label,markersize=8,mec='k',marker=marker2)
         
         
 
@@ -1311,23 +1311,26 @@ class comp_lcs_gsw():
                 yerr = np.zeros((2,1))
                 yerr[0] = y-yerrs[0]
                 yerr[1] = yerrs[1]-y
+
                 if j == 0:
                     markerfacecolor = colors[i]
                     marker = 'o'
                     mylabel = labels[i]+'$\ norm$'
                 else:
                     markerfacecolor = colors[i]
-                    marker = '^'
-                    mylabel = labels[i]+'$\ low$'                    
+                    marker = 'v'
+                    mylabel = labels[i]+'$\ low$'
+
+                print('{}: {:.3f} + {:.3f} - {:.3f}'.format(mylabel,y,yerr[0][0],yerr[1][0]))
                     
                 plt.errorbar(np.array(xvars[i]),np.array(y),yerr=yerr,\
                              color=colors[i],alpha=alphas[i],zorder=orders[i],\
                              markersize=markersizes[i],fmt=marker,label=mylabel,markerfacecolor=markerfacecolor)
         if plotsingle:
-            plt.xticks(np.arange(0,4),['$Field$','$LCS \ Infall$','$LCS \ Core$'],fontsize=18)
+            plt.xticks(np.arange(0,4),[r'$\rm Field$',r'$\rm Infall$',r'$\rm Core$'],fontsize=20)
             #plt.xlabel('$Environment$',fontsize=20)
-            plt.ylabel('$Fraction \ with \ HI \ Detection  $',fontsize=20)
-            plt.legend(['Normal SFR','Suppressed SFR'])
+            plt.ylabel(r'$\rm Frac\ of \ SF \ Gals \ with \ HI \ Detection $',fontsize=20)
+            plt.legend([r'$\rm Normal \ SFR $',r'$\rm Low \ SFR$'],fontsize=16,markerscale=.8)
         plt.xlim(-0.4,2.4)
             
 
@@ -1370,7 +1373,7 @@ class comp_lcs_gsw():
         #self.gsw.fit_MS(flag=self.gsw_mass_sfr_flag)
         flag =  self.gsw_mass_sfr_flag #& (self.gsw.cat[BTkey]< .5) 
         self.gsw.fit_MS(flag=flag)#flag=
-    def plot_sfr_mstar(self,lcsflag=None,label='LCS core',outfile1=None,outfile2=None,coreflag=True,massmatch=True,hexbinflag=False):
+    def plot_sfr_mstar(self,lcsflag=None,label='Core',outfile1=None,outfile2=None,coreflag=True,massmatch=True,hexbinflag=False,marker2='o'):
         """
         PURPOSE:
         * compares ssfr vs mstar of lcs and gswlc field samples
@@ -1439,7 +1442,7 @@ class comp_lcs_gsw():
             color2=darkblue
         else:
             color2=lightblue
-        ax1,ax2,ax3 = colormass(x1,y1,x2,y2,'GSWLC',label,'sfr-mstar-gswlc-field.pdf',ymin=-2,ymax=1.6,xmin=9.5,xmax=11.5,nhistbin=10,ylabel='$\log_{10}(SFR/(M_\odot/yr))$',contourflag=False,alphagray=.05,hexbinflag=hexbinflag,color2=color2,color1='0.2',alpha1=1,ssfrlimit=-11.5)
+        ax1,ax2,ax3 = colormass(x1,y1,x2,y2,'GSWLC',label,'sfr-mstar-gswlc-field.pdf',ymin=-2,ymax=1.6,xmin=9.5,xmax=11.5,nhistbin=10,ylabel=r'$\rm \log_{10}(SFR)$',contourflag=False,alphagray=.05,hexbinflag=hexbinflag,color2=color2,color1='0.2',alpha1=1,ssfrlimit=-11.5,marker2=marker2)
         # add marker to figure to show galaxies with size measurements
 
         #self.plot_lcs_size_sample(ax1,memb=lcsmemb,infall=lcsinfall,ssfrflag=False)
@@ -1466,7 +1469,7 @@ class comp_lcs_gsw():
             plt.savefig(homedir+'/research/LCS/plots/lcscore-gsw-sfms.png')
         else:
             plt.savefig(outfile2)
-    def plot_ssfr_mstar(self,lcsflag=None,outfile1=None,outfile2=None,label='LCS core',nbins=20,coreflag=True,massmatch=True,hexbinflag=True,lcsmemb=False,lcsinfall=False):
+    def plot_ssfr_mstar(self,lcsflag=None,outfile1=None,outfile2=None,label='Core',nbins=20,coreflag=True,massmatch=True,hexbinflag=True,lcsmemb=False,lcsinfall=False):
         """
         OVERVIEW:
         * compares ssfr vs mstar of lcs and gswlc field samples
@@ -1565,7 +1568,7 @@ class comp_lcs_gsw():
         x2 = self.lcs.cat['logMstar'][flag2]
         y2 = self.lcs.cat['logSFR'][flag2]
         
-        ax1,ax2,ax3 = colormass(x1,y1,x2,y2,'LCS core','LCS infall','sfr-mstar-lcs-core-field.pdf',ymin=-2,ymax=1.5,xmin=9.5,xmax=11.25,nhistbin=nbins,ylabel='$\log_{10}(SFR)$',contourflag=False,alphagray=.8,alpha1=1,color1=darkblue,lcsflag=True,ssfrlimit=-11.5)
+        ax1,ax2,ax3 = colormass(x1,y1,x2,y2,'Core','Infall','sfr-mstar-lcs-core-field.pdf',ymin=-2,ymax=1.5,xmin=9.5,xmax=11.25,nhistbin=nbins,ylabel='$\log_{10}(SFR)$',contourflag=False,alphagray=.8,alpha1=1,color1=darkblue,lcsflag=True,ssfrlimit=-11.5)
 
         self.plot_lcs_size_sample(ax1,memb=True,infall=True)
         ax1.legend(loc='upper left')
@@ -1612,7 +1615,7 @@ class comp_lcs_gsw():
         y2 = self.lcs.ssfr[flag2]
 
 
-        ax1,ax2,ax3 = colormass(x1,y1,x2,y2,'LCS core','LCS infall','sfr-mstar-lcs-core-field.pdf',ymin=-11.6,ymax=-8.75,xmin=9.5,xmax=11.5,nhistbin=nbins,ylabel='$\log_{10}(sSFR)$',contourflag=False,alphagray=.8,alpha1=1,color1=darkblue,lcsflag=True)
+        ax1,ax2,ax3 = colormass(x1,y1,x2,y2,'Core','Infall','sfr-mstar-lcs-core-field.pdf',ymin=-11.6,ymax=-8.75,xmin=9.5,xmax=11.5,nhistbin=nbins,ylabel='$\log_{10}(sSFR)$',contourflag=False,alphagray=.8,alpha1=1,color1=darkblue,lcsflag=True)
 
 
         #self.plot_lcs_size_sample(ax1,memb=True,infall=True,ssfrflag=True)
@@ -1684,7 +1687,7 @@ class comp_lcs_gsw():
         mybins = mybins + 0.5*delta_bin
         dsfrs = [dsfr1,dsfr2,dsfr3]
         colors = ['.5',darkblue,lightblue]
-        labels = ['Field','LCS Core','LCS Infall']
+        labels = ['Field','Core','Infall']
         orders = [1,3,2]
         lws = [3,4,3]
         alphas = [.4,0,.5]        
@@ -1700,13 +1703,13 @@ class comp_lcs_gsw():
             # error from bootstrap resampling
             lower_median, upper_median = get_bootstrap_confint(dsfrs[i])
             print()
-            print('{}: median = {:.2f}-{:.2f}+{:.2f} (bootstrap)'.format(labels[i],thismedian,thismedian-lower_median,upper_median-thismedian))
-            print('{}: mean, std, std_err = {:.2f},{:.2f},{:.2f} '.format(labels[i],np.mean(dsfrs[i]),np.std(dsfrs[i]),np.std(dsfrs[i])/np.sqrt(len(dsfrs[i]))))
+            print('{}: median = {:.4f}-{:.4f}+{:.4f} (bootstrap)'.format(labels[i],thismedian,thismedian-lower_median,upper_median-thismedian))
+            print('{}: mean, std, std_err = {:.4f},{:.4f},{:.4f} '.format(labels[i],np.mean(dsfrs[i]),np.std(dsfrs[i]),np.std(dsfrs[i])/np.sqrt(len(dsfrs[i]))))
             print('')
                   
         #plt.xlabel('$ \log_{10}SFR - \log_{10}SFR_{MS} \ (M_\odot/yr) $',fontsize=20)
-        plt.xlabel('$ \Delta \log_{10}SFR $',fontsize=20)
-        plt.ylabel('$Normalized \ Distribution$',fontsize=20)
+        plt.xlabel(r'$\rm \Delta \log_{10}SFR $',fontsize=22)
+        plt.ylabel(r'$\rm Normalized \ Distribution$',fontsize=22)
         # add range considered "normal" SF
         plt.axvline(x=.45,ls='--',color='b')
         plt.axvline(x=-.45,ls='--',color='b')        
@@ -1761,7 +1764,7 @@ class comp_lcs_gsw():
         mybins = mybins + 0.5*delta_bin
         dsfrs = [dsfr1,dsfr2,dsfr3]
         colors = ['.5',darkblue,lightblue]
-        labels = ['Field','LCS Core','LCS Infall']
+        labels = ['Field','Core','Infall']
         orders = [1,3,2]
         lws = [3,4,3]
         alphas = [.4,0,.5]        
@@ -1816,7 +1819,7 @@ class comp_lcs_gsw():
         sizes = [z2,z3]
         dsfrs = [dsfr2,dsfr3]
         colors = [darkblue,lightblue]
-        labels = ['LCS Core ({})'.format(sum(flag2)),'LCS Infall ({})'.format(sum(flag3))]
+        labels = ['Core ({})'.format(sum(flag2)),'Infall ({})'.format(sum(flag3))]
         hatches = ['/','\\','|']
         #for i in range(len(dsfrs)):
         #    plt.plot(sizes[i],dsfrs[i],'bo',c=colors[i],label=labels[i])
@@ -1830,7 +1833,7 @@ class comp_lcs_gsw():
         nbins=12
         ylab = '$\log_{10}(SFR)-\log_{10}(SFR_{MS})  \ (M_\odot/yr)$'
         ylab = '$\Delta \log_{10}(SFR) $'
-        ax1,ax2,ax3 = colormass(z2,dsfr2,z3,dsfr3,'LCS core','LCS infall','temp.pdf',ymin=-1.5,ymax=1.,xmin=-.05,xmax=2,nhistbin=nbins,xlabel='$R_{24}/R_d$',ylabel=ylab,contourflag=False,alphagray=.8,alpha1=1,color1=darkblue,lcsflag=True)
+        ax1,ax2,ax3 = colormass(z2,dsfr2,z3,dsfr3,'Core','Infall','temp.pdf',ymin=-1.5,ymax=1.,xmin=-.05,xmax=2,nhistbin=nbins,xlabel='$R_{24}/R_d$',ylabel=ylab,contourflag=False,alphagray=.8,alpha1=1,color1=darkblue,lcsflag=True)
         var1 = z2.tolist()+z3.tolist()
         var2 = dsfrs[0].tolist()+dsfrs[1].tolist()
         print('')
@@ -1927,7 +1930,7 @@ class comp_lcs_gsw():
         sizes = [z2,z3]
         dsfrs = [dsfr2,dsfr3]
         colors = [darkblue,lightblue]
-        labels = ['LCS Core ({})'.format(sum(flag2)),'LCS Infall ({})'.format(sum(flag3))]
+        labels = ['LCS Core ({})'.format(sum(flag2)),'Infall ({})'.format(sum(flag3))]
         hatches = ['/','\\','|']
         #for i in range(len(dsfrs)):
         #    plt.plot(sizes[i],dsfrs[i],'bo',c=colors[i],label=labels[i])
@@ -1939,7 +1942,7 @@ class comp_lcs_gsw():
 
         plt.figure()
         nbins=12
-        ax1,ax2,ax3 = colormass(z2,dsfr2,z3,dsfr3,'LCS core','LCS infall','temp.pdf',ymin=-1,ymax=1.,xmin=-.05,xmax=2,nhistbin=nbins,xlabel='$HI \ Deficiency$',ylabel='$\log_{10}(SFR)-\log_{10}(SFR_{MS})  \ (M_\odot/yr)$',contourflag=False,alphagray=.8,alpha1=1,color1=darkblue,lcsflag=True)
+        ax1,ax2,ax3 = colormass(z2,dsfr2,z3,dsfr3,'Core','Infall','temp.pdf',ymin=-1,ymax=1.,xmin=-.05,xmax=2,nhistbin=nbins,xlabel='$HI \ Deficiency$',ylabel='$\log_{10}(SFR)-\log_{10}(SFR_{MS})  \ (M_\odot/yr)$',contourflag=False,alphagray=.8,alpha1=1,color1=darkblue,lcsflag=True)
         var1 = z2.tolist()+z3.tolist()
         var2 = dsfrs[0].tolist()+dsfrs[1].tolist()
         t = lcscommon.spearmanr(var1,var2)
@@ -2006,7 +2009,7 @@ class comp_lcs_gsw():
         mybins = mybins + 0.5*delta_bin
         xvars = [gswBT,coreBT,infallBT]
         colors = ['.5',darkblue,lightblue]
-        labels = ['Field','LCS Core','LCS Infall']
+        labels = ['Field','Core','Infall']
         orders = [1,3,2]
         lws = [3,4,3]
         alphas = [.4,0,.5]        
@@ -2043,7 +2046,7 @@ class comp_lcs_gsw():
         ncol=2
         if coreonly:
             lcsflag = self.lcs.membflag #| self.lcs.infallflag
-            labels = ['Field','LCS core']                        
+            labels = ['Field','Core']                        
         else:
             lcsflag = self.lcs.membflag | self.lcs.infallflag
             labels = ['Field','LCS all']            
@@ -2058,16 +2061,16 @@ class comp_lcs_gsw():
         #zorders = [2,2]
         
         colors = ['.5',darkblue,lightblue]
-        labels = ['Field','LCS Core','LCS Infall']
+        labels = ['Field','Core','Infall']
         zorders = [1,3,2]
         lws = [3,4,3]
         alphas = [.4,0,.5]        
         
         #for i,col in enumerate(field_cols):
-        xlabels = ['$B/T$','Sersic n','g-i','prob Sc','$\log_{10}(M_\star/M_\odot)$','$\Delta SFR$']
-        xlabels = ['$B/T$','Sersic n','prob Sc','$\log_{10}(M_\star/M_\odot)$','$\Delta SFR$']        
-        titles = ['Normal SFR','Suppressed SFR']
-        ylabels=['Norm. Counts','Norm. Counts']
+        xlabels = [r'$\rm B/T$','Sersic n','g-i','prob Sc',r'$\rm \log_{10}(M_\star/M_\odot)$',r'$\rm \Delta \log_{10}(SFR)$']
+        xlabels = [r'$\rm B/T$','Sersic n','prob Sc',r'$\rm \log_{10}(M_\star/M_\odot)$',r'$\rm \Delta \log_{10}(SFR)$']
+        titles = [r'$\rm Normal \ SFR$',r'$\rm Suppressed \ SFR$']
+        ylabels=[r'$\rm Norm. \ Distribution$',r'$\rm Norm. \ Distribution$']
         # BT
 
         allbins = [np.linspace(0,xmax,nbins),np.linspace(1,6,nbins),\
@@ -2242,7 +2245,7 @@ class comp_lcs_gsw():
         #zorders = [2,2]
         
         colors = ['.5',darkblue,lightblue]
-        labels = ['Field','LCS Core','LCS Infall']
+        labels = ['Field','Core','Infall']
         zorders = [1,3,2]
         lws = [3,4,3]
         alphas = [.4,0,.5]        
@@ -2426,15 +2429,15 @@ class comp_lcs_gsw():
             plt.subplot(nrow,ncol,1+col)
             
 
-    def compare_BT_lowsfr_field_core(self,nbins=12,coreonly=False,infallonly=False,BTmax=1):
+    def compare_BT_lowsfr_field_core(self,nbins=12,coreonly=False,infallonly=False,BTmax=1,nrow=1,plotsingle=True,show_xlabel=True,subplot_offset=0):
         ''' compare the B/T distribution of LCS low SFR galaxies with mass-matched sample drawn from low SFR field galaxies '''
 
         if coreonly:
             lcsflag = self.lcs.membflag #| self.lcs.infallflag
-            labels = ['Field','LCS core']
+            labels = ['Field','Core']
         elif infallonly:
             lcsflag = self.lcs.infallflag #| self.lcs.infallflag
-            labels = ['Field','LCS infall']
+            labels = ['Field','Infall']
         else:
             lcsflag = self.lcs.membflag | self.lcs.infallflag
             labels = ['Field','LCS all']            
@@ -2459,7 +2462,7 @@ class comp_lcs_gsw():
         gswBT_lowsfr = self.gsw.cat[BTkey][flag2]
 
         flags2=[flag2,lcsflag2]
-        # create a mass-matched sample of field galaxies with normal SFR
+        # create a mass-matched sample of field galaxies with low SFR
         myrandom = np.random.random()
         keep_indices = mass_match(lcsmass_lowsfr,gswmass_lowsfr,nmatch=10,seed=379)            
 
@@ -2467,9 +2470,9 @@ class comp_lcs_gsw():
         
         # compare the B/T distributions
         # does low SFR sample have higher B/T than normal field galaxies
-
-        plt.figure(figsize=(12,3))
-        plt.subplots_adjust(wspace=.4,bottom=.2)
+        if plotsingle:
+            plt.figure(figsize=(12,3))
+            plt.subplots_adjust(wspace=.4,bottom=.2)
         colors = ['0.5',darkblue,'k'] # color for field and LCS
         xvars = [massmatched_gswBT_lowsfr, lcsBT_lowsfr]
         alphas = [.8,.5,1.]
@@ -2477,14 +2480,15 @@ class comp_lcs_gsw():
         zorders = [2,2,2]
         histtypes = ['stepfilled','stepfilled','stepfilled']
         #for i,col in enumerate(field_cols):
-        xlabels = ['B/T','Sersic n','g-i','prob Sc','logMstar','$\Delta SFR$']
+        xlabels = [r'$\rm B/T$',r'$\rm S{e}rsic \ n$',r'$g-i$',r'$\rm prob \ Sc$','logMstar','$\Delta SFR$']
         #xlabels = ['B/T','Sersic n','prob Sc','logMstar','$\Delta SFR$']        
         
         labels = ['Field','LCS','Low SFR Field']
         if coreonly:
-            labels = ['Field','LCS Core','Low SFR Field']
+            labels = [r'$\rm MM\ low SFR\ Field$',r'$\rm low SFR\ Core$','Low SFR Field']
         elif infallonly:
-            labels = ['Field','LCS Infall','Low SFR Field']            
+            labels = [r'$\rm MM \ low SFR\ Field$',r'$\rm low SFR\ Infall$','Low SFR Field']
+            colors = ['0.5',lightblue,'k'] # color for field and LCS            
         allbins = [np.linspace(0,BTmax,nbins),np.linspace(1,6,nbins),\
                    np.linspace(-.2,2,nbins),\
                    np.linspace(0,1,nbins),\
@@ -2502,7 +2506,7 @@ class comp_lcs_gsw():
             #             self.lcs.cat['gmag']- self.lcs.cat['imag']]
             elif col == 3:
                 xvars = [self.gsw.cat['pSc'],self.lcs.cat['pSc']] #+ catalogs[i]['pSa']
-            plt.subplot(1,ncols,col+1)
+            plt.subplot(nrow,ncols,col+1+subplot_offset)
             for i in range(len(xvars)):
                 if i == 0:
                     xvar = xvars[i][flags2[i]][keep_indices]
@@ -2511,8 +2515,9 @@ class comp_lcs_gsw():
                 plt.hist(xvar,color=colors[i],density=True,bins=allbins[col],\
                          histtype=histtypes[i],lw=lws[i],alpha=alphas[i],zorder=zorders[i],label=labels[i])#hatch=hatches[i])
             if col == 0:
+                plt.legend(loc='center left',fontsize=11,bbox_to_anchor=(-.02,.7))
                 #plt.text(-.2,-.1,'Normalized Distribution',transform=plt.gca().transAxes,rotation=90,horizontalalignment='center',verticalalignment='center',fontsize=24)
-                plt.ylabel('Norm. Distribution',fontsize=16)
+                #plt.ylabel(r'$\rm Norm. \ Distribution$',fontsize=20)
 
             print('###################################################################')
             print('comparing LCS low SFR and mass-matched field low SFR:',xlabels[col])
@@ -2523,22 +2528,27 @@ class comp_lcs_gsw():
             t = anderson_ksamp([xvars[0][flags2[0]][keep_indices],xvars[1][flags2[1]]])            
             print(t)
             if t[2] < .003:
-                s = r'$\bf pvalue={:.3f}$'.format(t[2])
+                s = r'$\rm \bf pvalue={:.3f}$'.format(t[2])
             else:
-                s = r'$pvalue={:.3f}$'.format(t[2])
-            plt.text(0,.9,s,fontsize=14,transform=plt.gca().transAxes)        
-            plt.xlabel(xlabels[col],fontsize=16)
-
-        plt.legend(loc='center right')
+                s = r'$\rm pvalue={:.3f}$'.format(t[2])
+            plt.text(0.05,.9,s,fontsize=14,transform=plt.gca().transAxes)
+            if show_xlabel:
+                plt.xlabel(xlabels[col],fontsize=20)
+                if col == 0:
+                    ax = plt.gca()
+                    plt.text(-.3,1,r'$\rm Normalized \ Distribution$',fontsize=20,transform=ax.transAxes,rotation=90,verticalalignment='center')
+            else:
+                plt.xticks([],[])
+        
     def compare_BT_lowsfr_lcs_field_mmatch(self,nbins=12,coreonly=False,infallonly=False,BTmax=1,nrandom=100,nmatch=1):
         ''' compare the B/T distribution of LCS low SFR galaxies with mass-matched sample drawn from low SFR field galaxies '''
 
         if coreonly:
             lcsflag = self.lcs.membflag #| self.lcs.infallflag
-            labels = ['Field','LCS core']
+            labels = ['Field','Core']
         elif infallonly:
             lcsflag = self.lcs.infallflag #| self.lcs.infallflag
-            labels = ['Field','LCS infall']
+            labels = ['Field','Infall']
         else:
             lcsflag = self.lcs.membflag | self.lcs.infallflag
             labels = ['Field','LCS all']            
@@ -2589,7 +2599,7 @@ class comp_lcs_gsw():
         plt.subplots_adjust(wspace=.3,bottom=.2)
 
         colors = ['.5',darkblue,lightblue]
-        labels = ['Field','LCS Core','LCS Infall']
+        labels = ['Field','Core','Infall']
         zorders = [1,3,2]
         lws = [3,4,3]
         alphas = [.4,0,.5]        
@@ -2602,7 +2612,7 @@ class comp_lcs_gsw():
         
         labels = ['Field','LCS','Low SFR Field']
         if coreonly:
-            labels = ['Field','LCS Core','Low SFR Field']
+            labels = ['Field','Core','Low SFR Field']
         allbins = [np.linspace(0,BTmax,nbins),np.linspace(1,6,nbins),\
                    np.linspace(0,1,nbins),\
                    np.linspace(9.7,11,nbins),np.linspace(-1,1,nbins)]
@@ -2726,8 +2736,8 @@ class comp_lcs_gsw():
         plt.xticks(fontsize=16)
         plt.yticks(fontsize=16)        
         plt.xlim(-.01,BTmax+.01)#,0,9])
-        plt.xlabel('B/T')
-        plt.ylabel('Normalized Distribution')
+        plt.xlabel(r'$\rm B/T$')
+        plt.ylabel(r'$\rm Normalized \ Distribution$')
 
     def compare_BT_lowsfr_lcs_massmatch(self,nbins=12,infallonly=False,coreonly=False,lcsflag=None,BTmax=0.4):
         ''' compare the B/T distribution of field galaxies with low and normal SFR '''
@@ -2834,11 +2844,12 @@ class comp_lcs_gsw():
         field_dsfr = y3-self.gsw.get_MS(x3)
         
         plt.figure()
+        plt.subplots_adjust(left=.2)
         mybins = np.linspace(0,xmax,nbins)        
         xvars = [fieldBT,coreBT,infallBT]
         yvars = [field_dsfr,core_dsfr,infall_dsfr]        
         colors = ['.5',darkblue,lightblue]
-        labels = ['Field','LCS Core','LCS Infall']
+        labels = ['Field','Core','Infall']
         orders = [1,3,2]
         lws = [3,4,3]
         alpha_pts = [.4,.4,.4]
@@ -2867,8 +2878,8 @@ class comp_lcs_gsw():
             print('r={:.4f}, pvalue={:.3e}'.format(t[0],t[1]))
             allBT.append(xvars[i].tolist())
             alldsfr.append(yvars[i].tolist())            
-        plt.xlabel('$B/T$',fontsize=20)
-        plt.ylabel('$\Delta SFR \ (M_\odot/yr)$',fontsize=20)
+        plt.xlabel(r'$\rm B/T$',fontsize=22)
+        plt.ylabel(r'$\rm \Delta \log_{10}SFR$',fontsize=22)
 
         plt.axhline(y=.45,ls='--',color='k',label='$1.5\sigma_{MS}$')
         plt.axhline(y=-.45,ls='--',color='k')
@@ -2918,7 +2929,7 @@ class comp_lcs_gsw():
         xvars = [x3,x1,x2]
         yvars = [field_dsfr,core_dsfr,infall_dsfr]        
         colors = ['.5',darkblue,lightblue]
-        labels = ['Field','LCS Core','LCS Infall']
+        labels = ['Field','Core','Infall']
         orders = [1,3,2]
         lws = [3,4,3]
         alphas = [.5,.6,.6]
@@ -2986,7 +2997,7 @@ class comp_lcs_gsw():
 
         xvars = [fieldBT,coreBT,infallBT]
         colors = ['.5',darkblue,lightblue]
-        labels = ['Field','LCS Core','LCS Infall']
+        labels = ['Field','Core','Infall']
         orders = [1,3,2]
         lws = [3,4,3]
         markers = ['o','s','o']
@@ -3202,7 +3213,7 @@ class comp_lcs_gsw():
         y2 = y[lowsfrflag]
         print('just checking, number of low sfr sample = {}'.format(len(x2)))
         print('just checking, number of normal sfr sample = {}'.format(len(x1)))        
-        label2='Supp SFR'
+        label2=r'$\rm Low \ SFR$'
 
         ##  COMPARE POPULATIONS
         print("")
@@ -3223,15 +3234,15 @@ class comp_lcs_gsw():
 
         ## USING SUBPLOT2GRID INSTEAD
 
-        label1 = 'Normal SFR'
+        label1 = r'$\rm Normal \ SFR$'
         ymin=-.02
         ymax=3.02
         xmin=0
         xmax=3
 
         nhistbin=10,
-        ylabel='$\Delta v/\sigma$'
-        xlabel='$\Delta R/R_{200}$'
+        ylabel=r'$\rm \Delta v/\sigma$'
+        xlabel=r'$\rm \Delta R/R_{200}$'
         color1='0.5'
         color2='k'        
 
@@ -3250,21 +3261,28 @@ class comp_lcs_gsw():
 
         ax1.plot(x1,y1,'ko',markersize=5,label=label1,color=color1)
         ## POINTS FOR LOW SFR CORE/INFALL        
-        ax1.plot(x2,y2,'ko',markersize=10,label=label2,color=color2)
+        ax1.plot(x2,y2,'ko',markersize=8,marker='v',label=label2,color=color2)
         ax1.axis([xmin,xmax,ymin,ymax])
         
         ax1.set_xlabel(xlabel,fontsize=20)
         ax1.set_ylabel(ylabel,fontsize=20)        
         
         ## DIVISION BETWEEN CORE/INFALL
-        xl=np.arange(0,2,.1)
-        ax1.plot(xl,-4./3.*xl+2,'k-',lw=3,color=darkblue)
+        xline=np.linspace(0,3,50)
+        yline=-4./3.*xline+2
+        ax1.plot(xline,yline,'k-',lw=3,color=darkblue)
 
+        # try shading the core region, rather than label
+        ax1.fill_between(xline,yline,color=darkblue,alpha=.1,zorder=0)
+
+        # try shading the core region, rather than label
+        ax1.fill_between(xline,3*np.ones(len(xline)),y2=yline,color=lightblue,alpha=.1,zorder=0)
+        
         ## LABELS FOR CORE/INFALL
         props = dict(boxstyle='square', facecolor=darkblue, alpha=0.9)
-        ax1.text(.03,.32,'CORE',transform=ax1.transAxes,fontsize=18,color='k',bbox=props)
+        #ax1.text(.03,.32,'CORE',transform=ax1.transAxes,fontsize=18,color='k',bbox=props)
         props = dict(boxstyle='square', facecolor=lightblue, alpha=0.6)        
-        ax1.text(.6,.6,'INFALL',transform=ax1.transAxes,fontsize=18,color='k',bbox=props)        
+        #ax1.text(.6,.6,'INFALL',transform=ax1.transAxes,fontsize=18,color='k',bbox=props)        
 
 
 
@@ -3277,19 +3295,19 @@ class comp_lcs_gsw():
         ax3.hist(x2,bins=len(x2),cumulative=True,normed=True,label=label2,histtype='step',color=color2,lw=3)
 
         ax3.set_xlabel(xlabel,fontsize=20)
-        ax3.text(0,.9,'AD pvalue={:.2f}'.format(pvalue_x),fontsize=16)        
+        ax3.text(0,1.05,r'$\rm pvalue:\ low\ vs\ normal={:.2f}$'.format(pvalue_x),fontsize=14)        
         # HISTOGRAM OF DELTA R/R200
 
         ax2.hist(y1,bins=len(x1),cumulative=True,normed=True,label=label1,histtype='step',color=color1,lw=2)
         ax2.hist(y2,bins=len(x2),cumulative=True,normed=True,label=label2,histtype='step',color=color2,lw=3)
 
         ax2.set_xlabel(ylabel,fontsize=20)
-        ax2.text(0,.9,'AD pvalue={:.2f}'.format(pvalue_y),fontsize=16)
+        ax2.text(0,1.05,r'$\rm pvalue:\ low\ vs\ normal={:.2f}$'.format(pvalue_y),fontsize=14)
 
         ## ADD THE HI SOURCES
         if HIflag:
             lcsHIFlag = self.lcs.cat['HIdef_flag'] & self.lcs_mass_sfr_flag & (self.lcs.membflag | self.lcs.infallflag)
-            ax1.plot(x[lcsHIFlag],y[lcsHIFlag],'bo',markerfacecolor='None',markersize=14,label='HI')
+            ax1.plot(x[lcsHIFlag],y[lcsHIFlag],'bs',markerfacecolor='None',markersize=8,label=r'$\rm HI \ detect.$')
             ax3.hist(x[lcsHIFlag],bins=sum(lcsHIFlag),cumulative=True,normed=True,label='HI',histtype='step',color='b')
             ax2.hist(y[lcsHIFlag],bins=sum(lcsHIFlag),cumulative=True,normed=True,label='HI',histtype='step',color='b')
             # fraction of normal SF galaxies with HI detections
@@ -3307,15 +3325,22 @@ class comp_lcs_gsw():
                   
             print('fraction of suppressed galaxies with HI detections = {:.2f}-{:.2f}+{:.2f}'.format(frac,frac-binom_err[0],binom_err[1]-frac))
             
-            
+            t = anderson_ksamp([y1,y[lcsHIFlag]])
+            pvalue_y_HI = t[2]
+            ax2.text(0,.9,r'$\rm pvalue:\ HI\ vs\ normal={:.2f}$'.format(pvalue_y_HI),fontsize=14)            
+            # fraction of suppressed SF galaxies with HI detections
+            t = anderson_ksamp([x1,x[lcsHIFlag]])
+            pvalue_x_HI = t[2]
+            ax3.text(0,.9,r'$\rm pvalue:\ HI\ vs\ normal={:.3f}$'.format(pvalue_x_HI),fontsize=14)            
             # fraction of suppressed SF galaxies with HI detections
 
         ## ADD LEGENDS AFTER HI
-        ax1.legend(loc='upper left')
+        ax1.legend(loc='upper left',bbox_to_anchor=(-.02,1.12),ncol=3,handletextpad=.1,columnspacing=1.1)#,horizontalalignment='left')
         ax2.legend(loc='lower right')
+        ax2.text(-.15,-.2,r'$\rm Cumulative Distribution $',fontsize=20,transform=ax2.transAxes,rotation=90,verticalalignment='center')
         #ax3.legend(loc='lower right')
-        ax2.axis([-.05,3,-.05,1.05])
-        ax3.axis([-.05,3,-.05,1.05])        
+        ax2.axis([-.05,3,-.05,1.2])
+        ax3.axis([-.05,3,-.05,1.2])        
             
         if figname1 is not None:
             plt.savefig(figname1)
@@ -3343,7 +3368,7 @@ class comp_lcs_gsw():
         core_err = binom_conf_interval(sum(core_dsfr < slimit),len(core_dsfr))#lower, upper
 
         print('CORE')        
-        print('frac suppressed = {:.2f}, {:.2f},{:.2f}'.format(core_fsup,core_err[0]-core_fsup,core_err[1]-core_fsup))
+        print('frac suppressed = {:.3f}, {:.3f},{:.3f}'.format(core_fsup,core_err[0]-core_fsup,core_err[1]-core_fsup))
         
         flag2 = self.lcs.infallflag &  (self.lcs_mass_sfr_flag)
         if BTcut is not None:
@@ -3387,7 +3412,7 @@ class comp_lcs_gsw():
         yvars = [field_fsup,core_fsup,infall_fsup]
         yerrs = [field_err,core_err,infall_err]                
         colors = ['.5',darkblue,lightblue]
-        labels = ['$Field$','$LCS \ Core$','$LCS \ Infall$']
+        labels = ['$Field$','$Core$','$Infall$']
         orders = [1,3,2]
         lws = [3,4,3]
         alphas = [.8,.8,.8]
@@ -3409,9 +3434,9 @@ class comp_lcs_gsw():
                          markersize=markersizes[i],\
                          fmt=marker,label=labels[i],markerfacecolor=markerfacecolor)
         if plotsingle:
-            plt.xticks(np.arange(0,4),['$Field$','$LCS \ Infall$','$LCS \ Core$'],fontsize=18)
+            plt.xticks(np.arange(0,4),[r'$\rm Field$',r'$\rm Infall$',r'$\rm Core$'],fontsize=22)
             #plt.xlabel('$Environment$',fontsize=20)
-            plt.ylabel('$Suppressed \ Fraction $',fontsize=20)
+            plt.ylabel(r'$\rm Suppressed \ Fraction $',fontsize=22)
         plt.xlim(-0.4,2.4)
         
     def compare_lcs_sfr(self,core=True,infall=True):
@@ -3427,7 +3452,7 @@ class comp_lcs_gsw():
         t = ks_2samp(x1,x2)
         print(t)
         vars = [x1,x2]
-        labels = ['LCS Core','LCS Infall']
+        labels = ['Core','Infall']
         mycolors = ['r','b']
         myhatch=['/','\\']
         for i in [0,1]:
@@ -3537,11 +3562,13 @@ class comp_lcs_gsw():
         flags = [lcsCoreFlag,lcsInfallFlag,fieldFlag]
         labels = ['Core','Infall','Field']
         colors = [darkblue, lightblue,'0.5']
+        markers = ['s','o','o']
+        mecs = ['k','k','None']        
         alphas = [.8,.7,.1]
         msize = [8,8,4]
         fig, ax = plt.subplots(figsize=(8,6))
         #colors = ['.5',darkblue,lightblue]
-        #labels = ['Field','LCS Core','LCS Infall']
+        #labels = ['Field','Core','Infall']
         orders = [3,2,1]
         lws = [4,3,3]
         histalphas = [0,.5,.4]        
@@ -3561,7 +3588,7 @@ class comp_lcs_gsw():
             x = dsfr_vars[i][flags[i]]
             y = HIdef_cats[i][HIdefKey][flags[i]]
             nbins=8
-            ax.plot(x,y,'bo',color=colors[i],alpha=alphas[i],markersize=msize[i],label=labels[i])
+            ax.plot(x,y,'bo',color=colors[i],alpha=alphas[i],markersize=msize[i],label=labels[i],marker=markers[i],mec=mecs[i])
 
             # plot filled histogram, then same histogram with a heavier line
             ax_histx.hist(x,bins=nbins,cumulative=False,normed=True,histtype='stepfilled',color=colors[i],lw=lws[i],alpha=histalphas[i],zorder=orders[i])
@@ -3572,8 +3599,8 @@ class comp_lcs_gsw():
             ax_histy.hist(y,bins=nbins,cumulative=False,normed=True,histtype='step',orientation='horizontal',color=colors[i],lw=lws[i],zorder=orders[i])            
 
         ax.legend()
-        ax.set_xlabel('$\Delta SFR$',fontsize=20)
-        ax.set_ylabel('$HI \ Deficiency $',fontsize=20)
+        ax.set_xlabel(r'$\rm \Delta \log_{10} SFR$',fontsize=20)
+        ax.set_ylabel(r'$\rm HI \ Deficiency $',fontsize=20)
 
         # add linear fit to dSFR vs HIdef for field galaxies
         x = dsfr_vars[2][flags[2]]
@@ -3630,6 +3657,48 @@ class comp_lcs_gsw():
         y2 = HIdef_cats[2][HIdefKey][flags[2]]
         print()
         print('comparing LCS core vs Field: HIdef')
+        print(ks_2samp(y1,y2))        
+        t = anderson_ksamp([y1,y2])
+        print('Anderson-Darling: ',t)
+
+        # ks test comparing LCS infall and field
+        x1 = dsfr_vars[1][flags[1]]
+        x2 = dsfr_vars[2][flags[2]]
+        print()
+        print('comparing LCS infall vs Field: dSFR')
+
+        print(ks_2samp(x1,x2))
+
+        t = anderson_ksamp([x1,x2])
+        print('Anderson-Darling: ',t)
+        
+        
+        y1 = HIdef_cats[1][HIdefKey][flags[1]]
+        y2 = HIdef_cats[2][HIdefKey][flags[2]]
+        print()
+        print('comparing LCS infall vs Field: HIdef')
+        print(ks_2samp(y1,y2))        
+        t = anderson_ksamp([y1,y2])
+        print('Anderson-Darling: ',t)
+
+
+        
+        # ks test comparing LCS core and infall
+        x1 = dsfr_vars[1][flags[1]]
+        x2 = dsfr_vars[0][flags[0]]
+        print()
+        print('comparing LCS infall vs core: dSFR')
+
+        print(ks_2samp(x1,x2))
+
+        t = anderson_ksamp([x1,x2])
+        print('Anderson-Darling: ',t)
+        
+        
+        y1 = HIdef_cats[1][HIdefKey][flags[1]]
+        y2 = HIdef_cats[0][HIdefKey][flags[0]]
+        print()
+        print('comparing LCS core vs infall: HIdef')
         print(ks_2samp(y1,y2))        
         t = anderson_ksamp([y1,y2])
         print('Anderson-Darling: ',t)

@@ -32,6 +32,7 @@ class writetable():
         
     def run_ks(self,massmatch=False,BTcut=False):
         all_results = []
+        all_results_AD = []
         if BTcut:
             core = self.coreBT
             infall = self.infallBT
@@ -86,31 +87,47 @@ class writetable():
         t = ks_2samp(sfrc,sfrf)
         t_sfr_fc = t
         print('\tD = {:.2e}, pvalue = {:.2e}'.format(t[0],t[1]))        
-        print(anderson_ksamp([sfrc,sfrf]))
+        t = anderson_ksamp([sfrc,sfrf])
+        t_sfr_fc_AD = [t[0],t[2]] 
+        print('\tAD D = {:.2e}, pvalue = {:.2e}'.format(t[0],t[2]))               
         print()
 
         print('LCS Core vs Field: dSFR')
         t = ks_2samp(dsfrc,dsfrf)
         t_dsfr_fc = t
         print('\tD = {:.2e}, pvalue = {:.2e}'.format(t[0],t[1]))
-        print(anderson_ksamp([dsfrc,dsfrf]))
+        t = anderson_ksamp([dsfrc,dsfrf])
+        t_dsfr_fc_AD = [t[0],t[2]]
+        print('\tAD D = {:.2e}, pvalue = {:.2e}'.format(t[0],t[2]))                       
         print()
+        
         print('LCS Core vs Field: Mstar')
         t = ks_2samp(mc,mf)
         t_mstar_fc = t
         print('\tD = {:.2e}, pvalue = {:.2e}'.format(t[0],t[1]))
-        print(anderson_ksamp([mc,mf]))
+        t=anderson_ksamp([mc,mf])
+        t_mstar_fc_AD = [t[0],t[2]]
+        print('\tAD D = {:.2e}, pvalue = {:.2e}'.format(t[0],t[2]))          
         print()
+        
         print('LCS Core vs Field: BT')
         t = ks_2samp(BTc,BTf)
         t_BT_fc = t
         print('\tD = {:.2e}, pvalue = {:.2e}'.format(t[0],t[1]))
-        print(anderson_ksamp([mc,mf]))
-
+        t = anderson_ksamp([mc,mf])
+        t_BT_fc_AD = [t[0],t[2]]
+        print('\tAD D = {:.2e}, pvalue = {:.2e}'.format(t[0],t[2]))
+        
         all_results.append(t_sfr_fc)
         all_results.append(t_dsfr_fc)
         all_results.append(t_mstar_fc)
-        all_results.append(t_BT_fc)        
+        all_results.append(t_BT_fc)
+
+        all_results_AD.append(t_sfr_fc_AD)
+        all_results_AD.append(t_dsfr_fc_AD)
+        all_results_AD.append(t_mstar_fc_AD)
+        all_results_AD.append(t_BT_fc_AD)        
+        
         ##############################################
         # LCS infall vs field: SFR, Stellar mass, dSFR
         ##############################################        
@@ -125,34 +142,47 @@ class writetable():
         t = ks_2samp(sfri,sfrf)
         t_sfr_fi = t
         print('\tD = {:.2e}, pvalue = {:.2e}'.format(t[0],t[1]))
-        print(anderson_ksamp([sfri,sfrf]))
+        t = anderson_ksamp([sfri,sfrf])
+        t_sfr_fi_AD = [t[0],t[2]]
+        print('\tAD D = {:.2e}, pvalue = {:.2e}'.format(t[0],t[2]))                       
         print()
         
         print('LCS Infall vs Field: dSFR')
         t = ks_2samp(dsfri,dsfrf)
         t_dsfr_fi = t
         print('\tD = {:.2e}, pvalue = {:.2e}'.format(t[0],t[1]))
-        print(anderson_ksamp([dsfri,dsfrf]))
+        t  = anderson_ksamp([dsfri,dsfrf])
+        t_dsfr_fi_AD = [t[0],t[2]]        
+        print('\tAD D = {:.2e}, pvalue = {:.2e}'.format(t[0],t[2]))                       
         print()
 
         print('LCS Infall vs Field: Mstar')
         t = ks_2samp(mi,mf)
         t_mstar_fi = t
         print('\tD = {:.2e}, pvalue = {:.2e}'.format(t[0],t[1]))
-        print(anderson_ksamp([mi,mf]))
+        t = anderson_ksamp([mi,mf])
+        t_mstar_fi_AD = [t[0],t[2]]
+        print('\tAD D = {:.2e}, pvalue = {:.2e}'.format(t[0],t[2]))                       
         print()
 
         print('LCS Infall vs Field: BT')
         t = ks_2samp(BTi,BTf)
         t_BT_fi = t
         print('\tD = {:.2e}, pvalue = {:.2e}'.format(t[0],t[1]))
-        print(anderson_ksamp([BTi,BTf]))
+        t = anderson_ksamp([BTi,BTf])
+        t_BT_fi_AD = [t[0],t[2]]
+        print('\tAD D = {:.2e}, pvalue = {:.2e}'.format(t[0],t[2]))                       
         print()
 
         all_results.append(t_sfr_fi)
         all_results.append(t_dsfr_fi)
         all_results.append(t_mstar_fi)
         all_results.append(t_BT_fi)
+
+        all_results_AD.append(t_sfr_fi_AD)
+        all_results_AD.append(t_dsfr_fi_AD)
+        all_results_AD.append(t_mstar_fi_AD)
+        all_results_AD.append(t_BT_fi_AD)
         
         ##############################################        
         # LCS core vs infall: SFR, Stellar mass, dSFR
@@ -164,42 +194,57 @@ class writetable():
             t = ks_2samp(sfrc,sfri)
             t_sfr_ci = t
             print('\tD = {:.2e}, pvalue = {:.2e}'.format(t[0],t[1]))        
-            print(anderson_ksamp([sfrc,sfri]))
+            t = anderson_ksamp([sfrc,sfri])
+            t_sfr_ci_AD = [t[0],t[2]]                            
+            print('\tAD D = {:.2e}, pvalue = {:.2e}'.format(t[0],t[2]))
             
             print('LCS Core vs Infall: dSFR')
             t = ks_2samp(dsfrc,dsfri)
             t_dsfr_ci = t
             print('\tD = {:.2e}, pvalue = {:.2e}'.format(t[0],t[1]))
-            print(anderson_ksamp([dsfrc,dsfri]))
+            t = anderson_ksamp([dsfrc,dsfri])
+            t_dsfr_ci_AD = [t[0],t[2]]                                        
+            print('\tAD D = {:.2e}, pvalue = {:.2e}'.format(t[0],t[2]))
             
             print('LCS Core vs Infall: Mstar')
             t = ks_2samp(mc,mi)
             t_mstar_ci = t
             print('\tD = {:.2e}, pvalue = {:.2e}'.format(t[0],t[1]))
-            print(anderson_ksamp([mc,mi]))
+            t = anderson_ksamp([mc,mi])
+            t_mstar_ci_AD = [t[0],t[2]]
+            print('\tAD D = {:.2e}, pvalue = {:.2e}'.format(t[0],t[2]))
             
             print('LCS Core vs Infall: BT')
             t = ks_2samp(BTc,BTi)
             t_BT_ci = t
             print('\tD = {:.2e}, pvalue = {:.2e}'.format(t[0],t[1]))
-            print(anderson_ksamp([BTc,BTi]))
+            t = anderson_ksamp([BTc,BTi])
+            t_BT_ci_AD = [t[0],t[2]]                                        
+            print('\tAD D = {:.2e}, pvalue = {:.2e}'.format(t[0],t[2]))
             
             all_results.append(t_sfr_ci)
             all_results.append(t_dsfr_ci)
             all_results.append(t_mstar_ci)
-            all_results.append(t_BT_ci)            
-        return all_results
+            all_results.append(t_BT_ci)
+
+            all_results_AD.append(t_sfr_ci_AD)
+            all_results_AD.append(t_dsfr_ci_AD)
+            all_results_AD.append(t_mstar_ci_AD)
+            all_results_AD.append(t_BT_ci_AD)            
+
+        # changing to use the Anderson Darling test instead of KS
+        return all_results_AD
 
     def get_stats(self):
 
         # no mass match
         self.allstats = self.run_ks()
         # with mass match
-        self.allstats_mm = self.run_ks(massmatch=True)
+        #self.allstats_mm = self.run_ks(massmatch=True)
         # no mass match
         self.allstatsBT = self.run_ks(BTcut=True)
         # with mass match
-        self.allstatsBT_mm = self.run_ks(massmatch=True,BTcut=True)
+        #self.allstatsBT_mm = self.run_ks(massmatch=True,BTcut=True)
 
     def open_output(self):
         self.outfile = open('table1.tex','w')
@@ -208,11 +253,11 @@ class writetable():
         # write the header
         self.outfile.write('\\begin{table*}%[h] \n')
         self.outfile.write('\\centering \n')
-        self.outfile.write('\\begin{tabular}{|c|c|c|c|c|c|} \n')
+        self.outfile.write('\\begin{tabular}{|c|c|c|c|} \n')
         self.outfile.write('\\hline\n')
-        self.outfile.write('Samples &Variable  &\multicolumn{2}{c|}{All $B/T$} &  \multicolumn{2}{c|}{$B/T < 0.4$}\\\\ \n')
-        self.outfile.write('& & \multicolumn{2}{c|}{KS p value}& \multicolumn{2}{c|}{KS p value} \\\\ \n')
-        self.outfile.write('& &  no mass match & mass match & no mass match & mass match\\\\ \n')
+        self.outfile.write('Samples &Variable  &\multicolumn{1}{c|}{All $B/T$} &  \multicolumn{1}{c|}{$B/T < 0.4$}\\\\ \n')
+        self.outfile.write('& & {A.D. p value}& {A.D. p value} \\\\ \n')
+        #self.outfile.write('& &  no mass match & mass match & no mass match & mass match\\\\ \n')
         self.outfile.write('\hline \hline \n')
         
         pass
@@ -221,65 +266,68 @@ class writetable():
     def write_data(self):
         ##########################
         #### CORE VS FIELD
-        ##########################        
+        ##########################
+
+        # use AD statistics
+        
         a = self.allstats[0][1]
-        b = self.allstats_mm[0][1]
+        #b = self.allstats_mm[0][1]
         c = self.allstatsBT[0][1]
-        d = self.allstatsBT_mm[0][1]
-        self.outfile.write('LCS Core-Field    & $\log SFR$         & \\bf {:.2e} & \\bf {:.2e} & \\bf {:.2e}& \\bf {:.2e} \\\\ \n'.format(a,b,c,d))
+        #d = self.allstatsBT_mm[0][1]
+        self.outfile.write('Core-Field    & $\log SFR$         & \\bf {:.2e} & \\bf {:.2e}  \\\\ \n'.format(a,c))
 
         a = self.allstats[1][1]
-        b = self.allstats_mm[1][1]
+        #b = self.allstats_mm[1][1]
         c = self.allstatsBT[1][1]
-        d = self.allstatsBT_mm[1][1]        
-        self.outfile.write(' & $\Delta \log $SFR  & \\bf {:.2e} & \\bf {:.2e} & \\bf {:.2e} & \\bf {:.2e} \\\\ \n'.format(a,b,c,d,))
+        #d = self.allstatsBT_mm[1][1]        
+        self.outfile.write(' & $\Delta \log $SFR  & \\bf {:.2e} & \\bf {:.2e}  \\\\ \n'.format(a,c))
 
         a = self.allstats[2][1]
-        b = self.allstats_mm[2][1]
+        #b = self.allstats_mm[2][1]
         c = self.allstatsBT[2][1]
-        d = self.allstatsBT_mm[2][1]        
-        self.outfile.write(' & $\log M_\star/M_\odot$    & {:.2e} & {:.2e} & {:.2e} & {:.2e}  \\\\ \n'.format(a,b,c,d))
+        #d = self.allstatsBT_mm[2][1]        
+        self.outfile.write(' & $\log M_\star/M_\odot$    & \\bf {:.2e} & {:.2e}   \\\\ \n'.format(a,c))
 
         a = self.allstats[3][1]
-        b = self.allstats_mm[3][1]
+        #b = self.allstats_mm[3][1]
         c = self.allstatsBT[3][1]
-        d = self.allstatsBT_mm[3][1]        
-        self.outfile.write(' & $B/T$    &\\bf {:.2e} &\\bf {:.2e} &\\bf {:.2e} &\\bf {:.2e}  \\\\ \n'.format(a,b,c,d))
+        #d = self.allstatsBT_mm[3][1]        
+        self.outfile.write(' & $B/T$    &\\bf {:.2e} & {:.2e}   \\\\ \n'.format(a,c))
         i=3
         i +=1
         ##########################
         #### INFALL VS FIELD
         ##########################        
         a = self.allstats[i][1]
-        b = self.allstats_mm[i][1]
+        #b = self.allstats_mm[i][1]
         c = self.allstatsBT[i][1]
-        d = self.allstatsBT_mm[i][1]        
+        #d = self.allstatsBT_mm[i][1]        
         self.outfile.write('\\hline \n')
-        self.outfile.write('LCS Infall-Field  & $\log$ SFR &\\bf {:.2e} &\\bf {:.2e} & \\bf {:.2e} & \\bf {:.2e}\\\\ \n'.format(a,b,c,d))
+        self.outfile.write('Infall-Field  & $\log$ SFR &\\bf {:.2e} & \\bf {:.2e}\\\\ \n'.format(a,c))
 
         i += 1
         
         a = self.allstats[i][1]
-        b = self.allstats_mm[i][1]
+        #b = self.allstats_mm[i][1]
         c = self.allstatsBT[i][1]
-        d = self.allstatsBT_mm[i][1]        
-        self.outfile.write('& $\Delta \log$SFR  & \\bf {:.2e}   & \\bf {:.2e} & \\bf {:.2e} & \\bf   {:.2e}\\\\ \n'.format(a,b,c,d))
+        #d = self.allstatsBT_mm[i][1]        
+        self.outfile.write('& $\Delta \log$SFR  & \\bf {:.2e}   & \\bf {:.2e} \\\\ \n'.format(a,c))
 
         i += 1
         
         a = self.allstats[i][1]
-        b = self.allstats_mm[i][1]
+        #b = self.allstats_mm[i][1]
         c = self.allstatsBT[i][1]
-        d = self.allstatsBT_mm[i][1]        
-        self.outfile.write('&$\log M_\star/M_\odot$   &  {:.2e} &  {:.2e} & {:.2e}  & {:.2e} \\\\ \n'.format(a,b,c,d))
+        #d = self.allstatsBT_mm[i][1]        
+        self.outfile.write('&$\log M_\star/M_\odot$   &  {:.2e} &  {:.2e}  \\\\ \n'.format(a,c))
 
         i += 1
         
         a = self.allstats[i][1]
-        b = self.allstats_mm[i][1]
+        #b = self.allstats_mm[i][1]
         c = self.allstatsBT[i][1]
-        d = self.allstatsBT_mm[i][1]        
-        self.outfile.write('&$B/T$   &  \\bf {:.2e} & \\bf {:.2e} & \\bf {:.2e}  & {:.2e} \\\\ \n'.format(a,b,c,d))
+        #d = self.allstatsBT_mm[i][1]        
+        self.outfile.write('&$B/T$   &  \\bf {:.2e} & \\bf {:.2e}  \\\\ \n'.format(a,c))
         
         
         self.outfile.write('\\hline \n')
@@ -291,31 +339,31 @@ class writetable():
         
         a = self.allstats[i][1]
         b = self.allstatsBT[i][1]        
-        self.outfile.write('LCS Core-Infall    & $\\log$ SFR      & {:.2e}  & \\nodata  & {:.2e} &\\nodata  \\\\ \n'.format(a,b))
+        self.outfile.write('Core-Infall    & $\\log$ SFR      & \\bf {:.2e}    & {:.2e}   \\\\ \n'.format(a,b))
 
         i += 1
         
         a = self.allstats[i][1]
         b = self.allstatsBT[i][1]                
-        self.outfile.write('& $\Delta \log$SFR& {:.2e} & \\nodata & {:.2e}  &\\nodata  \\\\ \n'.format(a,b))
+        self.outfile.write('& $\Delta \log$SFR& \\bf {:.2e} & {:.2e}  \\\\ \n'.format(a,b))
 
         i += 1
         
         a = self.allstats[i][1]
         b = self.allstatsBT[i][1]        
-        self.outfile.write('& $\log M_\star/M_\odot$ & {:.2e}  & \\nodata & {:.2e}  &\\nodata \\\\ \n'.format(a,b))
+        self.outfile.write('& $\log M_\star/M_\odot$ & {:.2e}  & {:.2e}  \\\\ \n'.format(a,b))
 
         i += 1
         
         a = self.allstats[i][1]
         b = self.allstatsBT[i][1]        
-        self.outfile.write('& $B/T$ & {:.2e}  & \\nodata & {:.2e}  &\\nodata \\\\ \n'.format(a,b))
+        self.outfile.write('& $B/T$ & {:.2e}  & {:.2e}   \\\\ \n'.format(a,b))
         pass
 
     def write_footer(self):
         self.outfile.write('\\hline \n')
         self.outfile.write('\\end{tabular} \n')
-        self.outfile.write('\\caption{Summary statistics for SFR, $\Delta$SFR, stellar mass, and $B/T$ comparisons.  Bold text indicates when the two populations differ at the 99.7\% or $\ge 3\sigma$ confidence interval (KS p-value$<$3.0e-03). } \n')
+        self.outfile.write('\\caption{Summary statistics for SFR, $\Delta$SFR, stellar mass, and $B/T$ comparisons.  Bold text indicates when the two populations differ at the 99.7\% or $\ge 3\sigma$ confidence interval (A.D. p-value$<$3.0e-03). NOTE: {scipy.stats.anderson\\_ksamp} floors the p value at 0.1\\%, so it will not return p values below 1E-3.} \n')
 
         self.outfile.write('\\label{tab:stats} \n')
         self.outfile.write('\\end{table*} \n')
