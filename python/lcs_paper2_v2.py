@@ -1445,7 +1445,7 @@ class comp_lcs_gsw():
         #self.gsw.fit_MS(flag=self.gsw_mass_sfr_flag)
         massFlag = (self.gsw.cat['logMstar'] > 8.75) & (self.gsw.cat['logMstar'] < 10.)
         flag =  self.gsw_mass_sfr_flag & massFlag #& (self.gsw.cat[BTkey]< .5) 
-        self.gsw.fit_MS(flag=flag,plotFlag=True)#flag=
+        self.gsw.fit_MS(flag=flag,plotFlag=False)#flag=
     def plot_sfr_mstar(self,lcsflag=None,label='Core',outfile1=None,outfile2=None,coreflag=True,massmatch=True,hexbinflag=False,marker2='o',alpha1='0.1',plotMS=True,plotlegend=True):
         '''
         PURPOSE:
@@ -3663,7 +3663,7 @@ class comp_lcs_gsw():
         colors = [darkblue, lightblue,'0.5']
         markers = ['s','o','o']
         mecs = ['k','k','None']        
-        alphas = [.8,.7,.1]
+        alphas = [.8,.7,.4]
         msize = [8,8,4]
         fig, ax = plt.subplots(figsize=(8,6))
         #colors = ['.5',darkblue,lightblue]
@@ -3697,7 +3697,7 @@ class comp_lcs_gsw():
             ax_histy.hist(y,bins=nbins,cumulative=False,normed=True,histtype='stepfilled',orientation='horizontal',color=colors[i],lw=lws[i],alpha=histalphas[i],zorder=orders[i])
             ax_histy.hist(y,bins=nbins,cumulative=False,normed=True,histtype='step',orientation='horizontal',color=colors[i],lw=lws[i],zorder=orders[i])            
 
-        ax.legend()
+
         ax.set_xlabel(r'$\rm \Delta \log_{10} SFR$',fontsize=20)
         ax.set_ylabel(r'$\rm HI \ Deficiency $',fontsize=20)
 
@@ -3708,8 +3708,8 @@ class comp_lcs_gsw():
         popt,V = np.polyfit(x,y,1,cov=True)
         xline = np.linspace(-.75,.75,100)
         yline = np.polyval(popt,xline)
-        ax.plot(xline,yline,'k-',lw=2)
-
+        ax.plot(xline,yline,'k-',lw=2,label='Fit to Field')
+        ax.legend()
         # print best-fit line slope and error
         print()
         print('best-field line for field = {:.3f}+/-{:.3f}'.format(popt[0],np.sqrt(V[0][0])))
@@ -3853,6 +3853,8 @@ class comp_lcs_gsw():
             
             nlow = np.sum(lowsfrflag)
             ntot = np.sum(parentflag)
+            if (ntot == 0):
+                continue
             binom_err = binom_conf_interval(nlow,ntot)#lower, upper
             frac =  nlow/ntot
             yerr_low,yerr_high = frac-binom_err[0],binom_err[1]-frac
@@ -3916,6 +3918,8 @@ class comp_lcs_gsw():
             
             nlow = np.sum(lowsfrflag)
             ntot = np.sum(parentflag)
+            if (ntot == 0):
+                continue
             binom_err = binom_conf_interval(nlow,ntot)#lower, upper
             frac =  nlow/ntot
             yerr_low,yerr_high = frac-binom_err[0],binom_err[1]-frac
