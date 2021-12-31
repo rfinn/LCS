@@ -66,7 +66,7 @@ zmin = 0.0137
 zmax = 0.0433
 # this is from fitting a line that is parallel to MS but that intersects
 # where gaussians of SF and quiescent cross
-MS_OFFSET = 0.28#1.5*0.22
+MS_OFFSET = 0.326#1.5*0.22
 NMASSMATCH=30 # number of field to draw for each cluster/infall galaxy
 Mpcrad_kpcarcsec = 2. * np.pi/360./3600.*1000.
 mipspixelscale=2.45
@@ -711,7 +711,7 @@ class gswlc_full():
 
         t.write(self.outfile,format='fits',overwrite=True)
     def save_trimmed_HIdef(self):
-        fname = '/home/rfinn/research/GSWLC/GSWLC-X2-NO-DR10-AGN-Simard2011-tab1-tab3-Tempel-13-2021Jan07-HIdef-2021Aug28'
+        fname = homedir+'/research/GSWLC/GSWLC-X2-NO-DR10-AGN-Simard2011-tab1-tab3-Tempel-13-2021Jan07-HIdef-2021Aug28'
         HIdef = Table.read(fname+'.fits')
         HIdef_trimmed = HIdef[self.keepflag]
         HIdef_trimmed.write(fname+'-trimmed.fits',format='fits',overwrite=True)
@@ -1732,22 +1732,30 @@ class comp_lcs_gsw():
         
         flag1 = self.lcs.membflag &  self.lcs_mass_sfr_flag #(self.lcs.cat['logMstar']> self.masscut)  & (self.lcs.ssfr > self.ssfrcut)
         # removing field1 cut because we are now using Tempel catalog that only
-        # includes galaxies in halo masses logM < 12.5
+        # includes galaxies in halo massses logM < 12.5
         flag2 = self.gsw_mass_sfr_flag #(self.gsw.cat['logMstar'] > self.masscut) & (self.gsw.ssfr > self.ssfrcut)  #& self.gsw.field1
         # GSWLC
         if massmatch:
 
             keep_indices = mass_match(self.lcs.cat['logMstar'][self.lcs_mass_sfr_flag],\
                                       self.gsw.cat['logMstar'][self.gsw_mass_sfr_flag],\
-                                      nmatch=NMASSMATCH,seed=559)            
-            x1 = self.gsw.cat['logMstar'][keep_indices]
-            y1 = self.gsw.cat['logSFR'][keep_indices]
+                                      nmatch=NMASSMATCH,seed=559)
+
+            x1 = self.gsw.cat['logMstar'][self.gsw_mass_sfr_flag][keep_indices]
+            y1 = self.gsw.cat['logSFR'][self.gsw_mass_sfr_flag][keep_indices]
         else:
             x1 = self.gsw.cat['logMstar'][flag2]
             y1 = self.gsw.cat['logSFR'][flag2]
 
         #dsfr1 = y1-get_BV_MS(x1)
-        dsfr1 = y1-self.gsw.get_MS(x1)        
+        dsfr1 = y1-self.gsw.get_MS(x1)
+        #print("min dsfr for field sample = ",np.min(dsfr1))
+        #tflag = dsfr1 < -1.5
+        #print("logmstar of low dsfr = ",x1[tflag])
+        #print("logsfr of low dsfr = ",y1[tflag])
+        #print("dsfr of low dsfr = ",dsfr1[tflag])
+        
+        
         #LCS core
         x2 = self.lcs.cat['logMstar'][flag1]
         y2 = self.lcs.cat['logSFR'][flag1]
@@ -3489,9 +3497,9 @@ class comp_lcs_gsw():
             keep_indices = mass_match(self.lcs.cat['logMstar'][self.lcs_mass_sfr_flag],\
                                       self.gsw.cat['logMstar'][gsw_flag],\
                                       nmatch=NMASSMATCH,seed=379)            
-            x3 = self.gsw.cat['logMstar'][keep_indices]
-            y3 = self.gsw.cat['logSFR'][keep_indices]
-            fieldBT = self.gsw.cat[BTkey][keep_indices]
+            x3 = self.gsw.cat['logMstar'][gsw_flag][keep_indices]
+            y3 = self.gsw.cat['logSFR'][gsw_flag][keep_indices]
+            fieldBT = self.gsw.cat[BTkey][gsw_flag][keep_indices]
         else:
             x3 = self.gsw.cat['logMstar'][flag3]
             y3 = self.gsw.cat['logSFR'][flag3]
@@ -3534,7 +3542,7 @@ class comp_lcs_gsw():
                          markersize=markersizes[i],\
                          fmt=marker,label=labels[i],markerfacecolor=markerfacecolor)
         if plotsingle:
-            plt.xticks(np.arange(0,4),[r'$\rm Field$',r'$\rm Infall$',r'$\rm Core$'],fontsize=22)
+            plt.xticks(np.arange(0,3),[r'$\rm Field$',r'$\rm Infall$',r'$\rm Core$'],fontsize=22)
             #plt.xlabel('$Environment$',fontsize=20)
             plt.ylabel(r'$\rm Suppressed \ Fraction $',fontsize=22)
         plt.xlim(-0.4,2.4)
@@ -3989,7 +3997,7 @@ if __name__ == '__main__':
     else:
         infile = gsw_basefile+'-LCS-Zoverlap.fits'
     if args.HIdef:
-        HIdef_file = '/home/rfinn/research/GSWLC/GSWLC-X2-NO-DR10-AGN-Simard2011-tab1-tab3-Tempel-13-2021Jan07-HIdef-2021Aug28-trimmed.fits'
+        HIdef_file = homedir+'/research/GSWLC/GSWLC-X2-NO-DR10-AGN-Simard2011-tab1-tab3-Tempel-13-2021Jan07-HIdef-2021Aug28-trimmed.fits'
     else:
         HIdef_file = None
     g = gswlc(infile,HIdef_file=HIdef_file)
