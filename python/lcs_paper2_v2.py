@@ -67,6 +67,7 @@ zmax = 0.0433
 # this is from fitting a line that is parallel to MS but that intersects
 # where gaussians of SF and quiescent cross
 MS_OFFSET = 0.28#1.5*0.22
+NMASSMATCH=30 # number of field to draw for each cluster/infall galaxy
 Mpcrad_kpcarcsec = 2. * np.pi/360./3600.*1000.
 mipspixelscale=2.45
 
@@ -435,7 +436,7 @@ def mass_match(input_mass,comp_mass,seed,dm=.15,nmatch=1,inputZ=None,compZ=None,
         # select nmatch galaxies randomly from this limited mass range
         # NOTE: can avoid repeating items by setting replace=False
         if sum(flag) < nmatch:
-            print('galaxies in slice < # requested',sum(flag),nmatch,input_mass[i],inputZ[i])
+            print('galaxies in slice < # requested',sum(flag),nmatch,input_mass[i])
         if sum(flag) == 0:
             print('\truh roh - doubling mass and redshift slices')
             flag = np.abs(comp_mass - input_mass[i]) < 2*dm
@@ -1500,13 +1501,13 @@ class comp_lcs_gsw():
         # get indices for mass-matched gswlc sample
         if massmatch:
             #keep_indices = mass_match(x2,x1,inputZ=z2,compZ=z1,dz=.002)
-            keep_indices = mass_match(x2,x1,3124,nmatch=50)            
+            keep_indices = mass_match(x2,x1,3124,nmatch=NMASSMATCH)            
             # if keep_indices == False
             # remove redshift constraint
             if (len(keep_indices) == 1):
                 if (keep_indices == False):
                     print("WARNING: Removing the redshift constraint from the mass-matched sample")
-                    keep_indices = mass_match(x2,x1,74832,nmatch=50)
+                    keep_indices = mass_match(x2,x1,74832,nmatch=NMASSMATCH)
                 
             x1 = x1[keep_indices]
             y1 = y1[keep_indices]
@@ -1738,7 +1739,7 @@ class comp_lcs_gsw():
 
             keep_indices = mass_match(self.lcs.cat['logMstar'][self.lcs_mass_sfr_flag],\
                                       self.gsw.cat['logMstar'][self.gsw_mass_sfr_flag],\
-                                      nmatch=50,seed=379)            
+                                      nmatch=NMASSMATCH,seed=559)            
             x1 = self.gsw.cat['logMstar'][keep_indices]
             y1 = self.gsw.cat['logSFR'][keep_indices]
         else:
@@ -2204,7 +2205,7 @@ class comp_lcs_gsw():
                 if col == 0:
                     plt.ylabel(ylabels[0],fontsize=16)
                     plt.legend()
-                    plt.axvline(x=0.4,ls='--',color='k')                    
+                    plt.axvline(x=0.3,ls='--',color='k')                    
                 if colnumber == 1:
                     plt.text(-.1,1.05,titles[0],transform=plt.gca().transAxes,horizontalalignment='center')
                 # plot on bottom row those with low delta SFR
@@ -2216,7 +2217,7 @@ class comp_lcs_gsw():
                 
                 if col == 0:
                     plt.ylabel(ylabels[1],fontsize=16)
-                    plt.axvline(x=0.4,ls='--',color='k')
+                    plt.axvline(x=0.3,ls='--',color='k')
                 if colnumber == 1:
                     plt.text(-.1,1.05,titles[1],transform=plt.gca().transAxes,horizontalalignment='center')
                     
@@ -2549,7 +2550,7 @@ class comp_lcs_gsw():
         flags2=[flag2,lcsflag2]
         # create a mass-matched sample of field galaxies with low SFR
         myrandom = np.random.random()
-        keep_indices = mass_match(lcsmass_lowsfr,gswmass_lowsfr,nmatch=10,seed=379)            
+        keep_indices = mass_match(lcsmass_lowsfr,gswmass_lowsfr,nmatch=NMASSMATCH,seed=379)            
 
         massmatched_gswBT_lowsfr = gswBT_lowsfr[keep_indices]
         
@@ -2625,7 +2626,7 @@ class comp_lcs_gsw():
             else:
                 plt.xticks([],[])
         
-    def compare_BT_lowsfr_lcs_field_mmatch(self,nbins=12,coreonly=False,infallonly=False,BTmax=1,nrandom=100,nmatch=1):
+    def compare_BT_lowsfr_lcs_field_mmatch(self,nbins=12,coreonly=False,infallonly=False,BTmax=1,nrandom=100,nmatch=30):
         ''' compare the B/T distribution of LCS low SFR galaxies with mass-matched sample drawn from low SFR field galaxies '''
 
         if coreonly:
@@ -2785,7 +2786,7 @@ class comp_lcs_gsw():
         gswBT_lowsfr = self.gsw.cat[BTkey][flag2]
         
         # create a mass-matched sample of field galaxies with normal SFR
-        keep_indices = mass_match(gswmass_lowsfr,gswmass_normal,34278,nmatch=1)            
+        keep_indices = mass_match(gswmass_lowsfr,gswmass_normal,34278,nmatch=NMASSMATCH)            
 
         massmatched_gswBT_normal = gswBT_normal[keep_indices]
         
@@ -2860,7 +2861,7 @@ class comp_lcs_gsw():
         gswBT_lowsfr = self.gsw.cat[BTkey][flag2]
         
         # create a mass-matched sample of field galaxies with normal SFR
-        keep_indices = mass_match(lcsmass_lowsfr,gswmass_normal,nmatch=20)            
+        keep_indices = mass_match(lcsmass_lowsfr,gswmass_normal,nmatch=NMASSMATCH)            
 
         massmatched_gswBT_normal = gswBT_normal[keep_indices]
         
@@ -3487,7 +3488,7 @@ class comp_lcs_gsw():
                 gsw_flag = self.gsw_mass_sfr_flag 
             keep_indices = mass_match(self.lcs.cat['logMstar'][self.lcs_mass_sfr_flag],\
                                       self.gsw.cat['logMstar'][gsw_flag],\
-                                      nmatch=50,seed=379)            
+                                      nmatch=NMASSMATCH,seed=379)            
             x3 = self.gsw.cat['logMstar'][keep_indices]
             y3 = self.gsw.cat['logSFR'][keep_indices]
             fieldBT = self.gsw.cat[BTkey][keep_indices]

@@ -15,6 +15,8 @@ tabledir = homedir+'/research/LCS/tables/'
 
 sys.path.append(homedir+'/github/LCS/python/')
 from lcs_paper2 import mass_match
+
+NMASSMATCH = 30 # number of field to draw for each cluster galaxy
 class writetable():
     def __init__(self):
         
@@ -61,13 +63,13 @@ class writetable():
         
         if massmatch:
             seed = 23654
-            keep_indices = mass_match(mc,mf,seed)            
+            keep_indices = mass_match(mc,mf,seed,nmatch=NMASSMATCH)            
             mf_matchc = mf[keep_indices]
             sfrf_matchc = sfrf[keep_indices]
             dsfrf_matchc = dsfrf[keep_indices]
             BTf_matchc = BTf[keep_indices]            
             ### match to infall
-            keep_indices = mass_match(mi,mf,seed)            
+            keep_indices = mass_match(mi,mf,seed,nmatch=NMASSMATCH)                        
             mf_matchi = mf[keep_indices]
             sfrf_matchi = sfrf[keep_indices]
             dsfrf_matchi = dsfrf[keep_indices]
