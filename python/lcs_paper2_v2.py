@@ -35,6 +35,8 @@ from astropy.stats import median_absolute_deviation as MAD
 
 from PIL import Image
 
+import multiprocessing as mp
+
 import sys
 LCSpath = os.path.join(os.getenv("HOME"),'github','LCS','python','')
 sys.path.append(LCSpath)
@@ -66,11 +68,10 @@ zmin = 0.0137
 zmax = 0.0433
 # this is from fitting a line that is parallel to MS but that intersects
 # where gaussians of SF and quiescent cross
-MS_OFFSET = 0.326#1.5*0.22
+MS_OFFSET = 1.5*0.22
 NMASSMATCH=30 # number of field to draw for each cluster/infall galaxy
 Mpcrad_kpcarcsec = 2. * np.pi/360./3600.*1000.
 mipspixelscale=2.45
-
 exterior=.68
 colors=['k','b','c','g','m','y','r','sienna','0.5']
 shapes=['o','*','p','d','s','^','>','<','v']
@@ -143,6 +144,14 @@ def get_BV_MS(logMstar,MSfit=None):
         return 0.3985*logMstar - 4.2078
     else:
         return MSfit(logMstar)
+def get_SFR_cut(logMstar):
+    ''' 
+    get min allowable SFR as a function of stellar mass
+        
+    '''
+    #return 0.53*logMstar-5.5
+    # for no BT cut, e < 0.75
+    return 0.58*logMstar - 6.84
 def get_MS_BTcut(logMstar,MSfit=None):
     ''' 
     get MS fit with B/T < 0.4 cut
@@ -278,8 +287,12 @@ def colormass(x1,y1,x2,y2,name1,name2, figname, hexbinflag=False,contourflag=Fal
     #plt.colorbar()
     if ssfrlimit is not None:
         xl=np.linspace(xmin,xmax,100)
+        yl = get_SFR_cut(xl)
+        plt.plot(xl,yl,'k--')#,label='sSFR=-11.5')        
         yl =xl + float(args.minssfr)
-        plt.plot(xl,yl,'k--')#,label='sSFR=-11.5')
+        plt.plot(xl,yl,'k:')#,label='sSFR=-11.5')                
+
+
     plt.axis([xmin,xmax,ymin,ymax])
     plt.xticks(fontsize=12)
     plt.yticks(fontsize=12)
@@ -399,7 +412,14 @@ def plotsalim07():
     plt.plot(lmstar, lsfr-np.log10(5.), 'w--', lw=4)
     plt.plot(lmstar, lsfr-np.log10(5.), c='salmon',ls='--', lw=2)
 
-def mass_match(input_mass,comp_mass,seed,dm=.15,nmatch=1,inputZ=None,compZ=None,dz=.0025):
+def mass_match(input_mass,comp_mass,seed,nmatch=10,dm=.15,inputZ=None,compZ=None,dz=.0025,mp=False):
+    if mp:
+        return_indices =  mass_match_mp(input_mass,comp_mass,seed,nmatch=nmatch,dm=dm,inputZ=inputZ,compZ=compZ,dz=dz)
+    else:
+        return_indices =  mass_match_linear(input_mass,comp_mass,seed,nmatch=nmatch,dm=dm,inputZ=inputZ,compZ=compZ,dz=dz)
+    return return_indices
+
+def mass_match_linear(input_mass,comp_mass,seed,nmatch=10,dm=.15,inputZ=None,compZ=None,dz=.0025):
     '''
     for each galaxy in parent, draw nmatch galaxies in match_mass
     that are within +/-dm
@@ -436,7 +456,7 @@ def mass_match(input_mass,comp_mass,seed,dm=.15,nmatch=1,inputZ=None,compZ=None,
         # select nmatch galaxies randomly from this limited mass range
         # NOTE: can avoid repeating items by setting replace=False
         if sum(flag) < nmatch:
-            print('galaxies in slice < # requested',sum(flag),nmatch,input_mass[i])
+            print('galaxies in slice < # requested',sum(flag),nmatch,input_mass[i],inputZ[i])
         if sum(flag) == 0:
             print('\truh roh - doubling mass and redshift slices')
             flag = np.abs(comp_mass - input_mass[i]) < 2*dm
@@ -453,11 +473,64 @@ def mass_match(input_mass,comp_mass,seed,dm=.15,nmatch=1,inputZ=None,compZ=None,
                     print("can't seem to find a match for mass = ",input_mass[i], i)
                     print("skipping this galaxy")                    
                     continue
+        #return_index.append(np.random.choice(comp_index[flag],nmatch,replace=True).tolist())
         return_index[int(i*nmatch):int((i+1)*nmatch)] = np.random.choice(comp_index[flag],nmatch,replace=True)
+    return np.array(return_index,'i')
+    
+def mass_match_mp(input_mass,comp_mass,seed,dm=.15,nmatch=1,inputZ=None,compZ=None,dz=.0025):
+    '''
+    for each galaxy in parent, draw nmatch galaxies in match_mass
+    that are within +/-dm
 
-    return return_index
+    PARAMS:
+    -------
+    * input_mass - sample to create mass-matched sample for, ref mass distribution    
+    * comp_mass - sample to draw matches from
+    * dm - mass offset from which to draw matched galaxies from
+    * nmatch = number of matched galaxies per galaxy in the input
+    * inputZ = redshift for input sample; need to supply this to do redshift cut 
+    * compZ = redshift for comparison sample 
 
-                     
+    RETURNS:
+    --------
+    * indices of the comp_sample
+
+    '''
+    # for each galaxy in parent
+    # select nmatch galaxies from comp_sample that have stellar masses
+    # within +/- dm
+    np.random.seed(seed)
+    return_index = np.zeros(len(input_mass)*nmatch,'i')
+
+    # using multiprocessing to increase speed of mass matching
+    mm_pool = mp.Pool(mp.cpu_count())
+    myresults = [mm_pool.apply_async(mass_match_subroutine,args=(onemass,comp_mass,nmatch)) for onemass in input_mass]
+    mm_pool.close()
+    mm_pool.join()
+    return_indices= [r.get() for r in myresults]
+    
+    return return_indices
+
+def collect_results_mm(result):
+
+    global results
+    massmatch_results.append(result)
+
+def mass_match_subroutine(onemass,comparison_masses,nmatch,dm=0.15):
+    flag = np.abs(comparison_masses - onemass) < dm
+    
+    comp_index = np.arange(len(comparison_masses))
+    
+    # select nmatch galaxies randomly from this limited mass range
+    # NOTE: can avoid repeating items by setting replace=False
+    if sum(flag) == 0:
+        #print('\truh roh - doubling mass and redshift slices')
+        flag = np.abs(comp_mass - input_mass[i]) < 2*dm
+    if sum(flag) == 0:
+        #print('\truh roh again - tripling mass and redshift slices')
+        flag = np.abs(comp_mass - input_mass[i]) < 4*dm
+    return np.random.choice(comp_index[flag],nmatch,replace=True)
+    
 def plotelbaz():
     #plot the main sequence from Elbaz+13
         
@@ -1291,8 +1364,11 @@ class comp_lcs_gsw():
         #self.lowssfr_flag = (self.lcs.cat['logMstar']> self.masscut)  & (self.lcs.ssfr > self.ssfrcut) & (self.lcs.lowsfr_flag)        
         self.cutBT = cutBT
         
-        self.lcs_mass_sfr_flag = (self.lcs.cat['logMstar']> self.masscut)  & (self.lcs.ssfr > self.ssfrcut)
-        self.gsw_mass_sfr_flag = (self.gsw.cat['logMstar']> self.masscut)  & (self.gsw.ssfr > self.ssfrcut)                 
+        #self.lcs_mass_sfr_flag = (self.lcs.cat['logMstar']> self.masscut)  & (self.lcs.ssfr > self.ssfrcut)
+        #self.gsw_mass_sfr_flag = (self.gsw.cat['logMstar']> self.masscut)  & (self.gsw.ssfr > self.ssfrcut)        
+        self.lcs_mass_sfr_flag = (self.lcs.cat['logMstar']> self.masscut)  & (self.lcs.cat['logSFR'] > get_SFR_cut(self.lcs.cat['logMstar']))
+
+        self.gsw_mass_sfr_flag = (self.gsw.cat['logMstar']> self.masscut)  & (self.gsw.cat['logSFR'] >  get_SFR_cut(self.gsw.cat['logMstar']))
 
         self.gsw_uvir_flag = (self.gsw.cat['flag_uv']> 0)  & (self.gsw.cat['flag_midir'] > 0)
         self.lcs_uvir_flag = (self.lcs.cat['flag_uv']> 0)  & (self.lcs.cat['flag_midir'] > 0)
@@ -1400,7 +1476,7 @@ class comp_lcs_gsw():
                              color=colors[i],alpha=alphas[i],zorder=orders[i],\
                              markersize=markersizes[i],fmt=marker,label=mylabel,markerfacecolor=markerfacecolor)
         if plotsingle:
-            plt.xticks(np.arange(0,4),[r'$\rm Field$',r'$\rm Infall$',r'$\rm Core$'],fontsize=20)
+            plt.xticks(np.arange(0,3),[r'$\rm Field$',r'$\rm Infall$',r'$\rm Core$'],fontsize=20)
             #plt.xlabel('$Environment$',fontsize=20)
             plt.ylabel(r'$\rm Frac\ of \ SF \ Gals \ with \ HI \ Detection $',fontsize=20)
             plt.legend([r'$\rm Normal \ SFR $',r'$\rm Low \ SFR$'],fontsize=16,markerscale=.8)
@@ -1487,7 +1563,7 @@ class comp_lcs_gsw():
         flag1 = lcsflag &  self.lcs_mass_sfr_flag
         # removing field1 cut because we are now using Tempel catalog that only
         # includes galaxies in halo masses logM < 12.5
-        flag2 = (self.gsw.cat['logMstar'] > self.masscut) & (self.gsw.ssfr > self.ssfrcut)  #& self.gsw.field1
+        flag2 = self.gsw_mass_sfr_flag  #& self.gsw.field1
         print('number in lcs sample = ',sum(flag1))
         print('number in gsw sample = ',sum(flag2))
         # GSWLC sample
@@ -1501,7 +1577,8 @@ class comp_lcs_gsw():
         # get indices for mass-matched gswlc sample
         if massmatch:
             #keep_indices = mass_match(x2,x1,inputZ=z2,compZ=z1,dz=.002)
-            keep_indices = mass_match(x2,x1,3124,nmatch=NMASSMATCH)            
+            keep_indices = mass_match(x2,x1,3124,nmatch=NMASSMATCH)
+            #print("Printing return from mass_match: ",keep_indices)
             # if keep_indices == False
             # remove redshift constraint
             if (len(keep_indices) == 1):
@@ -1516,7 +1593,7 @@ class comp_lcs_gsw():
             color2=darkblue
         else:
             color2=lightblue
-        ax1,ax2,ax3 = colormass(x1,y1,x2,y2,'GSWLC',label,'sfr-mstar-gswlc-field.pdf',ymin=-2,ymax=1.6,xmin=9.5,xmax=11.5,nhistbin=10,ylabel=r'$\rm \log_{10}(SFR)$',contourflag=False,alphagray=.1,hexbinflag=hexbinflag,color2=color2,color1='0.2',alpha1=1,ssfrlimit=-11.5,marker2=marker2)
+        ax1,ax2,ax3 = colormass(x1,y1,x2,y2,'GSWLC',label,'sfr-mstar-gswlc-field.pdf',ymin=-1.5,ymax=1.6,xmin=9.5,xmax=11.5,nhistbin=10,ylabel=r'$\rm \log_{10}(SFR)$',contourflag=False,alphagray=.1,hexbinflag=hexbinflag,color2=color2,color1='0.2',alpha1=1,ssfrlimit=-11.5,marker2=marker2)
         # add marker to figure to show galaxies with size measurements
 
         #self.plot_lcs_size_sample(ax1,memb=lcsmemb,infall=lcsinfall,ssfrflag=False)
@@ -2975,8 +3052,8 @@ class comp_lcs_gsw():
         plt.xlabel(r'$\rm B/T$',fontsize=22)
         plt.ylabel(r'$\rm \Delta \log_{10}SFR$',fontsize=22)
 
-        plt.axhline(y=.45,ls='--',color='k',label='$1.5\sigma_{MS}$')
-        plt.axhline(y=-.45,ls='--',color='k')
+        #plt.axhline(y=MS_OFFSET,ls='--',color='k',label='$1.5\sigma_{MS}$')
+        plt.axhline(y=-1*MS_OFFSET,ls='--',color='k',label='low SFR')
         plt.legend()
         if BTline is not None:
             plt.axvline(x=BTline,ls=':',color='k')
@@ -3384,16 +3461,23 @@ class comp_lcs_gsw():
         ## ADD HISTOGRAMS ON THE RIGHT
 
         # HISTOGRAM OF DELTA V/SIGMA
+        try:
+            ax3.hist(x1,bins=len(x1),cumulative=True,normed=True,label=label1,histtype='step',color=color1,lw=2)
+            ax3.hist(x2,bins=len(x2),cumulative=True,normed=True,label=label2,histtype='step',color=color2,lw=3)
+            ax2.hist(y1,bins=len(x1),cumulative=True,normed=True,label=label1,histtype='step',color=color1,lw=2)
+            ax2.hist(y2,bins=len(x2),cumulative=True,normed=True,label=label2,histtype='step',color=color2,lw=3)
 
-        ax3.hist(x1,bins=len(x1),cumulative=True,normed=True,label=label1,histtype='step',color=color1,lw=2)
-        ax3.hist(x2,bins=len(x2),cumulative=True,normed=True,label=label2,histtype='step',color=color2,lw=3)
+        except AttributeError:
+            ax3.hist(x1,bins=len(x1),cumulative=True,density=True,stacked=True,label=label1,histtype='step',color=color1,lw=2)
+            ax3.hist(x2,bins=len(x2),cumulative=True,density=True,stacked=True,label=label2,histtype='step',color=color2,lw=3)
+            ax2.hist(y1,bins=len(x1),cumulative=True,density=True,stacked=True,label=label1,histtype='step',color=color1,lw=2)
+            ax2.hist(y2,bins=len(x2),cumulative=True,density=True,stacked=True,label=label2,histtype='step',color=color2,lw=3)
+            
 
         ax3.set_xlabel(xlabel,fontsize=20)
         ax3.text(0,1.05,r'$\rm pvalue:\ low\ vs\ normal={:.2f}$'.format(pvalue_x),fontsize=14)        
         # HISTOGRAM OF DELTA R/R200
 
-        ax2.hist(y1,bins=len(x1),cumulative=True,normed=True,label=label1,histtype='step',color=color1,lw=2)
-        ax2.hist(y2,bins=len(x2),cumulative=True,normed=True,label=label2,histtype='step',color=color2,lw=3)
 
         ax2.set_xlabel(ylabel,fontsize=20)
         ax2.text(0,1.05,r'$\rm pvalue:\ low\ vs\ normal={:.2f}$'.format(pvalue_y),fontsize=14)
@@ -3402,8 +3486,13 @@ class comp_lcs_gsw():
         if HIflag:
             lcsHIFlag = self.lcs.cat['HIdef_flag'] & self.lcs_mass_sfr_flag & (self.lcs.membflag | self.lcs.infallflag)
             ax1.plot(x[lcsHIFlag],y[lcsHIFlag],'bs',markerfacecolor='None',markersize=8,label=r'$\rm HI \ detect.$')
-            ax3.hist(x[lcsHIFlag],bins=sum(lcsHIFlag),cumulative=True,normed=True,label='HI',histtype='step',color='b')
-            ax2.hist(y[lcsHIFlag],bins=sum(lcsHIFlag),cumulative=True,normed=True,label='HI',histtype='step',color='b')
+            try:
+                ax3.hist(x[lcsHIFlag],bins=sum(lcsHIFlag),cumulative=True,normed=True,label='HI',histtype='step',color='b')
+                ax2.hist(y[lcsHIFlag],bins=sum(lcsHIFlag),cumulative=True,normed=True,label='HI',histtype='step',color='b')
+            except AttributeError:
+                ax3.hist(x[lcsHIFlag],bins=sum(lcsHIFlag),cumulative=True,density=True,stacked=True,label='HI',histtype='step',color='b')
+                ax2.hist(y[lcsHIFlag],bins=sum(lcsHIFlag),cumulative=True,density=True,stacked=True,label='HI',histtype='step',color='b')
+                
             # fraction of normal SF galaxies with HI detections
             Nnormal = np.sum(normalsfrflag)
             NnormalHI = np.sum(normalsfrflag & lcsHIFlag)
@@ -3699,13 +3788,20 @@ class comp_lcs_gsw():
             ax.plot(x,y,'bo',color=colors[i],alpha=alphas[i],markersize=msize[i],label=labels[i],marker=markers[i],mec=mecs[i])
 
             # plot filled histogram, then same histogram with a heavier line
-            ax_histx.hist(x,bins=nbins,cumulative=False,normed=True,histtype='stepfilled',color=colors[i],lw=lws[i],alpha=histalphas[i],zorder=orders[i])
-            ax_histx.hist(x,bins=nbins,cumulative=False,normed=True,histtype='step',color=colors[i],lw=lws[i],zorder=orders[i])
+            try:
+                ax_histx.hist(x,bins=nbins,cumulative=False,normed=True,histtype='stepfilled',color=colors[i],lw=lws[i],alpha=histalphas[i],zorder=orders[i])
+                ax_histx.hist(x,bins=nbins,cumulative=False,normed=True,histtype='step',color=colors[i],lw=lws[i],zorder=orders[i])
 
             # plot y histograms
-            ax_histy.hist(y,bins=nbins,cumulative=False,normed=True,histtype='stepfilled',orientation='horizontal',color=colors[i],lw=lws[i],alpha=histalphas[i],zorder=orders[i])
-            ax_histy.hist(y,bins=nbins,cumulative=False,normed=True,histtype='step',orientation='horizontal',color=colors[i],lw=lws[i],zorder=orders[i])            
+                ax_histy.hist(y,bins=nbins,cumulative=False,normed=True,histtype='stepfilled',orientation='horizontal',color=colors[i],lw=lws[i],alpha=histalphas[i],zorder=orders[i])
+                ax_histy.hist(y,bins=nbins,cumulative=False,normed=True,histtype='step',orientation='horizontal',color=colors[i],lw=lws[i],zorder=orders[i])            
+            except AttributeError:
+                ax_histx.hist(x,bins=nbins,cumulative=False,density=True,stacked=True,histtype='stepfilled',color=colors[i],lw=lws[i],alpha=histalphas[i],zorder=orders[i])
+                ax_histx.hist(x,bins=nbins,cumulative=False,density=True,stacked=True,histtype='step',color=colors[i],lw=lws[i],zorder=orders[i])
 
+            # plot y histograms
+                ax_histy.hist(y,bins=nbins,cumulative=False,density=True,stacked=True,histtype='stepfilled',orientation='horizontal',color=colors[i],lw=lws[i],alpha=histalphas[i],zorder=orders[i])
+                ax_histy.hist(y,bins=nbins,cumulative=False,density=True,stacked=True,histtype='step',orientation='horizontal',color=colors[i],lw=lws[i],zorder=orders[i])            
 
         ax.set_xlabel(r'$\rm \Delta \log_{10} SFR$',fontsize=20)
         ax.set_ylabel(r'$\rm HI \ Deficiency $',fontsize=20)
