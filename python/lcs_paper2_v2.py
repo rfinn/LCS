@@ -68,7 +68,7 @@ zmin = 0.0137
 zmax = 0.0433
 # this is from fitting a line that is parallel to MS but that intersects
 # where gaussians of SF and quiescent cross
-MS_OFFSET = 1.5*0.22
+MS_OFFSET = 1.5*0.3
 NMASSMATCH=30 # number of field to draw for each cluster/infall galaxy
 Mpcrad_kpcarcsec = 2. * np.pi/360./3600.*1000.
 mipspixelscale=2.45
@@ -151,7 +151,25 @@ def get_SFR_cut(logMstar):
     '''
     #return 0.53*logMstar-5.5
     # for no BT cut, e < 0.75
-    return 0.58*logMstar - 6.84
+    #return 0.6*logMstar - 6.11 - 0.6
+
+    # using full GSWLC, just cut to LCS redshift range
+    return get_MS(logMstar) - 0.75
+    
+def get_MS(logMstar):
+    # not BT cut
+    # updating this after we expanded the mass range used for fitting MS
+    if not(args.cutBT):
+        #self.MS_std = 0.22
+        #return 0.6*x-6.11
+
+        # using full GSWLC, just cut to LCS redshift
+        return 0.592*logMstar - 6.18
+    elif args.cutBT:
+        # you get the same thing from fitting the MS or from fitting peaks of gaussian
+        #self.MS_std = 0.16
+        return 0.62*logMstar-6.35
+
 def get_MS_BTcut(logMstar,MSfit=None):
     ''' 
     get MS fit with B/T < 0.4 cut
@@ -161,8 +179,9 @@ def get_MS_BTcut(logMstar,MSfit=None):
     #return 0.53*logMstar-5.5
     # for no BT cut, e < 0.75
     #return 0.4731*logMstar-4.8771
-    return 0.62*logMstar-6.35
-
+    #return 0.754*logMstar-7.56
+    # using the full fit for now
+    return get_MS(logMstar)
 def plot_Durbala_MS(ax,ls='-'):
     plt.sca(ax)
     #lsfr = log_mstar2+log_ssfr2
@@ -456,7 +475,7 @@ def mass_match_linear(input_mass,comp_mass,seed,nmatch=10,dm=.15,inputZ=None,com
         # select nmatch galaxies randomly from this limited mass range
         # NOTE: can avoid repeating items by setting replace=False
         if sum(flag) < nmatch:
-            print('galaxies in slice < # requested',sum(flag),nmatch,input_mass[i],inputZ[i])
+            print('galaxies in slice < # requested',sum(flag),nmatch,input_mass[i])
         if sum(flag) == 0:
             print('\truh roh - doubling mass and redshift slices')
             flag = np.abs(comp_mass - input_mass[i]) < 2*dm
@@ -777,7 +796,7 @@ class gswlc_full():
     def get_dsfr(self):
         ''' get distance from MS '''
         #self.dsfr = self.gsw['logSFR'] - get_BV_MS(self.gsw['logMstar'])
-        self.dsfr = self.gsw['logSFR'] - self.get_MS(self.gsw['logMstar'])
+        self.dsfr = self.gsw['logSFR'] - get_MS(self.gsw['logMstar'])
         
     def save_trimmed_cat(self):
         t = Table(self.gsw[self.keepflag])
@@ -818,7 +837,7 @@ class gswlc_base():
     def get_dsfr(self):
         ''' get distance from MS '''
         #self.dsfr = self.cat['logSFR'] - get_BV_MS(self.cat['logMstar'])
-        self.dsfr = self.cat['logSFR'] - self.get_MS(self.cat['logMstar'])
+        self.dsfr = self.cat['logSFR'] - get_MS(self.cat['logMstar'])
     def get_lowsfr_flag(self):
         self.lowsfr_flag = (self.dsfr < -1*MS_OFFSET)
 
@@ -930,15 +949,6 @@ class gswlc(gswlc_base):
             
 
             
-    def get_MS(self,x):
-        # not BT cut
-        # updating this after we expanded the mass range used for fitting MS
-        if not(args.cutBT):
-            self.MS_std = 0.22
-            return 0.58*x-6.01
-        elif args.cutBT:
-            self.MS_std = 0.16
-            return 0.62*x-6.35
             
     def plot_MS_old(self,ax,color='mediumblue',ls='-'):
         '''
@@ -947,7 +957,7 @@ class gswlc(gswlc_base):
         plot_Durbala_MS(ax)
         x1,x2 = 9.7,11.
         xline = np.linspace(x1,x2,100)
-        yline = self.get_MS(xline)
+        yline = get_MS(xline)
         ax.plot(xline,yline,c='w',ls=ls,lw=4,label='_nolegend_')
         ax.plot(xline,yline,c=color,ls=ls,lw=3,label='Linear Fit')
 
@@ -1366,21 +1376,49 @@ class comp_lcs_gsw():
         
         #self.lcs_mass_sfr_flag = (self.lcs.cat['logMstar']> self.masscut)  & (self.lcs.ssfr > self.ssfrcut)
         #self.gsw_mass_sfr_flag = (self.gsw.cat['logMstar']> self.masscut)  & (self.gsw.ssfr > self.ssfrcut)        
-        self.lcs_mass_sfr_flag = (self.lcs.cat['logMstar']> self.masscut)  & (self.lcs.cat['logSFR'] > get_SFR_cut(self.lcs.cat['logMstar']))
+        self.lcs_mass_sfr_flag = (self.lcs.cat['logMstar']> self.masscut)  & (self.lcs.cat['logSFR'] > get_SFR_cut(self.lcs.cat['logMstar'])) & (self.lcs.ssfr > self.ssfrcut)
 
-        self.gsw_mass_sfr_flag = (self.gsw.cat['logMstar']> self.masscut)  & (self.gsw.cat['logSFR'] >  get_SFR_cut(self.gsw.cat['logMstar']))
+        self.gsw_mass_sfr_flag = (self.gsw.cat['logMstar']> self.masscut)  & (self.gsw.cat['logSFR'] >  get_SFR_cut(self.gsw.cat['logMstar']))& (self.gsw.ssfr > self.ssfrcut)        
 
         self.gsw_uvir_flag = (self.gsw.cat['flag_uv']> 0)  & (self.gsw.cat['flag_midir'] > 0)
         self.lcs_uvir_flag = (self.lcs.cat['flag_uv']> 0)  & (self.lcs.cat['flag_midir'] > 0)
         self.fit_gsw_ms()
         self.get_lowsfr()
         self.get_HIobserved_flag()
+    def plot_full_ms(self):
+        ''' plot full ms and show division between passive and SF galaxies '''
+        plt.figure()
+
+        plt.hexbin(self.gsw.cat['logMstar'],self.gsw.cat['logSFR'],\
+                   bins='log',cmap='gray_r',gridsize=75)
+        # plot MS fit
+        x1,x2 = 8,11.3
+        xline = np.linspace(x1,x2,100)
+        yline = 0.58*xline-6.01
+        plt.plot(xline,yline,c='w',ls='-',lw=4,label='_nolegend_')
+        plt.plot(xline,yline,c='b',ls='-',lw=3,label='MS Fit')
+
+        # plot passive cut
+
+        yl = get_SFR_cut(xline)
+        plt.plot(xline,yl,'r-',lw=2,label='Passive Cut')        
+        yl =xline + float(args.minssfr)
+        plt.plot(xline,yl,'k--',lw=2,label=r'$\rm sSFR=-11.5$')                
+        plt.ylabel(r'$\rm \log_{10}(SFR/(M_\odot/yr))$',fontsize=24)
+        plt.xlabel(r'$\rm \log_{10}(M_\star/M_\odot)$',fontsize=24)
+
+        # show the mass cut
+        plt.axvline(x=float(args.minmass),ls=':',color='g',lw=3,label="Mass Limit")
+        plt.legend()        
+        plt.savefig('ms_passive_cut.png')
+        plt.savefig('ms_passive_cut.pdf')        
+        
     def get_lowsfr(self):
 
-        self.gsw_dsfr = self.gsw.cat['logSFR'] - self.gsw.get_MS(self.gsw.cat['logMstar'])
+        self.gsw_dsfr = self.gsw.cat['logSFR'] - get_MS(self.gsw.cat['logMstar'])
         self.gsw_lowsfr_flag = self.gsw_dsfr < -1*MS_OFFSET
         self.gsw.lowsfr_flag = self.gsw_dsfr < -1*MS_OFFSET 
-        self.lcs_dsfr = self.lcs.cat['logSFR'] - self.gsw.get_MS(self.lcs.cat['logMstar'])
+        self.lcs_dsfr = self.lcs.cat['logSFR'] - get_MS(self.lcs.cat['logMstar'])
         self.lcs_lowsfr_flag = self.lcs_dsfr < -1*MS_OFFSET
         self.lcs.lowsfr_flag = self.lcs_dsfr < -1*MS_OFFSET 
     def get_HIobserved_flag(self):
@@ -1825,7 +1863,7 @@ class comp_lcs_gsw():
             y1 = self.gsw.cat['logSFR'][flag2]
 
         #dsfr1 = y1-get_BV_MS(x1)
-        dsfr1 = y1-self.gsw.get_MS(x1)
+        dsfr1 = y1-get_MS(x1)
         #print("min dsfr for field sample = ",np.min(dsfr1))
         #tflag = dsfr1 < -1.5
         #print("logmstar of low dsfr = ",x1[tflag])
@@ -1837,7 +1875,7 @@ class comp_lcs_gsw():
         x2 = self.lcs.cat['logMstar'][flag1]
         y2 = self.lcs.cat['logSFR'][flag1]
         #dsfr2 = y2-get_BV_MS(x2)
-        dsfr2 = y2-self.gsw.get_MS(x2)
+        dsfr2 = y2-get_MS(x2)
         #LCS infall
         #(abs(self.cat['DELTA_V']) < 3) & ~self.membflag        
         #lcsflag = ~self.lcs.cat['membflag'] & (np.abs(self.lcs.cat['DELTA_V']) < 3.)
@@ -1850,7 +1888,7 @@ class comp_lcs_gsw():
         x3 = self.lcs.cat['logMstar'][flag3]
         y3 = self.lcs.cat['logSFR'][flag3]
         #dsfr3 = y3-get_BV_MS(x3)
-        dsfr3 = y3-self.gsw.get_MS(x3)
+        dsfr3 = y3-get_MS(x3)
         plt.figure(figsize=(8,6))
 
         mybins = np.linspace(-1.6,1.6,nbins)
@@ -1927,7 +1965,7 @@ class comp_lcs_gsw():
         x3 = self.lcs.cat['logMstar'][flag3]
         y3 = self.lcs.cat['logSFR'][flag3]
         #dsfr3 = y3-get_BV_MS(x3)
-        dsfr3 = y3-self.gsw.get_MS(x3)        
+        dsfr3 = y3-get_MS(x3)        
         plt.figure(figsize=(8,6))
 
         mybins = np.linspace(-1.5,1.5,nbins)
@@ -1971,7 +2009,7 @@ class comp_lcs_gsw():
         y2 = self.lcs.cat['logSFR'][flag2]
         z2 = self.lcs.sizeratio[flag2]        
         #dsfr2 = y2-get_BV_MS(x2)
-        dsfr2 = y2-self.gsw.get_MS(x2)
+        dsfr2 = y2-get_MS(x2)
         print('fraction of core with dsfr below 0.3dex = {:.3f} ({:d}/{:d})'.format(sum(dsfr2 < -0.3)/len(dsfr2),sum(dsfr2 < -0.3),len(dsfr2)))
         
         #LCS infall
@@ -1981,7 +2019,7 @@ class comp_lcs_gsw():
         y3 = self.lcs.cat['logSFR'][flag3]
         z3 = self.lcs.sizeratio[flag3]
         #dsfr3 = y3-get_BV_MS(x3)
-        dsfr3 = y3-self.gsw.get_MS(x3)
+        dsfr3 = y3-get_MS(x3)
         print('fraction of core with dsfr below 0.3dex = {:.3f} ({:d}/{:d})'.format(sum(dsfr3 < -0.3)/len(dsfr3),sum(dsfr3 < -0.3),len(dsfr3)) )       
 
 
@@ -2027,7 +2065,7 @@ class comp_lcs_gsw():
         y4 = self.lcs.cat['logSFR'][flag4]
         z4 = self.lcs.sizeratio[flag4]        
         #dsfr4 = y4-get_BV_MS(x4)
-        dsfr4 = y4-self.gsw.get_MS(x4)
+        dsfr4 = y4-get_MS(x4)
         ax1.plot(z4,dsfr4,'kx',c=darkblue,markersize=10)
         
         # plot all galfit results
@@ -2036,7 +2074,7 @@ class comp_lcs_gsw():
         y4 = self.lcs.cat['logSFR'][flag4]
         z4 = self.lcs.sizeratio[flag4]        
         #dsfr4 = y4-get_BV_MS(x4)
-        dsfr4 = y4-self.gsw.get_MS(x4)        
+        dsfr4 = y4-get_MS(x4)        
         ax1.plot(z4,dsfr4,'kx',markersize=10,c=lightblue)
         
         if outfile1 is not None:
@@ -2085,7 +2123,7 @@ class comp_lcs_gsw():
         y2 = self.lcs.cat['logSFR'][flag2]
         z2 = self.lcs.cat['HIDef'][flag2]        
         #dsfr2 = y2-get_BV_MS(x2)
-        dsfr2 = y2-self.gsw.get_MS(x2)
+        dsfr2 = y2-get_MS(x2)
         
         #LCS infall
         lcsflag = self.lcs.sampleflag & self.lcs.cat['HIflag'] & ~self.lcs.cat['membflag'] & (self.lcs.cat['DELTA_V'] < 3.)
@@ -2094,7 +2132,7 @@ class comp_lcs_gsw():
         y3 = self.lcs.cat['logSFR'][flag3]
         z3 = self.lcs.cat['HIDef'][flag3]
         #dsfr3 = y3-get_BV_MS(x3)
-        dsfr3 = y3-self.gsw.get_MS(x3)
+        dsfr3 = y3-get_MS(x3)
 
         # make figure
         #plt.figure(figsize=(8,6))
@@ -2149,19 +2187,28 @@ class comp_lcs_gsw():
     def get_legacy_images(self,lcsflag=None,ssfrmax=-11,ssfrmin=-11.5):
         if ssfrmin is not None:
             ssfrmin=ssfrmin
-        lowssfr_flag = (self.lcs.cat['logMstar']> self.masscut)  &\
-            (self.lcs.ssfr > ssfrmin) & (self.lcs.ssfr < ssfrmax)
         if lcsflag is None:
             lcsflag = self.lcs.cat['membflag']
-        
+
+        lowssfr_flag = (self.lcs.cat['logMstar']> self.masscut)  & \
+            (self.lcs.ssfr > ssfrmin) & (self.lcs.ssfr < ssfrmax)
+
         flag = lowssfr_flag & lcsflag
-        ids = np.arange(len(self.lowssfr_flag))[flag]
+        ids = np.arange(len(lowssfr_flag))[flag]
         for i in ids:
             # open figure
             plt.figure()
             # get legacy image
-            d, w = getlegacy(self.lcs.cat['RA_1'][i],self.lcs.cat['DEC_2'][i])
-            plt.title("NSID {0}, dSFR={1:.1f}, BT={2:.1f}".format(self.lcs.cat['NSAID'][i],self.lcs_dsfr[i].self.lcs.cat[BTkey]))
+            print(i,self.lcs.cat['RA_1'][i],self.lcs.cat['DEC_1'][i])
+            if np.isnan(self.lcs.cat['RA_1'][i]) |  np.isnan(self.lcs.cat['DEC_1'][i]):
+                continue
+            d, w = getlegacy(self.lcs.cat['RA_1'][i],self.lcs.cat['DEC_1'][i])
+            ssfr = self.lcs.cat['logSFR'][i] - self.lcs.cat['logMstar'][i]
+
+            s = "NSID {}, sSFR = {:.1f}, dSFR={:.1f}, BT={:.1f}".format(self.lcs.cat['NSAID'][i],ssfr,self.lcs_dsfr[i],self.lcs.cat[BTkey][i])
+            #except:
+            #    s = "NSID {0}, dSFR={1:.1f}".format(self.lcs.cat['NSAID'][i],self.lcs_dsfr[i],)
+            plt.title(s,fontsize=14)
 
     def compare_BT(self,nbins=15,xmax=.3):
         
@@ -2275,7 +2322,7 @@ class comp_lcs_gsw():
                     x1 = catalogs[i]['logMstar']
                     y1 = catalogs[i]['logSFR']
                     #xvar = y1-get_BV_MS(x1)
-                    xvar = y1-self.gsw.get_MS(x1)
+                    xvar = y1-get_MS(x1)
 
                     
                 # plot on top row normal SF galaxies
@@ -2391,7 +2438,104 @@ class comp_lcs_gsw():
         #print('######################################################')
         t = ks_2samp(infallBT_normal,infallBT_lowsfr)
         print(t)
+
+    def compare_morph_mmatch(self,nbins=10,xmax=.4,coreonly=False):
+        '''compare distribution of BT for normal and suppressed galaxies   '''
+        plt.figure(figsize=(10,9))
+        plt.subplots_adjust(wspace=.25,hspace=.4)
+        # 2x2 figure
+        if coreonly:
+            lcsflag = self.lcs.membflag #| self.lcs.infallflag
+            labels = ['Field','Core']                        
+        else:
+            lcsflag = self.lcs.membflag | self.lcs.infallflag
+            labels = ['Field','LCS all']
+
+
+
+        ### MASS MATCHING OF FIELD SAMPLE
+        # get mass-matched sample of field galaxies
+        lcsflag = (self.lcs.membflag | self.lcs.infallflag) & self.lcs_mass_sfr_flag
+        normalfield = self.gsw_mass_sfr_flag & ~self.gsw_lowsfr_flag
+        lowfield = self.gsw_mass_sfr_flag & self.gsw_lowsfr_flag
+
+        # cluster flags
+        normalcluster = lcsflag & ~self.lcs_lowsfr_flag
+        lowcluster = lcsflag & self.lcs_lowsfr_flag
+        # get mass-matched samples of low and normal field galaxies
+        keep_indices_normal = mass_match(self.lcs.cat['logMstar'][normalcluster],self.gsw.cat['logMstar'][normalfield],34278,nmatch=NMASSMATCH)
+
+        keep_indices_low = mass_match(self.lcs.cat['logMstar'][lowcluster],self.gsw.cat['logMstar'][lowfield],34278,nmatch=NMASSMATCH)
+
+
+        field_cols=[BTkey,'ng']
         
+
+        xvars_normal = [self.gsw.cat[BTkey][normalfield][keep_indices_normal],\
+                        self.lcs.cat[BTkey][self.lcs.membflag & self.lcs_mass_sfr_flag & ~self.lcs_lowsfr_flag],\
+                        self.lcs.cat[BTkey][self.lcs.infallflag & self.lcs_mass_sfr_flag & ~self.lcs_lowsfr_flag],\
+                        self.gsw.cat['logMstar'][normalfield][keep_indices_normal],\
+                        self.lcs.cat['logMstar'][self.lcs.membflag & self.lcs_mass_sfr_flag & ~self.lcs_lowsfr_flag],\
+                        self.lcs.cat['logMstar'][self.lcs.infallflag & self.lcs_mass_sfr_flag & ~self.lcs_lowsfr_flag]]
+
+        xvars_low = [self.gsw.cat[BTkey][lowfield][keep_indices_low],\
+                     self.lcs.cat[BTkey][self.lcs.membflag & self.lcs_mass_sfr_flag & self.lcs_lowsfr_flag],\
+                     self.lcs.cat[BTkey][self.lcs.infallflag & self.lcs_mass_sfr_flag & self.lcs_lowsfr_flag],\
+                     self.gsw.cat['logMstar'][lowfield][keep_indices_low],\
+                     self.lcs.cat['logMstar'][self.lcs.membflag & self.lcs_mass_sfr_flag & self.lcs_lowsfr_flag],\
+                     self.lcs.cat['logMstar'][self.lcs.infallflag & self.lcs_mass_sfr_flag & self.lcs_lowsfr_flag]]
+
+        
+        colors = ['.5',darkblue,lightblue]
+        labels = ['Field','Core','Infall']
+        zorders = [1,3,2]
+        lws = [3,4,3]
+        alphas = [.4,0,.5]        
+        
+        #for i,col in enumerate(field_cols):
+        xlabels = [r'$\rm B/T$',r'$\rm \log_{10}(M_\star/M_\odot)$','Sersic n','prob Sc',r'$\rm \Delta \log_{10}(SFR)$']
+        titles = [r'$\rm Normal \ SFR$',r'$\rm Suppressed \ SFR$']
+        ylabels=[r'$\rm Norm. \ Distribution$',r'$\rm Norm. \ Distribution$']
+        # BT
+
+        allbins = [np.linspace(0,xmax,nbins),np.linspace(9.7,11,nbins)]
+                   
+        # one row, 2 cols
+        # loop over normal vs suppressed
+        for j in range(2):
+            col = j
+            for k in range(2): # rows
+                plt.subplot(2,2,j+1+2*k)
+                # loop over field, core, infall
+                for i in range(len(labels)):
+                    # plot B/T distribution of normal galaxies
+                    if j == 0:
+                        xvar = xvars_normal[i+3*k]
+                    else:
+                        xvar = xvars_low[i+3*k]
+                    plt.hist(xvar,color=colors[i],density=True,bins=allbins[k],\
+                             histtype='stepfilled',lw=lws[i],alpha=alphas[i],zorder=zorders[i])
+                    plt.hist(xvar,color=colors[i],density=True,bins=allbins[k],\
+                             histtype='step',lw=lws[i],zorder=zorders[i],label=labels[i])#hatch=hatches[i])
+                
+                if j == 0:
+                    plt.ylabel(ylabels[0],fontsize=16)
+                    plt.legend()
+                if k == 0:
+                    plt.axvline(x=0.3,ls='--',color='k')                    
+
+            
+                plt.xlabel(xlabels[k],fontsize=16)
+                if k == 0:
+                    if (j == 0):
+                        plt.title("Normal SFR")
+                    else:
+                        plt.title("Suppressed SFR")
+
+        for i,j in zip(xvars_normal,xvars_low):
+            print(ks_2samp(i,j))
+
+               
     def BT_mstar_normal_low_sfr(self,nbins=10,xmax=.3,coreonly=False):
         ''' plot B/T vs Mstar for normal and low sfr galaxies   '''
         plt.figure(figsize=(10,6))
@@ -2452,7 +2596,7 @@ class comp_lcs_gsw():
                     x1 = catalogs[i]['logMstar']
                     y1 = catalogs[i]['logSFR']
                     #xvar = y1-get_BV_MS(x1)
-                    xvar = y1-self.gsw.get_MS(x1)
+                    xvar = y1-get_MS(x1)
 
                     
                 # plot on top row normal SF galaxies
@@ -2573,7 +2717,7 @@ class comp_lcs_gsw():
                     x1 = catalogs[i]['logMstar']
                     y1 = catalogs[i]['logSFR']
                     #xvar = y1-get_BV_MS(x1)
-                    xvar = y1-self.gsw.get_MS(x1)
+                    xvar = y1-get_MS(x1)
 
                     
                 # plot on top row normal SF galaxies
@@ -2989,30 +3133,46 @@ class comp_lcs_gsw():
         plt.ylabel('Normalized Distribution')
 
         
-    def plot_dsfr_BT(self,nbins=15,xmax=.3,writefiles=False,nsersic_cut=10,ecut=1,BTline=None):
+    def plot_dsfr_BT(self,nbins=15,xmax=.3,writefiles=False,nsersic_cut=10,ecut=1,BTline=None,mmatch=False):
         #nflag = (self.lcs.cat['ng_2'] < nsersic_cut)
         #sflag = (self.lcs.cat['p_el'] < ecut)
-        flag1 =  self.lcs.membflag &  (self.lcs.cat['logMstar']> self.masscut)  & (self.lcs.ssfr > self.ssfrcut)        
+        flag1 =  self.lcs.membflag &  self.lcs_mass_sfr_flag
         coreBT = self.lcs.cat[BTkey][flag1]
         x1 = self.lcs.cat['logMstar'][flag1]
         y1 = self.lcs.cat['logSFR'][flag1]
         #core_dsfr = y1-get_BV_MS(x1)
-        core_dsfr = y1-self.gsw.get_MS(x1)
+        core_dsfr = y1-get_MS(x1)
         
-        flag2 = self.lcs.infallflag &  (self.lcs.cat['logMstar']> self.masscut)  & (self.lcs.ssfr > self.ssfrcut)
+        flag2 = self.lcs.infallflag & self.lcs_mass_sfr_flag
         infallBT = self.lcs.cat[BTkey][flag2]
         x2 = self.lcs.cat['logMstar'][flag2]
         y2 = self.lcs.cat['logSFR'][flag2]
         #infall_dsfr = y2-get_BV_MS(x2)
-        infall_dsfr = y2-self.gsw.get_MS(x2)        
+        infall_dsfr = y2-get_MS(x2)        
 
         nflag = (self.gsw.cat['ng'] < nsersic_cut)
-        flag3 =  (self.gsw.cat['logMstar'] > self.masscut) & (self.gsw.ssfr > self.ssfrcut)   #& self.gsw.field1
-        fieldBT = self.gsw.cat[BTkey][flag3]
-        x3 = self.gsw.cat['logMstar'][flag3]
-        y3 = self.gsw.cat['logSFR'][flag3]
+
+        if mmatch:
+            ### MASS MATCHING OF FIELD SAMPLE
+            # get mass-matched sample of field galaxies
+            lcsflag = (self.lcs.membflag | self.lcs.infallflag) & self.lcs_mass_sfr_flag
+            fieldflag = self.gsw_mass_sfr_flag 
+
+            keep_indices = mass_match(self.lcs.cat['logMstar'][lcsflag],self.gsw.cat['logMstar'][fieldflag],34278,nmatch=NMASSMATCH)
+
+            fieldBT = self.gsw.cat[BTkey][fieldflag][keep_indices]
+            x3 = self.gsw.cat['logMstar'][fieldflag][keep_indices]
+            y3 = self.gsw.cat['logSFR'][fieldflag][keep_indices]
+        else:
+            flag3 = self.gsw_mass_sfr_flag   #& self.gsw.field1
+            fieldBT = self.gsw.cat[BTkey][flag3]
+            x3 = self.gsw.cat['logMstar'][flag3]
+            y3 = self.gsw.cat['logSFR'][flag3]
+            
         #field_dsfr = y3-get_BV_MS(x3)
-        field_dsfr = y3-self.gsw.get_MS(x3)
+        field_dsfr = y3-get_MS(x3)
+
+
         
         plt.figure()
         plt.subplots_adjust(left=.2)
@@ -3078,14 +3238,14 @@ class comp_lcs_gsw():
         x1 = self.lcs.cat['logMstar'][flag1]
         y1 = self.lcs.cat['logSFR'][flag1]
         #core_dsfr = y1-get_BV_MS(x1)
-        core_dsfr = y1-self.gsw.get_MS(x1)
+        core_dsfr = y1-get_MS(x1)
         
         flag2 = sflag & nflag & self.lcs.infallflag &  (self.lcs.cat['logMstar']> self.masscut)  & (self.lcs.ssfr > self.ssfrcut)
         infallBT = self.lcs.cat[BTkey][flag2]
         x2 = self.lcs.cat['logMstar'][flag2]
         y2 = self.lcs.cat['logSFR'][flag2]
         #infall_dsfr = y2-get_BV_MS(x2)
-        infall_dsfr = y2-self.gsw.get_MS(x2)        
+        infall_dsfr = y2-get_MS(x2)        
 
         nflag = (self.gsw.cat['ng'] < nsersic_cut)
         flag3 = nflag & (self.gsw.cat['logMstar'] > self.masscut) & (self.gsw.ssfr > self.ssfrcut)   #& self.gsw.field1
@@ -3093,7 +3253,7 @@ class comp_lcs_gsw():
         x3 = self.gsw.cat['logMstar'][flag3]
         y3 = self.gsw.cat['logSFR'][flag3]
         #field_dsfr = y3-get_BV_MS(x3)
-        field_dsfr = y3-self.gsw.get_MS(x3)
+        field_dsfr = y3-get_MS(x3)
         
         plt.figure()
         mybins = np.linspace(9.7,11.25,nbins)        
@@ -3546,7 +3706,7 @@ class comp_lcs_gsw():
         if BTcut is not None:
             core_dsfr = y1-get_MS_BTcut(x1)
         else:
-            core_dsfr = y1-self.gsw.get_MS(x1)
+            core_dsfr = y1-get_MS(x1)
         core_fsup = sum(core_dsfr < slimit)/len(core_dsfr)
         core_err = binom_conf_interval(sum(core_dsfr < slimit),len(core_dsfr))#lower, upper
 
@@ -3566,7 +3726,7 @@ class comp_lcs_gsw():
         if BTcut is not None:
             infall_dsfr = y2-get_MS_BTcut(x2)
         else:
-            infall_dsfr = y2-self.gsw.get_MS(x2)
+            infall_dsfr = y2-get_MS(x2)
         infall_fsup = sum(infall_dsfr < slimit)/len(infall_dsfr)
         infall_err = binom_conf_interval(sum(infall_dsfr < slimit),len(infall_dsfr))#lower, upper
         print('INFALL')        
@@ -3597,7 +3757,7 @@ class comp_lcs_gsw():
         if BTcut is not None:
             field_dsfr = y3-get_MS_BTcut(x3)
         else:
-            field_dsfr = y3-self.gsw.get_MS(x3)
+            field_dsfr = y3-get_MS(x3)
         field_fsup = sum(field_dsfr < slimit)/len(field_dsfr)
         field_err = binom_conf_interval(sum(field_dsfr < slimit),len(field_dsfr))#lower, upper
         print('FIELD')
@@ -3694,14 +3854,14 @@ class comp_lcs_gsw():
         mc = self.lcs.cat['logMstar'][lcsmemb]
         sfrc = self.lcs.cat['logSFR'][lcsmemb]
         #dsfrc = sfrc - get_BV_MS(mc)
-        dsfrc = sfrc - self.gsw.get_MS(mc)
+        dsfrc = sfrc - get_MS(mc)
         zc = self.lcs.cat['Z_1'][lcsmemb]
         BTc = self.lcs.cat[BTkey][lcsmemb]
         
         mi = self.lcs.cat['logMstar'][lcsinfall]        
         sfri = self.lcs.cat['logSFR'][lcsinfall]
         #dsfri = sfri - get_BV_MS(mi)
-        dsfri = sfri - self.gsw.get_MS(mi)
+        dsfri = sfri - get_MS(mi)
         zi = self.lcs.cat['Z_1'][lcsinfall]
         BTi = self.lcs.cat[BTkey][lcsinfall]
         
@@ -3709,7 +3869,7 @@ class comp_lcs_gsw():
         mf = self.gsw.cat['logMstar'][field]
         sfrf = self.gsw.cat['logSFR'][field]
         #dsfrf = sfrf - get_BV_MS(mf)
-        dsfrf = sfrf - self.gsw.get_MS(mf)
+        dsfrf = sfrf - get_MS(mf)
         zf = self.gsw.cat['Z_1'][field]
         BTf = self.gsw.cat[BTkey][field]        
 
@@ -3946,7 +4106,10 @@ class comp_lcs_gsw():
         # loop through cluster names
         for i,cname in enumerate(lcscommon.clusternames):
             # keep sf galaxies that are in cluster
-            cflag = self.lcs.cat['CLUSTER_1'] == cname
+            # NOTE: somehow when I matched catalog again using topcat
+            # the cluster names all became 12 characters long
+            cname12 = cname+" "*(12-len(cname))
+            cflag = self.lcs.cat['CLUSTER_1'] == cname12
             # calc fraction that are suppressed
             if coreflag:
                 lcsflag = self.lcs.membflag
@@ -3958,6 +4121,7 @@ class comp_lcs_gsw():
             
             nlow = np.sum(lowsfrflag)
             ntot = np.sum(parentflag)
+            print('cluster {}: nlow = {}, ntot = {}'.format(cname,nlow,ntot))
             if (ntot == 0):
                 continue
             binom_err = binom_conf_interval(nlow,ntot)#lower, upper
@@ -4012,7 +4176,10 @@ class comp_lcs_gsw():
             if (cname.find('AWM4') > -1) | (cname.find('Hercules') > -1) | (cname.find('NGC6107') > -1):
                 continue
             # keep sf galaxies that are in cluster
-            cflag = self.lcs.cat['CLUSTER_1'] == cname
+            cname12 = cname+" "*(12-len(cname))
+            cflag = self.lcs.cat['CLUSTER_1'] == cname12
+            
+            #cflag = self.lcs.cat['CLUSTER_1'] == cname
             # calc fraction that are suppressed
             if coreflag:
                 lcsflag = self.lcs.membflag
