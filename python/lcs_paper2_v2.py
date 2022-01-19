@@ -154,7 +154,7 @@ def get_SFR_cut(logMstar):
     #return 0.6*logMstar - 6.11 - 0.6
 
     # using full GSWLC, just cut to LCS redshift range
-    return get_MS(logMstar) - 0.75
+    return get_MS(logMstar) - 0.897
     
 def get_MS(logMstar):
     # not BT cut
@@ -164,11 +164,15 @@ def get_MS(logMstar):
         #return 0.6*x-6.11
 
         # using full GSWLC, just cut to LCS redshift
-        return 0.592*logMstar - 6.18
+        #return 0.592*logMstar - 6.18
+
+        # using 2nd order polynomial fit
+        return -0.1969*logMstar**2 + 4.4187*logMstar -24.61
     elif args.cutBT:
         # you get the same thing from fitting the MS or from fitting peaks of gaussian
         #self.MS_std = 0.16
-        return 0.62*logMstar-6.35
+        #return 0.62*logMstar-6.35
+        return -0.1969*logMstar**2 + 4.4187*logMstar -24.61
 
 def get_MS_BTcut(logMstar,MSfit=None):
     ''' 
@@ -1391,12 +1395,19 @@ class comp_lcs_gsw():
 
         plt.hexbin(self.gsw.cat['logMstar'],self.gsw.cat['logSFR'],\
                    bins='log',cmap='gray_r',gridsize=75)
+        # show the mass cut
+        plt.axvline(x=float(args.minmass),ls=':',color=mycolors[2],lw=2.5,label="Mass Limit")
+        
         # plot MS fit
         x1,x2 = 8,11.3
         xline = np.linspace(x1,x2,100)
-        yline = 0.58*xline-6.01
+        yline = get_MS(xline)
+        #plt.fill_between(xline,yline+.45,yline-.45,color='b',alpha=.15,label=r'$\rm MS \pm 1.5 \sigma$')                
         plt.plot(xline,yline,c='w',ls='-',lw=4,label='_nolegend_')
         plt.plot(xline,yline,c='b',ls='-',lw=3,label='MS Fit')
+
+        plt.plot(xline,yline-.45,c='w',ls='-',lw=3)
+        plt.plot(xline,yline-.45,c='b',ls='--',lw=2,label=r'$\rm MS - 1.5 \sigma$')                
 
         # plot passive cut
 
@@ -1407,8 +1418,6 @@ class comp_lcs_gsw():
         plt.ylabel(r'$\rm \log_{10}(SFR/(M_\odot/yr))$',fontsize=24)
         plt.xlabel(r'$\rm \log_{10}(M_\star/M_\odot)$',fontsize=24)
 
-        # show the mass cut
-        plt.axvline(x=float(args.minmass),ls=':',color='g',lw=3,label="Mass Limit")
         plt.legend()        
         plt.savefig('ms_passive_cut.png')
         plt.savefig('ms_passive_cut.pdf')        
