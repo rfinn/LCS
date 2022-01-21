@@ -210,7 +210,7 @@ class writetable():
         self.outfile.write('\\centering \n')
         self.outfile.write('\\begin{tabular}{|c|c|c|c|c|c|} \n')
         self.outfile.write('\\hline\n')
-        self.outfile.write('Samples &Variable  &\multicolumn{2}{c|}{All $B/T$} &  \multicolumn{2}{c|}{$B/T < 0.4$}\\\\ \n')
+        self.outfile.write('Samples &Variable  &\multicolumn{2}{c|}{All $B/T$} &  \multicolumn{2}{c|}{$B/T < 0.3$}\\\\ \n')
         self.outfile.write('& & \multicolumn{2}{c|}{KS p value}& \multicolumn{2}{c|}{KS p value} \\\\ \n')
         self.outfile.write('& &  no mass match & mass match & no mass match & mass match\\\\ \n')
         self.outfile.write('\hline \hline \n')

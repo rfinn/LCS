@@ -216,7 +216,7 @@ def plot_BV_MS(ax,color='mediumblue',ls='-'):
     xline = np.linspace(x1,x2,100)
     yline = get_BV_MS(xline)
     ax.plot(xline,yline,c='w',ls=ls,lw=4,label='_nolegend_')
-    ax.plot(xline,yline,c=color,ls=ls,lw=3,label='Linear Fit')
+    ax.plot(xline,yline,c=color,ls=ls,lw=3,label='MS Fit')
 
     # scatter around MS fit
     sigma=0.3
@@ -963,7 +963,7 @@ class gswlc(gswlc_base):
         xline = np.linspace(x1,x2,100)
         yline = get_MS(xline)
         ax.plot(xline,yline,c='w',ls=ls,lw=4,label='_nolegend_')
-        ax.plot(xline,yline,c=color,ls=ls,lw=3,label='Linear Fit')
+        ax.plot(xline,yline,c=color,ls=ls,lw=3,label='MS Fit')
 
         # scatter around MS fit
         sigma=self.MS_std
@@ -979,7 +979,7 @@ class gswlc(gswlc_base):
         xline = np.linspace(x1,x2,100)
         yline = get_MS(xline)
         ax.plot(xline,yline,c='w',ls=ls,lw=4,label='_nolegend_')
-        ax.plot(xline,yline,c=color,ls=ls,lw=3,label='Linear Fit')
+        ax.plot(xline,yline,c=color,ls=ls,lw=3,label='MS Fit')
 
         # scatter around MS fit
         ax.plot(xline,yline-MS_OFFSET,c='w',ls='--',lw=4)
