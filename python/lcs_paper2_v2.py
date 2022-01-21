@@ -974,10 +974,10 @@ class gswlc(gswlc_base):
         '''
         plot our MS fit
         '''
-        plot_MS_lowBT(ax)
+        #plot_MS_lowBT(ax)
         x1,x2 = 9.7,11.
         xline = np.linspace(x1,x2,100)
-        yline = 0.58*xline-6.01
+        yline = get_MS(xline)
         ax.plot(xline,yline,c='w',ls=ls,lw=4,label='_nolegend_')
         ax.plot(xline,yline,c=color,ls=ls,lw=3,label='Linear Fit')
 
