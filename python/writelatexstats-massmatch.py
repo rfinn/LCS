@@ -323,7 +323,7 @@ class writetable():
         #b = self.allstats_mm[i][1]
         c = self.allstatsBT[i][1]
         #d = self.allstatsBT_mm[i][1]        
-        self.outfile.write('&&$B/T$   &  \\bf {:.2e} & \\bf {:.2e}  \\\\ \n'.format(a,c))
+        self.outfile.write('&&$B/T$   &  \\bf {:.2e} &  {:.2e}  \\\\ \n'.format(a,c))
         i -= 1        
         
         a = self.allstats[i][1]
@@ -341,7 +341,7 @@ class writetable():
         
         a = self.allstats[i][1]
         b = self.allstatsBT[i][1]        
-        self.outfile.write('Core-Infall &No    & $\\log$ SFR      & \\bf {:.2e}    & \\bf {:.2e}   \\\\ \n'.format(a,b))
+        self.outfile.write('Core-Infall &No    & $\\log$ SFR      & \\bf {:.2e}    &  {:.2e}   \\\\ \n'.format(a,b))
 
         i += 1
         
