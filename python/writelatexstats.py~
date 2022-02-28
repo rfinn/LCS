@@ -1,0 +1,66 @@
+#!/usr/bin/env python
+
+'''
+GOAL:
+* write out the statistics table for the main sequence paper
+
+'''
+import sys
+import os
+homedir = os.getenv("HOME")
+sys.path.append(homedir+'/github/LCS/python/')
+
+from 
+
+
+class writetable():
+    def __init__(self):
+        pass
+
+    def get_full_stats(self):
+        # calculate stats for uncut sample, no mass match
+        full_sample = self.ks_stats()
+        # calculate stats for uncut sample, with mass match        
+        full_sample_mmatch = self.ks_stats(massmatch=True)
+        
+        pass
+
+    def get_BTcut_stats(self):
+        pass
+
+    def write_header(self):
+
+
+    def write_data(self):
+
+        # cut on BT
+
+        self.gsw.cut_BT(BT=0.4)
+
+        self.lcs.cut_BT(BT=0.4)
+        
+        # calc stats, no mass match
+
+        # calc stats, with mass match        
+
+        # open latex table
+
+        
+        # write the header
+        \begin{table*}%[h]
+        \centering
+        \begin{tabular}{|c|c|c|c|c|c|}
+        \hline
+        Samples &Variable &  \multicolumn{2}{c|}{$B/T < 0.4$} &\multicolumn{2}{c|}{All $B/T$} \\
+            & & KS value & KS value& KS value & KS value\\
+            
+        & &  mass match & no mass match &  mass match & no mass match\\
+            \hline \hline
+        # write out data
+
+
+        # write out footer
+
+        # close file
+
+        pass

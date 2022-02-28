@@ -195,11 +195,11 @@ class writetable():
         # no mass match
         self.allstats = self.run_ks()
         # with mass match
-        self.allstats_mm = self.run_ks(massmatch=False)
+        self.allstats_mm = self.run_ks(massmatch=True)
         # no mass match
         self.allstatsBT = self.run_ks(BTcut=True)
         # with mass match
-        self.allstatsBT_mm = self.run_ks(massmatch=False,BTcut=True)
+        self.allstatsBT_mm = self.run_ks(massmatch=True,BTcut=True)
 
     def open_output(self):
         self.outfile = open('table1.tex','w')
@@ -210,7 +210,7 @@ class writetable():
         self.outfile.write('\\centering \n')
         self.outfile.write('\\begin{tabular}{|c|c|c|c|c|c|} \n')
         self.outfile.write('\\hline\n')
-        self.outfile.write('Samples &Variable  &\multicolumn{2}{c|}{All $B/T$} &  \multicolumn{2}{c|}{$B/T < 0.3$}\\\\ \n')
+        self.outfile.write('Samples &Variable  &\multicolumn{2}{c|}{All $B/T$} &  \multicolumn{2}{c|}{$B/T < 0.4$}\\\\ \n')
         self.outfile.write('& & \multicolumn{2}{c|}{KS p value}& \multicolumn{2}{c|}{KS p value} \\\\ \n')
         self.outfile.write('& &  no mass match & mass match & no mass match & mass match\\\\ \n')
         self.outfile.write('\hline \hline \n')

@@ -44,6 +44,8 @@ from astropy.table import Table
 from astropy.cosmology import z_at_value
 import astropy.units as u
 from astropy.cosmology import WMAP9
+import multiprocessing as mp
+
 
 cosmo = WMAP9
 
@@ -236,11 +238,24 @@ def forward_model(minmass=8,maxmass=12,massstep=0.2,minsfr=-2,maxsfr=2,sfrstep=0
     galnumber_all = np.zeros(size_output_arrays,'d')                
     # for each galaxy, evolve it to z=0
     galnumber = 0
+
+
     for i in range(len(mstar_mesh[:,0])):
+
+        # add multiprocessing part here to run evolve galaxy in parallel
+        # just trying to do this quick - haven't thought about how to take
+        # both mass and SFR steps into account, so just doing mp on sfr steps
+        evolve_pool = mp.Pool(mp.cpu_count())
+        myresults = [evolve_pool.apply_async(evolve_galaxy,args=(mstar_mesh[i,j],sfr_mesh[i,j],tmax,ntimestep)) for j in range(len(sfr_mesh[0]))]
+        evolve_pool.close()
+        evolve_pool.join()
+        evolve_results = [r.get() for r in myresults]
+        
         for j in range(len(sfr_mesh[0])):
             # forward model galaxy
 
-            lookbackt,redshift,logmstar,logsfr,mstar,sfr,mass_loss = evolve_galaxy(mstar_mesh[i,j],sfr_mesh[i,j],tmax,ntimestep)
+            #lookbackt,redshift,logmstar,logsfr,mstar,sfr,mass_loss = evolve_galaxy(mstar_mesh[i,j],sfr_mesh[i,j],tmax,ntimestep)
+            lookbackt, redshift,logmstar,logsfr,mstar,sfr,mass_loss = evolve_results[j]
             #print(mstar_mesh[i,j],sfr_mesh[i,j])
             logmstar0 = np.ones(len(logmstar))*logmstar[-1]
             logsfr0 = np.ones(len(logmstar))*logsfr[-1]            

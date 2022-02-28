@@ -1,0 +1,63 @@
+#!/usr/bin/env python
+
+'''
+GOAL:
+* assess the models for various combinations of tmax and tau using a maximum liklihood estimator
+
+APPROACH:
+* we have run many models to create a simulated core sample from the z=0 field sample
+* we have used the KS test to rule out bad models.  
+* we are looking for a complementary statistical approach that would select the "best-fit" models
+* in our case, we will use the SFR distribution of the sim-core galaxies as the model, and compare with the observed core sample
+* we will bin the sim-core data, and bin the core data.  compare model vs data in each bin
+
+NOTES:
+* using this as a reference: https://indico.cern.ch/category/6015/attachments/192/631/Statistics_Fitting_II.pdf
+
+
+'''
+
+from astropy.table import Table
+import numpy as np
+from matplotlib import pyplot as plt
+
+import mulitprocessor as mp
+
+
+def read_simcore(filename):
+    ''' read in output from LCSsimulate_infall_sfrs_mp.py  '''
+
+    pass
+
+
+def get_chisq(model,data,nbin=15,plothist=False):
+    '''  
+
+    INPUT:
+    * model : e.g. sfrs of simcore galaxies
+    * data : e.g. sfrs of core galaxies
+    * nbin : number of bins to use for computing chisq
+
+    OUTPUT: 
+    * chisq
+
+    '''
+
+    # bin data
+
+    # calculate difference between simcore and core in each bin
+
+    # sum difference
+
+# get list of simcore files
+
+# read in simcore
+
+# read in core
+
+# bin sfrs of simcore and core
+
+
+# compare with best-fit model
+
+# replace best-fit model with current model if chisq is lower

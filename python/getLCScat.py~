@@ -1,0 +1,34 @@
+#!/usr/bin/env python
+
+'''
+GOAL:
+* get full LCS catalogs, not just area covered by MIPS scans
+
+
+PROCEDURE
+* read in parent file (GSWLC+Simard+A100)
+* for each cluster (defined in LCScommon),
+  * define flag for delta r < 4 R200, delta v < 4 sigma
+
+* gather all flags
+* cut parent catalog based on flag
+* save parent catalog as LCS table
+
+
+
+'''
+
+import LCScommon as lcs
+import os
+from astropy.table import Table
+
+# store home directory as variable
+homedir = os.getenv("HOME")
+
+# define path to parent catalog
+parent_catalog = homedir+'/research/GSWLC/GSWLC-X2-NO-DR10-AGN-Simard2011-tab1-tab3-A100-HIdef-28Aug2021.fits'
+
+# read in parent catalog
+pcat = Table.read(parent_catalog)
+
+
