@@ -290,7 +290,7 @@ class writetable():
         #b = self.allstats_mm[3][1]
         c = self.allstatsBT[3][1]
         #d = self.allstatsBT_mm[3][1]        
-        self.outfile.write(' && $B/T$    &\\bf {:.2e} & \\bf {:.2e}   \\\\ \n'.format(a,c))
+        self.outfile.write(' && $B/T$    & {:.2e} & \\bf {:.2e}   \\\\ \n'.format(a,c))
         a = self.allstats[2][1]
         #b = self.allstats_mm[2][1]
         c = self.allstatsBT[2][1]
@@ -337,7 +337,7 @@ class writetable():
         #### CORE VS INFALL
         ##########################        
 
-        i += 1
+        i += 2
         
         a = self.allstats[i][1]
         b = self.allstatsBT[i][1]        
@@ -347,7 +347,7 @@ class writetable():
         
         a = self.allstats[i][1]
         b = self.allstatsBT[i][1]                
-        self.outfile.write('&& $\Delta \log$SFR& \\bf {:.2e} &  {:.2e}  \\\\ \n'.format(a,b))
+        self.outfile.write('&& $\Delta \log$SFR&  {:.2e} &  {:.2e}  \\\\ \n'.format(a,b))
 
 
         i += 2

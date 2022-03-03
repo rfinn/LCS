@@ -158,7 +158,7 @@ def get_SFR_cut(logMstar):
         return get_MS(logMstar) - 0.845
     else:
         #return get_MS(logMstar) - 0.947
-        return get_MS(logMstar) - 0.845
+        return get_MS(logMstar) - 0.947
 def get_MS(logMstar):
     # not BT cut
     # updating this after we expanded the mass range used for fitting MS
@@ -1978,7 +1978,7 @@ class comp_lcs_gsw():
         plt.axvline(x=-1*MS_OFFSET,ls='--',color='b')        
         plt.legend()
         if args.cutBT:
-            plt.title(r'$ B/T < 0.3$',fontsize=22)
+            plt.title(r'$ B/T \le 0.3$',fontsize=22)
         if outfile1 is not None:
             plt.savefig(outfile1)
         if outfile2 is not None:
@@ -2280,7 +2280,7 @@ class comp_lcs_gsw():
         plt.figure(figsize=(14,14))
         plt.subplots_adjust(hspace=.02,wspace=.1)
         nplot=1
-        nrow = 6
+        nrow = 7
         ncol = 7
         for i in ids:
                    
