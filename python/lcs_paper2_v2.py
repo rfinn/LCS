@@ -2880,7 +2880,7 @@ class comp_lcs_gsw():
         flags2=[flag2,lcsflag2]
         # create a mass-matched sample of field galaxies with low SFR
         myrandom = np.random.random()
-        keep_indices = mass_match(lcsmass_lowsfr,gswmass_lowsfr,nmatch=NMASSMATCH,seed=379)            
+        keep_indices = mass_match(lcsmass_lowsfr,gswmass_lowsfr,nmatch=NMASSMATCH,seed=479)            
 
         gsw_lowsfr_mmatch = self.gsw.cat[flag2][keep_indices]
         
@@ -2888,7 +2888,7 @@ class comp_lcs_gsw():
         # does low SFR sample have higher B/T than normal field galaxies
         if plotsingle:
             plt.figure(figsize=(12,3))
-            plt.subplots_adjust(wspace=.4,bottom=.2)
+            plt.subplots_adjust(wspace=.01,bottom=.2)
         colors = ['0.5',darkblue,'k'] # color for field and LCS
 
         alphas = [.8,.5,1.]
@@ -2901,9 +2901,9 @@ class comp_lcs_gsw():
         
         labels = ['Field','LCS','Low SFR Field']
         if coreonly:
-            labels = [r'$\rm MM\ low SFR\ Field$',r'$\rm low SFR\ Core$','Low SFR Field']
+            labels = [r'$\rm Field$',r'$\rm Core$','Low SFR Field']
         elif infallonly:
-            labels = [r'$\rm MM \ low SFR\ Field$',r'$\rm low SFR\ Infall$','Low SFR Field']
+            labels = [r'$\rm Field$',r'$\rm Infall$','Low SFR Field']
             colors = ['0.5',lightblue,'k'] # color for field and LCS            
         allbins = [np.linspace(0,BTmax,nbins),\
                    np.linspace(1,6,nbins),\
@@ -2912,7 +2912,7 @@ class comp_lcs_gsw():
                    np.linspace(9.7,11,nbins),np.linspace(-1,1,nbins)]
         
         xvars_gsw = [gsw_lowsfr_mmatch[BTkey],gsw_lowsfr_mmatch['ng'],gsw_lowsfr_mmatch['gmag']-gsw_lowsfr_mmatch['imag'],gsw_lowsfr_mmatch['pSc']]
-        xvars_lcs = [lcs_lowsfr[BTkey],lcs_lowsfr['ng_2'],lcs_lowsfr['gmag']-lcs_lowsfr['imag'],lcs_lowsfr['pSc']]        
+        xvars_lcs = [lcs_lowsfr[BTkey],lcs_lowsfr['ng_1'],lcs_lowsfr['gmag']-lcs_lowsfr['imag'],lcs_lowsfr['pSc']]        
         ncols=4
         for col in range((ncols)):
             plt.subplot(nrow,ncols,col+1+subplot_offset)
@@ -2925,8 +2925,14 @@ class comp_lcs_gsw():
                 #plt.text(-.2,-.1,'Normalized Distribution',transform=plt.gca().transAxes,rotation=90,horizontalalignment='center',verticalalignment='center',fontsize=24)
                 #plt.ylabel(r'$\rm Norm. \ Distribution$',fontsize=20)
 
+            print()
+            print()
             print('###################################################################')
             print('comparing LCS low SFR and mass-matched field low SFR:',xlabels[col])
+            #print('LCS values : ',xvars[1])
+            print()
+            print('median LCS {:.2f} vs field {:.2f}'.format(np.median(xvars[1]),np.median(xvars[0])))
+            print()
             t = ks_2samp(xvars[0],xvars[1])
             print('statistic={:.2f}, pvalue={:.2e}'.format(t[0],t[1]))
             print('')
@@ -2937,7 +2943,7 @@ class comp_lcs_gsw():
                 s = r'$\rm \bf pvalue={:.3f}$'.format(t[2])
             else:
                 s = r'$\rm pvalue={:.3f}$'.format(t[2])
-            plt.text(0.05,.9,s,fontsize=14,transform=plt.gca().transAxes)
+            plt.text(0.95,.9,s,fontsize=14,transform=plt.gca().transAxes,horizontalalignment='right')
             if show_xlabel:
                 plt.xlabel(xlabels[col],fontsize=20)
                 
@@ -2949,6 +2955,7 @@ class comp_lcs_gsw():
                         plt.text(-.3,1,r'$\rm Normalized \ Distribution$',fontsize=20,transform=ax.transAxes,rotation=90,verticalalignment='center')
             else:
                 plt.xticks([],[])
+            plt.yticks([],[])
         
     def compare_BT_lowsfr_lcs_field_mmatch(self,nbins=12,coreonly=False,infallonly=False,BTmax=1,nrandom=100,nmatch=30):
         ''' compare the B/T distribution of LCS low SFR galaxies with mass-matched sample drawn from low SFR field galaxies '''
