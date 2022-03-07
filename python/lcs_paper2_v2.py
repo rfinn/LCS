@@ -3327,6 +3327,106 @@ class comp_lcs_gsw():
             outtab = Table([self.lcs.cat['NSAID'][flag2][flag],self.lcs.cat['RA_1'][flag2][flag],self.lcs.cat['DEC_1'][flag2][flag]],names=['NSAID','RA','DEC'])
             outtab.write('infall-btgt03-dsfrlt045.fits',overwrite=True)
         return xvars,yvars
+    def plot_HIdef_BT(self,nbins=15,xmax=1,writefiles=False,nsersic_cut=10,ecut=1,BTline=None,mmatch=False):
+        ''' plot HIdef vs BT for core, infall and field '''
+        lcsFlag = self.lcs.cat['HIdef_flag'] & self.lcs_mass_sfr_flag & (self.lcs.membflag | self.lcs.infallflag)
+
+        lcsCoreFlag = lcsFlag & self.lcs.membflag
+        lcsInfallFlag = lcsFlag & self.lcs.infallflag        
+        # select field galaxies with:
+        # HI measurements
+        # in sfr and stellar mass cuts
+
+        fieldFlag = self.gsw.HIdef['HIdef_flag'] & self.gsw_mass_sfr_flag
+
+        # get a mass-matched sample of field galaxies
+        lcsmass = self.lcs.cat['logMstar'][lcsFlag]
+        gswmass = self.gsw.cat['logMstar'][fieldFlag]        
+        keep_indices = mass_match(lcsmass,gswmass,3199,nmatch=NMASSMATCH)        
+        # plot HIdef vs dSFR
+
+        HIdef_cats = [self.lcs.cat,self.lcs.cat,self.gsw.HIdef]
+        HIdefKey = 'HIdef_Boselli'
+        dsfr_vars = [self.lcs_dsfr,self.lcs_dsfr,self.gsw_dsfr]
+        flags = [lcsCoreFlag,lcsInfallFlag,fieldFlag]
+
+
+        
+
+        coreBT = self.lcs.cat[BTkey][lcsCoreFlag]
+        x1 = self.lcs.cat['logMstar'][lcsCoreFlag]
+        y1 = self.lcs.cat['logSFR'][lcsCoreFlag]
+        #core_dsfr = y1-get_BV_MS(x1)
+        core_dsfr = y1-get_MS(x1)
+        
+        infallBT = self.lcs.cat[BTkey][lcsInfallFlag]
+        x2 = self.lcs.cat['logMstar'][lcsInfallFlag]
+        y2 = self.lcs.cat['logSFR'][lcsInfallFlag]
+        #infall_dsfr = y2-get_BV_MS(x2)
+        infall_dsfr = y2-get_MS(x2)        
+
+        nflag = (self.gsw.cat['ng'] < nsersic_cut)
+
+         
+        fieldBT = self.gsw.cat[BTkey][fieldFlag][keep_indices]
+        x3 = self.gsw.cat['logMstar'][fieldFlag][keep_indices]
+        y3 = self.gsw.cat['logSFR'][fieldFlag][keep_indices]
+            
+        #field_dsfr = y3-get_BV_MS(x3)
+        field_dsfr = y3-get_MS(x3)
+
+
+        
+        plt.figure()
+        plt.subplots_adjust(left=.2)
+        mybins = np.linspace(0,xmax,nbins)        
+        xvars = [fieldBT,coreBT,infallBT]
+        yvars = [field_dsfr,core_dsfr,infall_dsfr]        
+        colors = ['.5',darkblue,lightblue]
+        labels = ['Field','Core','Infall']
+        orders = [1,3,2]
+        lws = [3,4,3]
+        alpha_pts = [.4,.4,.4]
+        alpha_lines = [.6,.6,.6]        
+        markers = ['o','s','o']
+        markersizes = [1,8,8]
+        hatches = ['/','\\','|']
+        allBT=[]
+        alldsfr=[]
+        for i in range(len(xvars)):
+            if i > 0:
+                plt.plot(xvars[i],yvars[i],'k.',color=colors[i],alpha=alpha_pts[i],zorder=orders[i],markersize=markersizes[i],\
+                     marker=markers[i],label=labels[i])
+            t = lcscommon.spearmanr(xvars[i],yvars[i])
+            ybin,xbin,binnumb = binned_statistic(xvars[i],yvars[i],statistic='mean',bins=mybins)
+            yerr,xbin,binnumb = binned_statistic(xvars[i],yvars[i],statistic='std',bins=mybins)
+            nyerr,xbin,binnumb = binned_statistic(xvars[i],yvars[i],statistic='count',bins=mybins)            
+            yerr = yerr/np.sqrt(nyerr)
+            dbin = xbin[1]-xbin[0]
+            if i == 0:
+                plt.plot(xbin[:-1]+0.5*dbin,ybin,color=colors[i],lw=4,label=labels[i],zorder=10)
+            else:
+                plt.plot(xbin[:-1]+0.5*dbin,ybin,color=colors[i],lw=4,zorder=10)
+            plt.fill_between(xbin[:-1]+0.5*dbin,ybin+yerr,ybin-yerr,color=colors[i],alpha=alpha_lines[i],zorder=8)            
+            print('\n'+labels[i])
+            print('r={:.4f}, pvalue={:.3e}'.format(t[0],t[1]))
+            allBT.append(xvars[i].tolist())
+            alldsfr.append(yvars[i].tolist())            
+        plt.xlabel(r'$\rm B/T$',fontsize=22)
+        plt.ylabel(r'$\rm HI \ Def$',fontsize=22)
+
+        #plt.axhline(y=MS_OFFSET,ls='--',color='k',label='$1.5\sigma_{MS}$')
+        
+        #plt.axhline(y=-1*MS_OFFSET,ls='--',color='w',lw=4)
+        #plt.axhline(y=-1*MS_OFFSET,ls='--',color='b',lw=3,label=r'$\rm MS - 1.5\sigma$')
+        plt.legend()
+        if BTline is not None:
+            plt.axvline(x=BTline,ls=':',color='k')
+        print('\n Combined Samples: Spearman Rank')
+        #t = lcscommon.spearmanr(allBT,alldsfr)
+        #print(t)
+
+        return xvars,yvars
     def plot_dsfr_mstar(self,nbins=15,xmax=.3,writefiles=False,nsersic_cut=10,ecut=1,BTline=None):
         nflag = (self.lcs.cat['ng_2'] < nsersic_cut)
         sflag = (self.lcs.cat['p_el'] < ecut)
@@ -4030,7 +4130,7 @@ class comp_lcs_gsw():
         # HI measurements
         # in sfr and stellar mass cuts
 
-        lcsFlag = self.lcs.cat['HIdef_flag'] & self.lcs_mass_sfr_flag
+        lcsFlag = self.lcs.cat['HIdef_flag'] & self.lcs_mass_sfr_flag & (self.lcs.membflag | self.lcs.infallflag)
 
         lcsCoreFlag = lcsFlag & self.lcs.membflag
         lcsInfallFlag = lcsFlag & self.lcs.infallflag        
