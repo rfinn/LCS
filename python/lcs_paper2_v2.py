@@ -1974,7 +1974,7 @@ class comp_lcs_gsw():
         plt.xlabel(r'$\rm \Delta \log_{10}SFR $',fontsize=22)
         plt.ylabel(r'$\rm Normalized \ Distribution$',fontsize=22)
         # add range considered "normal" SF
-        plt.axvline(x=MS_OFFSET,ls='--',color='b')
+        #plt.axvline(x=MS_OFFSET,ls='--',color='b')
         plt.axvline(x=-1*MS_OFFSET,ls='--',color='b')        
         plt.legend()
         if args.cutBT:
@@ -2352,7 +2352,7 @@ class comp_lcs_gsw():
     def compare_morph(self,nbins=10,xmax=.4,coreonly=False):
         '''what is this for?   '''
         plt.figure(figsize=(10,6))
-        plt.subplots_adjust(wspace=.25,hspace=.4)
+        plt.subplots_adjust(wspace=.1,hspace=.4)
         # 2x2 figure
         nrow=2
         ncol=2
@@ -2453,6 +2453,7 @@ class comp_lcs_gsw():
                          histtype='step',lw=lws[i],zorder=zorders[i],label=labels[i])#hatch=hatches[i])
 
                 plt.xlabel(xlabels[col],fontsize=16)
+                plt.yticks([],[])
             plt.subplot(nrow,ncol,1+colnumber)
             colnumber += 1
 
@@ -3876,7 +3877,11 @@ class comp_lcs_gsw():
             pvalue_y_HI = t[2]
             ax2.text(0,.9,r'$\rm pvalue:\ HI\ vs\ normal={:.2f}$'.format(pvalue_y_HI),fontsize=14)            
             # fraction of suppressed SF galaxies with HI detections
+            print("DR of HI vs normal:")
             t = anderson_ksamp([x1,x[lcsHIFlag]])
+            print('anderson Darling: ',t)
+            print()
+            print('KS: ',ks_2samp(x1,x[lcsHIFlag]))
             pvalue_x_HI = t[2]
             ax3.text(0,.9,r'$\rm pvalue:\ HI\ vs\ normal={:.3f}$'.format(pvalue_x_HI),fontsize=14)            
             # fraction of suppressed SF galaxies with HI detections
@@ -4211,7 +4216,7 @@ class comp_lcs_gsw():
         ax.set_ylabel(r'$\rm HI \ Deficiency $',fontsize=20)
 
         # plot line for suppressed galaxies
-        plt.axhline(y=-1*MS_OFFSET,ls='--',color='b')                
+        ax.axvline(x=-1*MS_OFFSET,ls='--',color='b',label=r'$\rm MS-1.5\sigma $')                
         # add linear fit to dSFR vs HIdef for field galaxies
         x = dsfr_vars[2][flags[2]]
         y = HIdef_cats[2][HIdefKey][flags[2]]
