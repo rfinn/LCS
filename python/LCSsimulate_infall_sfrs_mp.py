@@ -843,6 +843,7 @@ def plot_frac_below_pvalue_sfr(all_tau,all_p_sfr,tmax,nbins=100,plotsingle=True,
         plt.plot(x,1-y,marker='s',markersize=6,label='tmax={:d}Gyr'.format(tmax),alpha=alpha,lw=lw)
     else:
         plt.plot(x,1-y,marker='s',markersize=6,label='tmax={:d}Gyr'.format(tmax),color=color,alpha=alpha,lw=lw)
+        #plt.fill_between(
     print('pvalue = ',pvalue)    
     #s = r'$t_{max} = %.1f \ Gyr, \ dr/dt = %.2f \ Gyr^{-1}, \ t_{quench} = %.1f \ Gyr$'%(tmax, best_drdt,1./abs(best_drdt))
     s = r'$t_{max} = %.1f \ Gyr$'%(tmax)
