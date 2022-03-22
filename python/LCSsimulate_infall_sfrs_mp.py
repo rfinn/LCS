@@ -101,15 +101,40 @@ mipspixelscale=2.45
 drdt_label1 = r'$\dot{R}_{24} \ (R_{24}/Gyr^{-1}) $'
 drdt_label2 = r'$\dot{R}_{trunc} \ (R_24}/Gyr^{-1}) $'
 
-def get_MS(logMstar,slope=0.4731,intercept=-4.877):
+
+def get_SFR_cut(logMstar,cutBT=False):
     ''' 
-    get MS fit that BV calculated from GSWLC; 
-    
-    MSfit = can use with alternate fit function if you provide the function 
+    get min allowable SFR as a function of stellar mass
+        
     '''
     #return 0.53*logMstar-5.5
     # for no BT cut, e < 0.75
-    return slope*logMstar+intercept
+    #return 0.6*logMstar - 6.11 - 0.6
+
+    # using full GSWLC, just cut to LCS redshift range
+    if not(cutBT):
+        return get_MS(logMstar) - 0.845
+    else:
+        #return get_MS(logMstar) - 0.947
+        return get_MS(logMstar) - 0.947
+def get_MS(logMstar, cutBT=False):
+    # not BT cut
+    # updating this after we expanded the mass range used for fitting MS
+    if not(cutBT):
+        #self.MS_std = 0.22
+        #return 0.6*x-6.11
+
+        # using full GSWLC, just cut to LCS redshift
+        #return 0.592*logMstar - 6.18
+
+        # using 2nd order polynomial fit
+        return -0.1969*logMstar**2 + 4.4187*logMstar -24.607
+    else:
+        # you get the same thing from fitting the MS or from fitting peaks of gaussian
+        #self.MS_std = 0.16
+        #return 0.62*logMstar-6.35
+        return -0.0935*logMstar**2 + 2.4325*logMstar -15.107
+
 
 
 ## infall rates
@@ -667,7 +692,13 @@ def run_sim(tmax = 3.,taumax=6,nstep_tau=10,nrandom=10,nmassmatch=10,ndrawmass=1
                 # should apply the ssfr > 11.5
                 #quench_flag = sim_core_sfr_matched/ < min(external_sfr)
                 # SFR and Mstar are linear, so need to take the log
-                quench_flag = np.log10(sim_core_sfr_matched/sim_core_mstar_matched) < -11.5
+
+                # update for new SFR/passive cut
+
+                # this is the old one when we were cutting on sSFR > -11.5
+                #quench_flag = np.log10(sim_core_sfr_matched/sim_core_mstar_matched) < -11.5
+
+                quench_flag = np.log10(sim_core_sfr_matched) < get_SFR_cut(np.log10(sim_core_mstar_matched))
 
             
                 # removing flag to make sure things work as expected
@@ -812,6 +843,7 @@ def plot_frac_below_pvalue_sfr(all_tau,all_p_sfr,tmax,nbins=100,plotsingle=True,
         plt.plot(x,1-y,marker='s',markersize=6,label='tmax={:d}Gyr'.format(tmax),alpha=alpha,lw=lw)
     else:
         plt.plot(x,1-y,marker='s',markersize=6,label='tmax={:d}Gyr'.format(tmax),color=color,alpha=alpha,lw=lw)
+        #plt.fill_between(
     print('pvalue = ',pvalue)    
     #s = r'$t_{max} = %.1f \ Gyr, \ dr/dt = %.2f \ Gyr^{-1}, \ t_{quench} = %.1f \ Gyr$'%(tmax, best_drdt,1./abs(best_drdt))
     s = r'$t_{max} = %.1f \ Gyr$'%(tmax)

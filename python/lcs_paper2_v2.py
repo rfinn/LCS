@@ -10,7 +10,7 @@ import LCScommon as lcscommon
 from matplotlib import pyplot as plt
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 import matplotlib.gridspec as gridspec
-
+from matplotlib.patches import Circle
 import numpy as np
 import os
 import scipy.stats as st
@@ -110,6 +110,24 @@ log_mstar2 = t['med_logMstar']
 log_ssfr2 = t['med_logsSFR']
 
 
+def ratio_error(num,denom):
+    ''' return fraction and lower, upper error based on binomial statistics '''
+
+    ratio = num/denom
+    yerrs = binom_conf_interval(num,denom)#lower, upper
+
+    try:
+        # works for arrays
+        yerr = np.zeros((2,len(num)))
+        yerr[0] = ratio-yerrs[0]
+        yerr[1] = yerrs[1]-ratio
+    except TypeError:
+        yerr = np.zeros((2,1))
+        yerr[0] = ratio-yerrs[0]
+        yerr[1] = yerrs[1]-ratio
+
+    return ratio,yerr
+    
 def running_median(x,y,nbin,ax,color='k',alpha=.4):
     mybins=np.linspace(st.stats.scoreatpercentile(x,2),st.stats.scoreatpercentile(x,98),nbin)
     ybin,xbin,binnumb = binned_statistic(x,y,statistic='median',bins=mybins)
@@ -236,7 +254,7 @@ def plot_GSWLC_sssfr(ax=None,ls='-'):
     yline = ssfr+xline
     ax.plot(xline,yline,c='w',ls=ls,lw=4,label='_nolegend_')
     ax.plot(xline,yline,c='0.5',ls=ls,lw=3,label='log(sSFR)=-11.5')
-def plot_sfr_mstar_lines(ax=None):
+def plot_sfr_mstar_lines(ax=None,apexflag=False):
     if ax is not None:
         plt.sca(ax)
     # plot MS fit
@@ -253,9 +271,10 @@ def plot_sfr_mstar_lines(ax=None):
     # plot passive cut
 
     yl = get_SFR_cut(xline)
-    plt.plot(xline,yl,'r-',lw=2,label='Passive Cut')        
-    yl =xline + float(args.minssfr)
-    plt.plot(xline,yl,'k--',lw=2,label=r'$\rm sSFR=-11.5$')
+    plt.plot(xline,yl,'r-',lw=2,label='Passive Cut')
+    if not apexflag:
+        yl =xline + float(args.minssfr)
+        plt.plot(xline,yl,'k--',lw=2,label=r'$\rm sSFR=-11.5$')
         
 def colormass(x1,y1,x2,y2,name1,name2, figname, hexbinflag=False,contourflag=False, \
              xmin=7.9, xmax=11.6, ymin=-1.2, ymax=1.2, contour_bins = 40, ncontour_levels=5,\
@@ -1087,6 +1106,7 @@ class lcsgsw(gswlc_base):
 
         self.base_init()
 
+
         # this doesn't work after adding agn cut
         # getting error that some array lengths are not the same
         # I am not actually using this data file in the simulation
@@ -1102,6 +1122,10 @@ class lcsgsw(gswlc_base):
         self.nsadict=dict((a,b) for a,b in zip(self.cat['NSAID'][nsaflag],indices))
         #self.get_dsfr()
         #self.get_lowsfr_flag()
+
+        # set up an ID number for the LCS catalog
+        self.lcsid = ['LCS{:04d}'.format(i) for i in range(len(self.cat))]
+        
         self.get_membflag()
         self.get_infallflag()
         
@@ -1207,7 +1231,8 @@ class lcsgsw(gswlc_base):
     def get_infallflag(self):
         self.infallflag = (np.abs(self.cat['DV_SIGMA']) < 3) & ~self.membflag
     def get_sampleflag(self):
-        print(len(self.galfitflag),len(self.sbflag),len(self.cat['lirflag']),len(self.sizeflag))
+        #print('in get_sampleflag')
+        #print(len(self.galfitflag),len(self.sbflag),len(self.cat['lirflag']),len(self.sizeflag))
         self.sampleflag=  self.sbflag & self.cat['lirflag'] & self.sizeflag  & self.galfitflag
         self.uvirflag = (self.cat['flag_uv'] > 0) & (self.cat['flag_midir'] > 0)        
         self.uvirsampleflag = self.sampleflag & self.uvirflag
@@ -1414,15 +1439,16 @@ class comp_lcs_gsw():
         #self.fit_gsw_ms()
         self.get_lowsfr()
         self.get_HIobserved_flag()
-    def plot_full_ms(self):
+    def plot_full_ms(self,apexflag=False):
         ''' plot full ms and show division between passive and SF galaxies '''
         plt.figure()
 
         plt.hexbin(self.gsw.cat['logMstar'],self.gsw.cat['logSFR'],\
                    bins='log',cmap='gray_r',gridsize=75)
         # show the mass cut
-        plt.axvline(x=float(args.minmass),ls=':',color=mycolors[2],lw=2.5,label="Mass Limit")
-        plot_sfr_mstar_lines()
+        if not apexflag:
+            plt.axvline(x=float(args.minmass),ls=':',color=mycolors[2],lw=2.5,label="Mass Limit")
+        plot_sfr_mstar_lines(apexflag=apexflag)
 
         plt.ylabel(r'$\rm \log_{10}(SFR/(M_\odot/yr))$',fontsize=24)
         plt.xlabel(r'$\rm \log_{10}(M_\star/M_\odot)$',fontsize=24)
@@ -1974,7 +2000,7 @@ class comp_lcs_gsw():
         plt.xlabel(r'$\rm \Delta \log_{10}SFR $',fontsize=22)
         plt.ylabel(r'$\rm Normalized \ Distribution$',fontsize=22)
         # add range considered "normal" SF
-        plt.axvline(x=MS_OFFSET,ls='--',color='b')
+        #plt.axvline(x=MS_OFFSET,ls='--',color='b')
         plt.axvline(x=-1*MS_OFFSET,ls='--',color='b')        
         plt.legend()
         if args.cutBT:
@@ -2049,10 +2075,11 @@ class comp_lcs_gsw():
             plt.savefig(outfile2)
         
 
-    def plot_dsfr_sizeratio(self,nbins=15,outfile1=None,outfile2=None,sampleflag=None):
+    def plot_dsfr_sizeratio(self,nbins=15,outfile1=None,outfile2=None,sampleflag=None,maxmass=None,apexflag=False,errorbar=False):
         if sampleflag is None:
             sampleflag = self.lcs.sampleflag
-
+        if maxmass is not None:
+            sampleflag = sampleflag & (self.lcs.cat['logMstar'] < maxmass)
         print('number in sampleflag = ',sum(sampleflag),len(sampleflag))
         print('number in membflag = ',sum(self.lcs.membflag),len(self.lcs.membflag))
         lcsflag = self.lcs.membflag & sampleflag        
@@ -2098,7 +2125,7 @@ class comp_lcs_gsw():
         nbins=12
         ylab = '$\log_{10}(SFR)-\log_{10}(SFR_{MS})  \ (M_\odot/yr)$'
         ylab = '$\Delta \log_{10}(SFR) $'
-        ax1,ax2,ax3 = colormass(z2,dsfr2,z3,dsfr3,'Core','Infall','temp.pdf',ymin=-1.5,ymax=1.,xmin=-.05,xmax=2,nhistbin=nbins,xlabel='$R_{24}/R_d$',ylabel=ylab,contourflag=False,alphagray=.8,alpha1=1,color1=darkblue,lcsflag=True)
+        ax1,ax2,ax3 = colormass(z2,dsfr2,z3,dsfr3,'Core','Infall','temp.pdf',ymin=-1.1,ymax=1.,xmin=-.05,xmax=2,nhistbin=nbins,xlabel='$R_{24}/R_d$',ylabel=ylab,contourflag=False,alphagray=.8,alpha1=1,color1=darkblue,lcsflag=True)
         var1 = z2.tolist()+z3.tolist()
         var2 = dsfrs[0].tolist()+dsfrs[1].tolist()
         print('')
@@ -2106,32 +2133,35 @@ class comp_lcs_gsw():
         t = lcscommon.spearmanr(var1,var2)
         print(t)
 
-        # add line to show sb limit from LCS size measurements
-        size=np.linspace(0,2)
-        sb = .022
-        sfr = sb*(4*np.pi*size**2)
-        ax1.plot(size,np.log10(sfr),'k--',label='SB limit')
-        ax1.axhline(y=.3,ls=':',color='0.5')
-        ax1.axhline(y=-.3,ls=':',color='0.5')
+        if not apexflag:
+            # add line to show sb limit from LCS size measurements
+            size=np.linspace(0,2)
+            sb = .022
+            sfr = sb*(4*np.pi*size**2)
+            ax1.plot(size,np.log10(sfr),'k--',label='SB limit')
+        ax1.axhline(y=MS_OFFSET,ls=':',color='0.5')
+        ax1.axhline(y=-1*MS_OFFSET,ls=':',color='0.5')
 
-        # plot all galfit results
-        baseflag = self.lcs_mass_sfr_flag & ~sampleflag #& ~self.lcs.cat['agnflag'] 
-        flag4 = self.lcs.cat['membflag'] &  baseflag
-        x4 = self.lcs.cat['logMstar'][flag4]
-        y4 = self.lcs.cat['logSFR'][flag4]
-        z4 = self.lcs.sizeratio[flag4]        
-        #dsfr4 = y4-get_BV_MS(x4)
-        dsfr4 = y4-get_MS(x4)
-        ax1.plot(z4,dsfr4,'kx',c=darkblue,markersize=10)
-        
-        # plot all galfit results
-        flag4 = self.lcs.infallflag&   self.lcs_mass_sfr_flag & ~sampleflag #& ~self.lcs.cat['agnflag'] 
-        x4 = self.lcs.cat['logMstar'][flag4]
-        y4 = self.lcs.cat['logSFR'][flag4]
-        z4 = self.lcs.sizeratio[flag4]        
-        #dsfr4 = y4-get_BV_MS(x4)
-        dsfr4 = y4-get_MS(x4)        
-        ax1.plot(z4,dsfr4,'kx',markersize=10,c=lightblue)
+        if not apexflag:
+            # plot all galfit results
+            baseflag = self.lcs_mass_sfr_flag & ~sampleflag #& ~self.lcs.cat['agnflag'] 
+            flag4 = self.lcs.cat['membflag'] &  baseflag
+            x4 = self.lcs.cat['logMstar'][flag4]
+            y4 = self.lcs.cat['logSFR'][flag4]
+            z4 = self.lcs.sizeratio[flag4]        
+            #dsfr4 = y4-get_BV_MS(x4)
+            dsfr4 = y4-get_MS(x4)
+            ax1.plot(z4,dsfr4,'kx',c=darkblue,markersize=10)
+
+
+            # plot all galfit results
+            flag4 = self.lcs.infallflag&   self.lcs_mass_sfr_flag & ~sampleflag #& ~self.lcs.cat['agnflag'] 
+            x4 = self.lcs.cat['logMstar'][flag4]
+            y4 = self.lcs.cat['logSFR'][flag4]
+            z4 = self.lcs.sizeratio[flag4]        
+            #dsfr4 = y4-get_BV_MS(x4)
+            dsfr4 = y4-get_MS(x4)        
+            ax1.plot(z4,dsfr4,'kx',markersize=10,c=lightblue)
         
         if outfile1 is not None:
             plt.savefig(outfile1)
@@ -2265,7 +2295,7 @@ class comp_lcs_gsw():
             #except:
             #    s = "NSID {0}, dSFR={1:.1f}".format(self.lcs.cat['NSAID'][i],self.lcs_dsfr[i],)
             plt.title(s,fontsize=8)
-    def get_legacy_images_1flag(self,flag=None,sortbymass=False):
+    def get_legacy_images_1flag(self,flag=None,sortbymass=False,sortby=None,nrow=7,ncol=7,titleflag=True,wspace=.02,hspace=.02,apexflag=False):
         if flag is None:
             print('Please provide a flag')
             return
@@ -2276,12 +2306,17 @@ class comp_lcs_gsw():
             mass = self.lcs.cat['logMstar'][flag]
             sorted_indices = np.argsort(mass)
             ids = ids[sorted_indices]
+
+        # allow for sorting by other parameters
+        if sortby is not None:
+            sorted_indices = np.argsort(sortby)
+            ids = ids[sorted_indices]
             
         plt.figure(figsize=(14,14))
-        plt.subplots_adjust(hspace=.02,wspace=.1)
+        plt.subplots_adjust(hspace=hspace,wspace=wspace)
         nplot=1
-        nrow = 7
-        ncol = 7
+        #nrow = 7
+        #ncol = 7
         for i in ids:
                    
             # open figure
@@ -2301,8 +2336,17 @@ class comp_lcs_gsw():
             #except:
             #    s = "NSID {0}, dSFR={1:.1f}".format(self.lcs.cat['NSAID'][i],self.lcs_dsfr[i],)
             plt.xticks([])
-            plt.yticks([])            
-            plt.title(s,fontsize=8)
+            plt.yticks([])
+
+
+            # add circle for apex
+            if apexflag:
+                plt.text(0,.9,'{},z={:.3f}'.format(i,self.lcs.cat['Z_1'][i]),fontsize=12,transform=plt.gca().transAxes,color='w')
+                cir = Circle((30,30),radius=27/2,color='None',ec='0.5')
+                plt.gca().add_patch(cir)
+                
+            if titleflag:
+                plt.title(s,fontsize=8)
             nplot += 1
     def compare_BT(self,nbins=15,xmax=.3):
         
@@ -2352,7 +2396,7 @@ class comp_lcs_gsw():
     def compare_morph(self,nbins=10,xmax=.4,coreonly=False):
         '''what is this for?   '''
         plt.figure(figsize=(10,6))
-        plt.subplots_adjust(wspace=.25,hspace=.4)
+        plt.subplots_adjust(wspace=.1,hspace=.4)
         # 2x2 figure
         nrow=2
         ncol=2
@@ -2453,6 +2497,7 @@ class comp_lcs_gsw():
                          histtype='step',lw=lws[i],zorder=zorders[i],label=labels[i])#hatch=hatches[i])
 
                 plt.xlabel(xlabels[col],fontsize=16)
+                plt.yticks([],[])
             plt.subplot(nrow,ncol,1+colnumber)
             colnumber += 1
 
@@ -3876,7 +3921,11 @@ class comp_lcs_gsw():
             pvalue_y_HI = t[2]
             ax2.text(0,.9,r'$\rm pvalue:\ HI\ vs\ normal={:.2f}$'.format(pvalue_y_HI),fontsize=14)            
             # fraction of suppressed SF galaxies with HI detections
+            print("DR of HI vs normal:")
             t = anderson_ksamp([x1,x[lcsHIFlag]])
+            print('anderson Darling: ',t)
+            print()
+            print('KS: ',ks_2samp(x1,x[lcsHIFlag]))
             pvalue_x_HI = t[2]
             ax3.text(0,.9,r'$\rm pvalue:\ HI\ vs\ normal={:.3f}$'.format(pvalue_x_HI),fontsize=14)            
             # fraction of suppressed SF galaxies with HI detections
@@ -4211,7 +4260,7 @@ class comp_lcs_gsw():
         ax.set_ylabel(r'$\rm HI \ Deficiency $',fontsize=20)
 
         # plot line for suppressed galaxies
-        plt.axhline(y=-1*MS_OFFSET,ls='--',color='b')                
+        ax.axvline(x=-1*MS_OFFSET,ls='--',color='b',label=r'$\rm MS-1.5\sigma $')                
         # add linear fit to dSFR vs HIdef for field galaxies
         x = dsfr_vars[2][flags[2]]
         y = HIdef_cats[2][HIdefKey][flags[2]]
