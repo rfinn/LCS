@@ -3,7 +3,7 @@
 '''
 GOAL:
 * get full LCS catalogs, not just area covered by MIPS scans
-
+2
 
 PROCEDURE
 * read in parent file (GSWLC+Simard+A100)

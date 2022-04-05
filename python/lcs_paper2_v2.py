@@ -114,18 +114,21 @@ def ratio_error(num,denom):
     ''' return fraction and lower, upper error based on binomial statistics '''
 
     ratio = num/denom
-    yerrs = binom_conf_interval(num,denom)#lower, upper
+    if denom > num:
+        yerrs = binom_conf_interval(num,denom)#lower, upper
 
-    try:
-        # works for arrays
-        yerr = np.zeros((2,len(num)))
-        yerr[0] = ratio-yerrs[0]
-        yerr[1] = yerrs[1]-ratio
-    except TypeError:
-        yerr = np.zeros((2,1))
-        yerr[0] = ratio-yerrs[0]
-        yerr[1] = yerrs[1]-ratio
-
+        try:
+            # works for arrays
+            yerr = np.zeros((2,len(num)))
+            yerr[0] = ratio-yerrs[0]
+            yerr[1] = yerrs[1]-ratio
+        except TypeError:
+            yerr = np.zeros((2,1))
+            yerr[0] = ratio-yerrs[0]
+            yerr[1] = yerrs[1]-ratio
+    else:
+        # putting in place holder for now for when fractions are greater than 1
+        yerr = np.sqrt(num)/denom
     return ratio,yerr
     
 def running_median(x,y,nbin,ax,color='k',alpha=.4):
@@ -1999,6 +2002,7 @@ class comp_lcs_gsw():
         #plt.xlabel('$ \log_{10}SFR - \log_{10}SFR_{MS} \ (M_\odot/yr) $',fontsize=20)
         plt.xlabel(r'$\rm \Delta \log_{10}SFR $',fontsize=22)
         plt.ylabel(r'$\rm Normalized \ Distribution$',fontsize=22)
+        plt.yticks([],[])
         # add range considered "normal" SF
         #plt.axvline(x=MS_OFFSET,ls='--',color='b')
         plt.axvline(x=-1*MS_OFFSET,ls='--',color='b')        
@@ -2658,13 +2662,14 @@ class comp_lcs_gsw():
                              histtype='step',lw=lws[i],zorder=zorders[i],label=labels[i])#hatch=hatches[i])
                 
                 if j == 0:
-                    plt.ylabel(ylabels[0],fontsize=16)
+                    plt.ylabel(ylabels[0],fontsize=22)
                     plt.legend()
                 if k == 0:
                     plt.axvline(x=0.3,ls='--',color='k')                    
 
             
-                plt.xlabel(xlabels[k],fontsize=16)
+                plt.xlabel(xlabels[k],fontsize=22)
+                plt.yticks([],[])
                 if k == 0:
                     if (j == 0):
                         plt.title("Normal SFR")
@@ -2941,7 +2946,7 @@ class comp_lcs_gsw():
         zorders = [2,2,2]
         histtypes = ['stepfilled','stepfilled','stepfilled']
         #for i,col in enumerate(field_cols):
-        xlabels = [r'$\rm B/T$',r'$\rm S{e}rsic \ n$',r'$g-i$',r'$\rm prob \ Sc$','logMstar','$\Delta SFR$']
+        xlabels = [r'$\rm B/T$',r'$\rm S{e}rsic \ n$',r'$\rm prob \ Sc$', r'$g-i$','logMstar','$\Delta SFR$']
         #xlabels = ['B/T','Sersic n','prob Sc','logMstar','$\Delta SFR$']        
         
         labels = ['Field','LCS','Low SFR Field']
@@ -2952,12 +2957,12 @@ class comp_lcs_gsw():
             colors = ['0.5',lightblue,'k'] # color for field and LCS            
         allbins = [np.linspace(0,BTmax,nbins),\
                    np.linspace(1,6,nbins),\
-                   np.linspace(.5,2,nbins),\
                    np.linspace(0,1,nbins),\
+                   np.linspace(.5,2,nbins),\
                    np.linspace(9.7,11,nbins),np.linspace(-1,1,nbins)]
         
-        xvars_gsw = [gsw_lowsfr_mmatch[BTkey],gsw_lowsfr_mmatch['ng'],gsw_lowsfr_mmatch['gmag']-gsw_lowsfr_mmatch['imag'],gsw_lowsfr_mmatch['pSc']]
-        xvars_lcs = [lcs_lowsfr[BTkey],lcs_lowsfr['ng_1'],lcs_lowsfr['gmag']-lcs_lowsfr['imag'],lcs_lowsfr['pSc']]        
+        xvars_gsw = [gsw_lowsfr_mmatch[BTkey],gsw_lowsfr_mmatch['ng'],gsw_lowsfr_mmatch['pSc'], gsw_lowsfr_mmatch['gmag']-gsw_lowsfr_mmatch['imag']]
+        xvars_lcs = [lcs_lowsfr[BTkey],lcs_lowsfr['ng_1'],lcs_lowsfr['pSc'],lcs_lowsfr['gmag']-lcs_lowsfr['imag']]        
         ncols=4
         for col in range((ncols)):
             plt.subplot(nrow,ncols,col+1+subplot_offset)
@@ -3196,7 +3201,7 @@ class comp_lcs_gsw():
         #plt.legend()
         plt.legend(fontsize=16)
         plt.xticks(fontsize=16)
-        plt.yticks(fontsize=16)        
+        plt.yticks([],[])        
         plt.xlim(-.01,BTmax+.01)#,0,9])
         plt.xlabel(r'$\rm B/T$')
         plt.ylabel(r'$\rm Normalized \ Distribution$')

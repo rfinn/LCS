@@ -11,15 +11,14 @@ USAGE
 %run ~/Dropbox/pythonCode/LCSsimulate-infall.py
 
 t = run_sim(tmax=0,drdt_step=0.05,nrandom=1000)
-t = run_sim(tmax=1,drdt_step=0.05,nrandom=1000)
-t = run_sim(tmax=2,drdt_step=0.05,nrandom=1000)
-t = run_sim(tmax=3,drdt_step=0.05,nrandom=1000)
-t = run_sim(tmax=4,drdt_step=0.05,nrandom=1000)
-t = run_sim(tmax=5,drdt_step=0.05,nrandom=1000)
-
 
 Written by Rose A. Finn, 2/21/18
 Updated 2019-2020 to incorporate total SFRs into the comparison.
+
+Updating 2022 to incorporate delay time into modeling.
+
+Loop over tau (exponential decay rate of SFRs in clusters) and 
+tdelay (how long after infall for exponential decay to kick in).
 
 '''
 
@@ -73,11 +72,11 @@ parser.add_argument('--BTcut', dest = 'BTcut', default = False, action='store_tr
 
 parser.add_argument('--largeBT', dest = 'largeBT', default = False, action='store_true',help = 'use sample with BTcut > 0.4')
 
+
 parser.add_argument('--plotonly', dest = 'plotonly', default = False, action='store_true',help = 'set this if just making plots from existing data and not running models')
 
 parser.add_argument('--mintinfall', dest = 'mintinfall', default = False, action='store_true',help = 'set the min allowable tinfall to 1 Gyr, so that infall times range uniformly from 1Gy to tmax')
 
-parser.add_argument('--use24', dest = 'use24', default = True, action='store_false',help = 'use 24um profile parameters when calculating expected SFR of sim galaxies.  default is true')
 parser.add_argument('--model', dest = 'model', default = 1, help = 'infall model to use.  default is 1.  \n\tmodel 1 is shrinking 24um effective radius \n\tmodel 2 is truncatingthe 24um emission')
 parser.add_argument('--sfrint', dest = 'sfrint', default = 1, help = 'method for integrating the SFR in model 2.  \n\tmethod 1 = integrate external sersic profile out to truncation radius.\n\tmethod 2 = integrate fitted sersic profile out to rmax.')
 parser.add_argument('--pvalue', dest = 'pvalue', default = .005, help = 'pvalue threshold to use when plotting fraction of trials below this pvalue.  Default is 0.05 (2sigma).  For ref, 3sigma is .003.')
@@ -138,7 +137,6 @@ def get_MS(logMstar, cutBT=False):
         #self.MS_std = 0.16
         #return 0.62*logMstar-6.35
         return -0.0935*logMstar**2 + 2.4325*logMstar -15.107
-
 
 
 ## infall rates
@@ -429,7 +427,7 @@ def get_sfr_mstar_at_infall(sfr0,mstar0,tinfall):
     * mstar_infall : an array with the log10 stellar mass of each galaxy at the time of infall
 
     '''
-    
+    lookup_table = fits.getdata(homedir+'/research/LCS/sfr_modeling/forward_model_sfms.fits')    
     sfr_infall = np.zeros(len(sfr0))
     mstar_infall = np.zeros(len(sfr0))
     allindex = np.arange(len(lookup_table))
@@ -501,7 +499,7 @@ def get_delta_mass(infall_sfr,infall_times,tau):
 ###############################
 
 
-def run_sim(tmax = 3.,taumax=6,nstep_tau=10,nrandom=10,nmassmatch=10,ndrawmass=1,drdtmin=-2,drdt_step=.1,model=1,plotsingle=True,maxboost=5,plotflag=True,rmax=4,boostflag=False,debug=False):
+def run_sim(taumax=6,nstep_tau=10,ndrawmass=60,tmax=7,ntdelay=14,model=1,plotsingle=True,plotflag=True,boostflag=False,debug=False):
     '''
     run simulations of disk shrinking
 
@@ -512,13 +510,7 @@ def run_sim(tmax = 3.,taumax=6,nstep_tau=10,nrandom=10,nmassmatch=10,ndrawmass=1
     * nmassmatch : number of times to repeat the mass matching between sim-core and core, at each step of tau
     * tmax: maximum time that core galaxies have been in cluster, in Gyr; default = 2
     * nrandom : number of random iterations for each value of dr/dt
-    * drdt_step : step size for drdt; range is between -2 and 0
-    * model : quenching model to use; can be 1 or 2
-      - 1 = shrink Re
-      - 2 = truncate disk
     * boostflag : set this to boost central intensity; can set this for both model 1 and 2
-    * maxboost : max factor to boost SFRs by; Iboost/Ie
-    * rmax : max extent of disk for truncation model in terms of Re; disk shrinks as (rmax - dr/dt*tinfall)*Re_input
     * plotsingle : default is True;
       - use this to print a separate figure;
       - set to False if creating a multi-panel plot
@@ -539,28 +531,18 @@ def run_sim(tmax = 3.,taumax=6,nstep_tau=10,nrandom=10,nmassmatch=10,ndrawmass=1
     '''
     # pass in rmax
     #rmax = float(args.rmax)
-    ks_D_min = 0
-    ks_p_max = 0
     if debug:
         nstep_tau = 2
         nrandom = 2
         nmassmatch = 2
 
-    # turns out that using lists is faster - doing that instead
-    npoints = int(nstep_tau*nrandom*nmassmatch)
-    #all_p_dsfr = np.zeros(npoints)
-    #all_p_sfr = np.zeros(npoints)
-    #all_tau = np.zeros(npoints)
-    #all_boost = np.zeros(npoints)
-    #fquench_size = np.zeros(npoints)
-    #fquench_sfr = np.zeros(npoints)
-    #fquench = np.zeros(npoints) # for both constraints
-
+    # turns out that using lists is faster than initialized arrays - doing that instead
     all_p_dsfr = []
     all_p_sfr = []
     all_p_sfr_AD = []    
     all_tau = []
     all_boost = []
+    all_tdelay  = []
     fquench_size = []
     fquench_sfr = []
     fquench = []
@@ -570,41 +552,56 @@ def run_sim(tmax = 3.,taumax=6,nstep_tau=10,nrandom=10,nmassmatch=10,ndrawmass=1
     all_simcore_dsfr = []
     all_simcore_mstar = []    
     all_simcore_tau = []
+    all_simcore_tdelay = []    
     tau_min = 0.5
     dtau = (taumax-tau_min)/nstep_tau
        
-    # boost strapping
-    # randomly draw same sample size from external and core for each model
-    # try this to see how results are impacted
-    # repeat nrandom times for each time we select an infall sample from the field
 
     ## PARALLELIZE GETTING INFALL TIMES AND PROGENITOR MASSES
     # GET SFR AND MSTAR AT t_infall
-    if args.mintinfall:
-        infall_times = np.linspace(1,tmax,len(external_sfr))
-    else:
-        infall_times = np.linspace(0,tmax,len(external_sfr))
+
+    # MAX TINFALL IS 7 GYR
+
+
+    ## ASSUME INFALL TIMES ARE UNIFORM BETWEEN 0 AND TMAX
+    i=78
+    np.random.seed(5*i+29*i)
+    infall_times = np.random.random(len(external_sfr))*tmax
+
+    print("GETTING INFALL TIMES\n\n")
+    # LOOP OVER T DELAY
     all_infall_times = []
-    for i in range(nrandom):
-        np.random.seed(5*i+29*i)
-        all_infall_times.append(np.random.choice(infall_times, len(infall_times)))
-        # external_sfr and external_mstar are linear
-        # need to match using log values
-    
-    print('getting sfr/mstar at infall')
+    for tdelay in np.linspace(0,7,ntdelay):
+        
+        tactive = infall_times - tdelay
+        ## MAKE SURE INFALL TIMES ARE NOT LESS THAN ZERO
+        flag = tactive < 0
+        if np.sum(flag) > 0:
+            tactive[flag] = np.zeros(np.sum(flag),'d')
+        print("tdelay = {:.2f}, tmax={:.2f}, max(tactive)={:.2f},tmax - max (tactive) = {:.2f}".format(tdelay,tmax,np.max(tactive),tmax-np.max(tactive)))
+        #print()
+        all_infall_times.append(tactive)
+
+    print("GETTING SFR/Mstar AT INFALL TIME\n\n")        
+    ## USE MULTIPROCESSING TO GET THE LIST OF SFR/MSTAR AT TIME OF INFALL GIVEN TDELAY
+    #print('getting sfr/mstar at infall')
     infall_pool = mp.Pool(mp.cpu_count())
     myresults = [infall_pool.apply_async(get_sfr_mstar_at_infall,args=(np.log10(external_sfr),(external_logmstar),infall_times),callback=collect_results_infall) for infall_times in all_infall_times]
+    
     infall_pool.close()
     infall_pool.join()
     infall_results = [r.get() for r in myresults]
         
-                                                                        
-    for j in range(nrandom):
-        infall_logsfr, infall_logmstar,actual_infall_times = infall_results[j]
+    print("LOOPING OVER TDELAY AND TAU\n\n")        
+    for j in range(len(infall_results)):
+        logsfr_infall, logmstar_infall,tactive = infall_results[j]
 
+                                                                        
         # select different values of tau
         for i in range(nstep_tau):
+
             tau = tau_min + i*dtau
+            #print("tdelay = {:.2f}, tau = {:.2f}".format(j,tau))
 
             # UPDATING PROCEDURE TO ACCOUNT FOR EVOLUTION OF SFR AND STELLAR MASS
             # OF FIELD GALAXIES BETWEEN t_infall AND PRESENT.
@@ -633,116 +630,50 @@ def run_sim(tmax = 3.,taumax=6,nstep_tau=10,nrandom=10,nmassmatch=10,ndrawmass=1
             # flux ratio you would expect from shrinking the
             # external sizes to the sim_core sizes
             # SFRs are logged, so add log of frac_retained 
-            sim_core_sfr = boost*(10.**infall_logsfr)*np.exp(-1*actual_infall_times/tau)
+            sim_core_sfr = boost*(10.**logsfr_infall)*np.exp(-1*tactive/tau)
 
             # calculate Mstar at z=0, give sfr decline and mass loss
 
-            sim_core_mstar = 10.**(infall_logmstar) + get_delta_mass(10.**infall_logsfr,\
-                                                                     actual_infall_times,tau)
+            sim_core_mstar = 10.**(logmstar_infall) + get_delta_mass(10.**logsfr_infall,\
+                                                                     tactive,tau)
             
-            sim_core_dsfr = np.log10(sim_core_sfr) - get_MS(np.log10(sim_core_mstar))
-            if debug:
-                # these figures are just checking that our SFR quenching and
-                # mass increments are reasonable
-                plt.figure()
-                plt.plot(infall_logmstar, np.log10(sim_core_mstar) - infall_logmstar,'b.')
-                plt.xlabel('Mstar at Infall')
-                plt.ylabel('Mstar at z=0 - Infall')
-                plt.axhline(y=0,c='k',ls='--')
-                s = 'tau={}'.format(tau)
-                plt.title(s)
-                plt.figure()
-                plt.plot(infall_logsfr,infall_logsfr - np.log10(sim_core_sfr),'b.')
-                plt.axhline(y=0,c='k',ls='--')
-                plt.xlabel('SFR at Infall')
-                plt.ylabel('SFR at Infall - SFR at z=0')
-                plt.title(s)                           
+                                  
             # CREATE A SIMULATED CORE SAMPLE THAT IS MASS-MATCHED TO THE CORE
             # repeat this 1000 times
 
             # try parallelizing the mass_match call
             #if nmassmatch < nproc:
             #    nproc = nmassmatch
-            massmatch_pool = mp.Pool(mp.cpu_count())
-
-            mass_list = []
-            myresults = []
-
-            mykwargs = {'nmatch':ndrawmass,'dm':0.15}
-            for q in range(nmassmatch):
-                myargs = (core_logmstar,np.log10(sim_core_mstar),45*q+7*q)                
-                myresults.append(massmatch_pool.apply_async(mass_match,myargs,mykwargs))
-            massmatch_pool.close()
-            massmatch_pool.join()
-            massmatch_results = [r.get() for r in myresults]
             
-            for k,matched_indices in enumerate(massmatch_results):
-            #for k in range(1):            
-                #print('\t ',k)
-                #aindex = nrandom*i+j
-                aindex = nstep_tau*nmassmatch*j + nmassmatch*i + k
-                #print(sim_core_mstar[0:10])
-                #print(core_logmstar[0:10])
-                #print('getting mass matched sample')                            
-                #matched_indices = mass_match(core_logmstar,np.log10(sim_core_mstar),nmatch=1)
-                #print('done getting mass matched sample')            
-                # KEEP THE MASS-MATCHED VALUES
-                sim_core_mstar_matched = sim_core_mstar[matched_indices]
-                sim_core_sfr_matched = sim_core_sfr[matched_indices]
-                sim_core_dsfr_matched = sim_core_dsfr[matched_indices]             
+            ## REMOVING MULTIPLE MASS MATCHING WITH FIELD
+            q=9
+            matched_indices = mass_match(core_logmstar,np.log10(sim_core_mstar),45*q+7*q,nmatch=ndrawmass,dm=.15)
+            sim_core_mstar_matched = sim_core_mstar[matched_indices]
+            sim_core_sfr_matched = sim_core_sfr[matched_indices]
+            # SFR and Mstar are linear, so need to take the log
+            # update for new SFR/passive cut
+            quench_flag = np.log10(sim_core_sfr_matched) < get_SFR_cut(np.log10(sim_core_mstar_matched))
 
-                # keep track of # that drop out due to size
-                # should be specific SFR rather than SFR limit
-                # should apply the ssfr > 11.5
-                #quench_flag = sim_core_sfr_matched/ < min(external_sfr)
-                # SFR and Mstar are linear, so need to take the log
+            ## CALCULATE KS AND ANDERSON-DARLING TESTS
+            D1,p1 = ks_2samp(core_sfr,sim_core_sfr_matched[~quench_flag])
+            D, crit_values, p3 = anderson_ksamp([core_sfr,sim_core_sfr_matched[~quench_flag]])
 
-                # update for new SFR/passive cut
-
-                # this is the old one when we were cutting on sSFR > -11.5
-                #quench_flag = np.log10(sim_core_sfr_matched/sim_core_mstar_matched) < -11.5
-
-                quench_flag = np.log10(sim_core_sfr_matched) < get_SFR_cut(np.log10(sim_core_mstar_matched))
-
+            ## SAVE OUTPUT
+            fquench_sfr.append(sum(quench_flag)/len(quench_flag))
+            all_p_sfr.append(p1)
+            all_p_sfr_AD.append(p3)                                                    
+            all_boost.append(boost)
+            all_tau.append(tau)
+            all_tdelay.append(tmax - np.max(tactive))
+            print("tau={:.2f}, tmax={:.1f}, max(tactive)={:.1f}, tmax-max(tactive) = {:.1f}".format(tau,tmax,np.max(tactive),(tmax-np.max(tactive))))
             
-                # removing flag to make sure things work as expected
-                D1,p1 = ks_2samp(core_sfr,sim_core_sfr_matched[~quench_flag])
-                D2,p2 = ks_2samp(core_dsfr,sim_core_dsfr_matched[~quench_flag])
-                #D2,p2 = ks_2samp(core_sfr,sim_core_sfr)
-
-                # include anderson darling test
-                # just comparing sfr and not dsfr b/c the samples are already
-                # mass matched
-                D, crit_values, p3 = anderson_ksamp([core_sfr,sim_core_sfr_matched[~quench_flag]])
-
-                #fquench_sfr[aindex] = sum(quench_flag)/len(quench_flag)                
-                #all_p_sfr[aindex] = p1
-                #all_p_dsfr[aindex] = p2            
-                #all_boost[aindex] = boost
-                #all_tau[aindex] = tau
-
-                fquench_sfr.append(sum(quench_flag)/len(quench_flag))
-                all_p_sfr.append(p1)
-                all_p_sfr_AD.append(p3)                                                    
-                all_p_dsfr.append(p2)            
-                all_boost.append(boost)
-                all_tau.append(tau)
-                
-                all_simcore_mstar += np.log10(sim_core_mstar_matched).tolist()
-                all_simcore_sfr += np.log10(sim_core_sfr_matched).tolist()
-                all_simcore_dsfr += (sim_core_dsfr_matched).tolist()
-                all_simcore_tau += (tau*np.ones(len(sim_core_mstar_matched))).tolist()
-
-    newtab = Table([all_simcore_mstar,all_simcore_sfr,all_simcore_dsfr,all_simcore_tau],names=['logmstar','logsfr','dlogsfr','tau'])
-    newtab_name = 'simcore_tmax{:.0f}_ninfall{:d}_nmassmatch{:d}_ndrawmass{:d}.fits'.format(tmax,nrandom,nmassmatch,ndrawmass)
-    newtab.write(newtab_name,format='fits',overwrite=True)
-
-    newtab = Table([all_tau,all_boost,all_p_sfr,all_p_dsfr,fquench_sfr,all_p_sfr_AD],names=['tau','boost','p_sfr','p_dsfr','fquench','p_sfr_AD'])
-    newtab_name = 'pvalues_tmax{:.0f}_ninfall{:d}_nmassmatch{:d}_ndrawmass{:d}.fits'.format(tmax,nrandom,nmassmatch,ndrawmass)
+    all_p_dsfr = np.zeros(len(all_p_sfr))
+    newtab = Table([all_tau,all_tdelay,all_p_sfr,all_p_dsfr,fquench_sfr,all_p_sfr_AD],names=['tau','tdelay','p_sfr','p_dsfr','fquench','p_sfr_AD'])
+    newtab_name = 'pvalues_tmax{:.0f}_ntdelay{:d}_ndrawmass{:d}.fits'.format(tmax,ntdelay,ndrawmass)
     newtab.write(newtab_name,format='fits',overwrite=True)
     
     
-    return all_tau,all_boost,all_p_sfr,all_p_dsfr,fquench_sfr, all_p_sfr_AD
+    return all_tau,all_tdelay,all_p_sfr,all_p_dsfr,fquench_sfr, all_p_sfr_AD
 
 ###########################
 ##### PLOT FUNCTIONS
@@ -1196,7 +1127,8 @@ if __name__ == '__main__':
 
     
     # read in data file (should only do this once though, right?)
-    if not args.plotonly:
-        lookup_table = fits.getdata('/home/rfinn/research/LCS/sfr_modeling/forward_model_sfms.fits')
+    #if not args.plotonly:
+    #    lookup_table = fits.getdata(homedir+'/research/LCS/sfr_modeling/forward_model_sfms.fits')
 
+    t_ndraw60 = run_sim(taumax=7,nstep_tau=14,tmax=7,ntdelay=14,ndrawmass=60,debug=False)
     pass

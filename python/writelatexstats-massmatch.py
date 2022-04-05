@@ -277,20 +277,20 @@ class writetable():
         #b = self.allstats_mm[0][1]
         c = self.allstatsBT[0][1]
         #d = self.allstatsBT_mm[0][1]
-        self.outfile.write('Core-Field    & Yes & $\log SFR$         & \\bf {:.2e} & \\bf {:.2e}  \\\\ \n'.format(a,c))
+        self.outfile.write('Core-Field    & Yes & $\log SFR$         &  {:.2e} &  {:.2e}  \\\\ \n'.format(a,c))
 
         a = self.allstats[1][1]
         #b = self.allstats_mm[1][1]
         c = self.allstatsBT[1][1]
         #d = self.allstatsBT_mm[1][1]        
-        self.outfile.write(' && $\Delta \log $SFR  & \\bf {:.2e} & \\bf {:.2e}  \\\\ \n'.format(a,c))
+        self.outfile.write(' && $\Delta \log $SFR  &  {:.2e} &  {:.2e}  \\\\ \n'.format(a,c))
 
 
         a = self.allstats[3][1]
         #b = self.allstats_mm[3][1]
         c = self.allstatsBT[3][1]
         #d = self.allstatsBT_mm[3][1]        
-        self.outfile.write(' && $B/T$    & {:.2e} & \\bf {:.2e}   \\\\ \n'.format(a,c))
+        self.outfile.write(' && $B/T$    & {:.2e} &  {:.2e}   \\\\ \n'.format(a,c))
         a = self.allstats[2][1]
         #b = self.allstats_mm[2][1]
         c = self.allstatsBT[2][1]
@@ -307,7 +307,7 @@ class writetable():
         c = self.allstatsBT[i][1]
         #d = self.allstatsBT_mm[i][1]        
         self.outfile.write('\\hline \n')
-        self.outfile.write('Infall-Field &Yes & $\log$ SFR &\\bf {:.2e} & \\bf {:.2e}\\\\ \n'.format(a,c))
+        self.outfile.write('Infall-Field &Yes & $\log$ SFR & {:.2e} &  {:.2e}\\\\ \n'.format(a,c))
 
         i += 1
         
@@ -315,7 +315,7 @@ class writetable():
         #b = self.allstats_mm[i][1]
         c = self.allstatsBT[i][1]
         #d = self.allstatsBT_mm[i][1]        
-        self.outfile.write('&& $\Delta \log$SFR  & \\bf {:.2e}   & \\bf {:.2e} \\\\ \n'.format(a,c))
+        self.outfile.write('&& $\Delta \log$SFR  &  {:.2e}   &  {:.2e} \\\\ \n'.format(a,c))
 
         i += 2
         
@@ -323,7 +323,7 @@ class writetable():
         #b = self.allstats_mm[i][1]
         c = self.allstatsBT[i][1]
         #d = self.allstatsBT_mm[i][1]        
-        self.outfile.write('&&$B/T$   &  \\bf {:.2e} &  {:.2e}  \\\\ \n'.format(a,c))
+        self.outfile.write('&&$B/T$   &   {:.2e} &  {:.2e}  \\\\ \n'.format(a,c))
         i -= 1        
         
         a = self.allstats[i][1]
@@ -341,7 +341,7 @@ class writetable():
         
         a = self.allstats[i][1]
         b = self.allstatsBT[i][1]        
-        self.outfile.write('Core-Infall &No    & $\\log$ SFR      & \\bf {:.2e}    &  {:.2e}   \\\\ \n'.format(a,b))
+        self.outfile.write('Core-Infall &No    & $\\log$ SFR      &  {:.2e}    &  {:.2e}   \\\\ \n'.format(a,b))
 
         i += 1
         
@@ -368,7 +368,7 @@ class writetable():
     def write_footer(self):
         self.outfile.write('\\hline \n')
         self.outfile.write('\\end{tabular} \n')
-        self.outfile.write('\\caption{Summary statistics for SFR, $\Delta$SFR,  $B/T$, and stellar mass comparisons.  The field samples are mass-matched to both the core and infall samples, yet we include the mass comparisons for completeness.  Bold text indicates when the two populations differ at the 99.7\% or $\ge 3\sigma$ confidence interval (A.D. p-value$<$3.0e-03). NOTE: {scipy.stats.anderson\\_ksamp} floors the p value at 0.1\\%, so it will not return p values below 1E-3.} \n')
+        self.outfile.write('\\caption{Summary statistics for SFR, $\Delta$SFR,  $B/T$, and stellar mass comparisons.  The field samples are mass-matched to both the core and infall samples, yet we include the mass comparisons for completeness.  Bold text indicates when the two populations differ at the 99.7\% or $\ge 3\sigma$ confidence interval (A.D. p-value$<$3.0e-03). NOTE: {scipy.stats.anderson\\_ksamp} floors the p value at 0.1\\% and caps the p value at 25\%, so it will not return p values below 1E-3 or above 0.25.} \n')
 
         self.outfile.write('\\label{tab:stats} \n')
         self.outfile.write('\\end{table*} \n')
