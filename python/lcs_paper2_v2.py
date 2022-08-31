@@ -83,10 +83,13 @@ minsize_kpc=1.3 # one mips pixel at distance of hercules
 BTkey = '__B_T_r'
 #BTkey_lcs = '(B/T)r'
 Rdkey = 'Rd_2'
+
+
 # ellipticity to use in combined tables
 # the first one e_1 refers to the ellip of the bulge during B/D decomposition
 # this is the same in the LCS and GSWLC catalogs - phew!
-ellipkey = 'e_2' 
+ellipkey = 'e_2'
+
 ###########################
 ##### Functions
 ###########################
@@ -165,7 +168,7 @@ def get_BV_MS(logMstar,MSfit=None):
         return 0.3985*logMstar - 4.2078
     else:
         return MSfit(logMstar)
-def get_SFR_cut(logMstar):
+def get_SFR_cut(logMstar,BTcut=False):
     ''' 
     get min allowable SFR as a function of stellar mass
         
@@ -175,12 +178,29 @@ def get_SFR_cut(logMstar):
     #return 0.6*logMstar - 6.11 - 0.6
 
     # using full GSWLC, just cut to LCS redshift range
-    if not(args.cutBT):
-        return get_MS(logMstar) - 0.845
-    else:
+    if not(args.cutBT) and not(args.cutN):
+        return get_MS(logMstar,BTcut=BTcut) - 0.845
+    elif args.cutBT or args.cutN:
         #return get_MS(logMstar) - 0.947
-        return get_MS(logMstar) - 0.947
-def get_MS(logMstar):
+        return get_MS(logMstar,BTcut=BTcut) - 0.947
+def get_MS(logMstar,BTcut=False):
+    # not BT cut
+    # updating this after we expanded the mass range used for fitting MS
+    if not(args.cutBT) and not(args.cutN):
+        #self.MS_std = 0.22
+        #return 0.6*x-6.11
+
+        # using full GSWLC, just cut to LCS redshift
+        #return 0.592*logMstar - 6.18
+
+        # using 2nd order polynomial fit
+        return -0.1969*logMstar**2 + 4.4187*logMstar -24.607
+    elif args.cutBT or args.cutN:
+        # you get the same thing from fitting the MS or from fitting peaks of gaussian
+        #self.MS_std = 0.16
+        #return 0.62*logMstar-6.35
+        return -0.0935*logMstar**2 + 2.4325*logMstar -15.107
+def get_MS_poly(logMstar):
     # not BT cut
     # updating this after we expanded the mass range used for fitting MS
     if not(args.cutBT):
@@ -191,14 +211,14 @@ def get_MS(logMstar):
         #return 0.592*logMstar - 6.18
 
         # using 2nd order polynomial fit
-        return -0.1969*logMstar**2 + 4.4187*logMstar -24.607
+        return -0.17476*logMstar**2 + 3.84123*logMstar -21.12097
     elif args.cutBT:
         # you get the same thing from fitting the MS or from fitting peaks of gaussian
         #self.MS_std = 0.16
         #return 0.62*logMstar-6.35
-        return -0.0935*logMstar**2 + 2.4325*logMstar -15.107
+        return -0.01587975*logMstar**2 + 0.829243*logMstar -6.85584377
 
-def get_MS_BTcut(logMstar,MSfit=None):
+def get_MS_BTcut(logMstar,MSfit=None,BTcut=False):
     ''' 
     get MS fit with B/T < 0.4 cut
     
@@ -209,7 +229,8 @@ def get_MS_BTcut(logMstar,MSfit=None):
     #return 0.4731*logMstar-4.8771
     #return 0.754*logMstar-7.56
     # using the full fit for now
-    return get_MS(logMstar)
+    return get_MS(logMstar,BTcut=BTcut)
+
 def plot_Durbala_MS(ax,ls='-'):
     plt.sca(ax)
     #lsfr = log_mstar2+log_ssfr2
@@ -257,14 +278,14 @@ def plot_GSWLC_sssfr(ax=None,ls='-'):
     yline = ssfr+xline
     ax.plot(xline,yline,c='w',ls=ls,lw=4,label='_nolegend_')
     ax.plot(xline,yline,c='0.5',ls=ls,lw=3,label='log(sSFR)=-11.5')
-def plot_sfr_mstar_lines(ax=None,apexflag=False):
+def plot_sfr_mstar_lines(ax=None,apexflag=False,BTcut=False):
     if ax is not None:
         plt.sca(ax)
     # plot MS fit
     
     x1,x2 = 9,11.1
     xline = np.linspace(x1,x2,100)
-    yline = get_MS(xline)
+    yline = get_MS(xline,BTcut=BTcut)
     #plt.fill_between(xline,yline+.45,yline-.45,color='b',alpha=.15,label=r'$\rm MS \pm 1.5 \sigma$')                
     plt.plot(xline,yline,c='w',ls='-',lw=5,label='_nolegend_')
     plt.plot(xline,yline,c='b',ls='-',lw=4,label='MS Fit')
@@ -273,7 +294,7 @@ def plot_sfr_mstar_lines(ax=None,apexflag=False):
     plt.plot(xline,yline-.45,c='b',ls='--',lw=3,label=r'$\rm MS - 1.5 \sigma$')                
     # plot passive cut
 
-    yl = get_SFR_cut(xline)
+    yl = get_SFR_cut(xline,BTcut=args.cutBT)
     plt.plot(xline,yl,'r-',lw=2,label='Passive Cut')
     if not apexflag:
         yl =xline + float(args.minssfr)
@@ -792,6 +813,7 @@ class gswlc_full():
     overlaps LCS region
     '''
     def __init__(self,catalog,cutBT=False,HIdef=False):
+        self.cutBT = cutBT
         if catalog.find('.fits') > -1:
             #print('got a fits file')
             self.gsw = Table.read(catalog,format='fits')
@@ -821,6 +843,9 @@ class gswlc_full():
         if cutBT:
             self.cut_BT(BT=float(args.BT))
         self.cut_ellip()
+        if args.cutN:
+
+            self.cut_nsersic()
         self.save_trimmed_cat()
         #self.get_dsfr
         if HIdef:
@@ -844,10 +869,16 @@ class gswlc_full():
         ellipflag = self.gsw[ellipkey] <= float(args.ellip)
         #self.gsw = self.gsw[ellipflag]
         self.keepflag = self.keepflag & ellipflag                
+    def cut_nsersic(self):
+        ''' cut catalog based on the sersic index '''
+        # colname is ng for gswlc and ng_1 for LCS
+        nsersicflag = self.gsw['ng'] <= float(args.nsersic)
+        #self.gsw = self.gsw[ellipflag]
+        self.keepflag = self.keepflag & nsersicflag
     def get_dsfr(self):
         ''' get distance from MS '''
         #self.dsfr = self.gsw['logSFR'] - get_BV_MS(self.gsw['logMstar'])
-        self.dsfr = self.gsw['logSFR'] - get_MS(self.gsw['logMstar'])
+        self.dsfr = self.gsw['logSFR'] - get_MS(self.gsw['logMstar'],BTcut=self.cutBT)
         
     def save_trimmed_cat(self):
         t = Table(self.gsw[self.keepflag])
@@ -888,7 +919,7 @@ class gswlc_base():
     def get_dsfr(self):
         ''' get distance from MS '''
         #self.dsfr = self.cat['logSFR'] - get_BV_MS(self.cat['logMstar'])
-        self.dsfr = self.cat['logSFR'] - get_MS(self.cat['logMstar'])
+        self.dsfr = self.cat['logSFR'] - get_MS(self.cat['logMstar'],BTcut=self.cutBT)
     def get_lowsfr_flag(self):
         self.lowsfr_flag = (self.dsfr < -1*MS_OFFSET)
 
@@ -933,7 +964,7 @@ class gswlc_base():
             plt.savefig(filename)
 class gswlc(gswlc_base):
     ''' class for GSWLC field catalog    '''
-    def __init__(self,catalog,cutBT=False,HIdef_file=None):
+    def __init__(self,catalog,cutBT=False,HIdef_file=None,args=None):
         self.cat = fits.getdata(catalog) 
         self.base_init()
         #self.calc_local_density()
@@ -941,7 +972,7 @@ class gswlc(gswlc_base):
         if HIdef_file is not None:
             self.HIdef = Table.read(HIdef_file)
 
-    def fit_MS(self,flag=None,plotFlag=False):
+    def fit_MS(self,flag=None,plotFlag=False,linearFit=True):
         ''' fit the SF main sequence for current sample (using same BT, mass, ellipticity cut as sample)  '''
         x = self.cat['logMstar']
         y = self.cat['logSFR']        
@@ -949,13 +980,18 @@ class gswlc(gswlc_base):
             x = x[flag]
             y = y[flag]
 
-        # using curve fit with 
-        fitted_line,mask = fit_line_sigma_clip(x,y,sigma=3,slope=.6,intercept=-7.2)
-        self.MS_line = fitted_line
+        # using curve fit with
+        if linearFit:
+            fitted_line,mask = fit_line_sigma_clip(x,y,sigma=3,slope=.6,intercept=-7.2)
+            self.MS_line = fitted_line
         
-        self.MS_slope = fitted_line.slope.value
-        self.MS_intercept = fitted_line.intercept.value
-
+            self.MS_slope = fitted_line.slope.value
+            self.MS_intercept = fitted_line.intercept.value
+        else:
+            fitted_line,mask = fit_line_sigma_clip(x,y,sigma=3,slope=.6,intercept=-7.2,linearFit=False)
+            self.MS_line = fitted_line
+            print('MS fit = ',fitted_line)
+            
         self.MS_std = np.std(np.abs(y[~mask]-fitted_line(x[~mask])))
         print('STD of pruned data = {:.2f}'.format(self.MS_std))
         self.MS_std = np.std(np.abs(y-fitted_line(x)))
@@ -1008,7 +1044,7 @@ class gswlc(gswlc_base):
         plot_Durbala_MS(ax)
         x1,x2 = 9.7,11.
         xline = np.linspace(x1,x2,100)
-        yline = get_MS(xline)
+        yline = get_MS(xline,BTcut=self.cutBT)
         ax.plot(xline,yline,c='w',ls=ls,lw=4,label='_nolegend_')
         ax.plot(xline,yline,c=color,ls=ls,lw=3,label='MS Fit')
 
@@ -1024,7 +1060,7 @@ class gswlc(gswlc_base):
         #plot_MS_lowBT(ax)
         x1,x2 = 9.7,11.
         xline = np.linspace(x1,x2,100)
-        yline = get_MS(xline)
+        yline = get_MS(xline,BTcut=self.cutBT)
         ax.plot(xline,yline,c='w',ls=ls,lw=4,label='_nolegend_')
         ax.plot(xline,yline,c=color,ls=ls,lw=3,label='MS Fit')
 
@@ -1090,7 +1126,7 @@ class lcsgsw(gswlc_base):
     functions to operate on catalog that is cross-match between
     LCS and GSWLC 
     '''
-    def __init__(self,catalog,sigma_split=600,cutBT=False):
+    def __init__(self,catalog,sigma_split=600,cutBT=False,args=None):
         # read in catalog of LCS matched to GSWLC
         #self.cat = fits.getdata(catalog)
         self.cat = Table.read(catalog)
@@ -1120,6 +1156,9 @@ class lcsgsw(gswlc_base):
         if cutBT:
             self.cut_BT(BT=float(args.BT))
         self.cut_ellip()
+        if args.cutN:
+            self.cut_nsersic()
+        
         nsaflag = ~self.cat['NSAID'].mask
         indices = np.arange(len(self.cat))[nsaflag]
         self.nsadict=dict((a,b) for a,b in zip(self.cat['NSAID'][nsaflag],indices))
@@ -1295,6 +1334,13 @@ class lcsgsw(gswlc_base):
         ellipflag = (self.cat[ellipkey] <= float(args.ellip))
         self.cat = self.cat[ellipflag]
         self.ssfr = self.ssfr[ellipflag]
+    def cut_nsersic(self):
+        ''' cut catalog based on sersic index '''
+
+        # colname is 'ng_1' for LCS
+        nsersicflag = (self.cat['ng_1'] <= float(args.nsersic))
+        self.cat = self.cat[nsersicflag]
+        self.ssfr = self.ssfr[nsersicflag]
         
     def get_mstar_limit(self,rlimit=17.7):
         
@@ -1433,9 +1479,9 @@ class comp_lcs_gsw():
         
         #self.lcs_mass_sfr_flag = (self.lcs.cat['logMstar']> self.masscut)  & (self.lcs.ssfr > self.ssfrcut)
         #self.gsw_mass_sfr_flag = (self.gsw.cat['logMstar']> self.masscut)  & (self.gsw.ssfr > self.ssfrcut)        
-        self.lcs_mass_sfr_flag = (self.lcs.cat['logMstar']> self.masscut)  & (self.lcs.cat['logSFR'] > get_SFR_cut(self.lcs.cat['logMstar'])) & (self.lcs.ssfr > self.ssfrcut)
+        self.lcs_mass_sfr_flag = (self.lcs.cat['logMstar']> self.masscut)  & (self.lcs.cat['logSFR'] > get_SFR_cut(self.lcs.cat['logMstar'],BTcut=cutBT)) & (self.lcs.ssfr > self.ssfrcut)
 
-        self.gsw_mass_sfr_flag = (self.gsw.cat['logMstar']> self.masscut)  & (self.gsw.cat['logSFR'] >  get_SFR_cut(self.gsw.cat['logMstar']))& (self.gsw.ssfr > self.ssfrcut)        
+        self.gsw_mass_sfr_flag = (self.gsw.cat['logMstar']> self.masscut)  & (self.gsw.cat['logSFR'] >  get_SFR_cut(self.gsw.cat['logMstar'],BTcut=cutBT))& (self.gsw.ssfr > self.ssfrcut)        
 
         self.gsw_uvir_flag = (self.gsw.cat['flag_uv']> 0)  & (self.gsw.cat['flag_midir'] > 0)
         self.lcs_uvir_flag = (self.lcs.cat['flag_uv']> 0)  & (self.lcs.cat['flag_midir'] > 0)
@@ -1454,6 +1500,8 @@ class comp_lcs_gsw():
         plot_sfr_mstar_lines(apexflag=apexflag)
 
         plt.ylabel(r'$\rm \log_{10}(SFR/(M_\odot/yr))$',fontsize=24)
+
+
         plt.xlabel(r'$\rm \log_{10}(M_\star/M_\odot)$',fontsize=24)
         plt.xlim(8.7,11.4)
         plt.legend()        
@@ -1461,13 +1509,13 @@ class comp_lcs_gsw():
         plt.savefig('ms_passive_cut.pdf')        
         
     def get_lowsfr(self):
-
-        self.gsw_dsfr = self.gsw.cat['logSFR'] - get_MS(self.gsw.cat['logMstar'])
+        self.gsw_dsfr = self.gsw.cat['logSFR'] - get_MS(self.gsw.cat['logMstar'],BTcut=self.cutBT)
         self.gsw_lowsfr_flag = self.gsw_dsfr < -1*MS_OFFSET
         self.gsw.lowsfr_flag = self.gsw_dsfr < -1*MS_OFFSET 
-        self.lcs_dsfr = self.lcs.cat['logSFR'] - get_MS(self.lcs.cat['logMstar'])
+        self.lcs_dsfr = self.lcs.cat['logSFR'] - get_MS(self.lcs.cat['logMstar'],BTcut=self.cutBT)
         self.lcs_lowsfr_flag = self.lcs_dsfr < -1*MS_OFFSET
-        self.lcs.lowsfr_flag = self.lcs_dsfr < -1*MS_OFFSET 
+        self.lcs.lowsfr_flag = self.lcs_dsfr < -1*MS_OFFSET
+        
     def get_HIobserved_flag(self):
 
         # for field sample, choose conservative limits to make life easier
@@ -1643,6 +1691,8 @@ class comp_lcs_gsw():
         massFlag = (self.gsw.cat['logMstar'] > 8.75) & (self.gsw.cat['logMstar'] < 10.)
         flag =  self.gsw_mass_sfr_flag & massFlag #& (self.gsw.cat[BTkey]< .5) 
         self.gsw.fit_MS(flag=flag,plotFlag=False)#flag=
+        print('fitting MS with parabola')
+        self.gsw.fit_MS(flag=flag,plotFlag=False,linearFit=False)#flag=        
     def plot_sfr_mstar(self,lcsflag=None,label='Core',outfile1=None,outfile2=None,coreflag=True,massmatch=True,hexbinflag=False,marker2='o',alpha1='0.1',plotMS=True,plotlegend=True):
         '''
         PURPOSE:
@@ -1946,7 +1996,7 @@ class comp_lcs_gsw():
             y1 = self.gsw.cat['logSFR'][flag2]
 
         #dsfr1 = y1-get_BV_MS(x1)
-        dsfr1 = y1-get_MS(x1)
+        dsfr1 = y1-get_MS(x1,BTcut=self.cutBT)
         #print("min dsfr for field sample = ",np.min(dsfr1))
         #tflag = dsfr1 < -1.5
         #print("logmstar of low dsfr = ",x1[tflag])
@@ -1958,7 +2008,7 @@ class comp_lcs_gsw():
         x2 = self.lcs.cat['logMstar'][flag1]
         y2 = self.lcs.cat['logSFR'][flag1]
         #dsfr2 = y2-get_BV_MS(x2)
-        dsfr2 = y2-get_MS(x2)
+        dsfr2 = y2-get_MS(x2,BTcut=self.cutBT)
         #LCS infall
         #(abs(self.cat['DELTA_V']) < 3) & ~self.membflag        
         #lcsflag = ~self.lcs.cat['membflag'] & (np.abs(self.lcs.cat['DELTA_V']) < 3.)
@@ -1971,7 +2021,7 @@ class comp_lcs_gsw():
         x3 = self.lcs.cat['logMstar'][flag3]
         y3 = self.lcs.cat['logSFR'][flag3]
         #dsfr3 = y3-get_BV_MS(x3)
-        dsfr3 = y3-get_MS(x3)
+        dsfr3 = y3-get_MS(x3,BTcut=self.cutBT)
         plt.figure(figsize=(8,6))
 
         mybins = np.linspace(-1.6,1.6,nbins)
@@ -2002,7 +2052,7 @@ class comp_lcs_gsw():
         #plt.xlabel('$ \log_{10}SFR - \log_{10}SFR_{MS} \ (M_\odot/yr) $',fontsize=20)
         plt.xlabel(r'$\rm \Delta \log_{10}SFR $',fontsize=22)
         plt.ylabel(r'$\rm Normalized \ Distribution$',fontsize=22)
-        plt.yticks([],[])
+        #plt.yticks([],[])
         # add range considered "normal" SF
         #plt.axvline(x=MS_OFFSET,ls='--',color='b')
         plt.axvline(x=-1*MS_OFFSET,ls='--',color='b')        
@@ -2051,7 +2101,7 @@ class comp_lcs_gsw():
         x3 = self.lcs.cat['logMstar'][flag3]
         y3 = self.lcs.cat['logSFR'][flag3]
         #dsfr3 = y3-get_BV_MS(x3)
-        dsfr3 = y3-get_MS(x3)        
+        dsfr3 = y3-get_MS(x3,BTcut=self.cutBT)        
         plt.figure(figsize=(8,6))
 
         mybins = np.linspace(-1.5,1.5,nbins)
@@ -2096,7 +2146,7 @@ class comp_lcs_gsw():
         y2 = self.lcs.cat['logSFR'][flag2]
         z2 = self.lcs.sizeratio[flag2]        
         #dsfr2 = y2-get_BV_MS(x2)
-        dsfr2 = y2-get_MS(x2)
+        dsfr2 = y2-get_MS(x2,BTcut=self.cutBT)
         print('fraction of core with dsfr below 0.3dex = {:.3f} ({:d}/{:d})'.format(sum(dsfr2 < -0.3)/len(dsfr2),sum(dsfr2 < -0.3),len(dsfr2)))
         
         #LCS infall
@@ -2106,7 +2156,7 @@ class comp_lcs_gsw():
         y3 = self.lcs.cat['logSFR'][flag3]
         z3 = self.lcs.sizeratio[flag3]
         #dsfr3 = y3-get_BV_MS(x3)
-        dsfr3 = y3-get_MS(x3)
+        dsfr3 = y3-get_MS(x3,BTcut=self.cutBT)
         print('fraction of core with dsfr below 0.3dex = {:.3f} ({:d}/{:d})'.format(sum(dsfr3 < -0.3)/len(dsfr3),sum(dsfr3 < -0.3),len(dsfr3)) )       
 
 
@@ -2154,7 +2204,7 @@ class comp_lcs_gsw():
             y4 = self.lcs.cat['logSFR'][flag4]
             z4 = self.lcs.sizeratio[flag4]        
             #dsfr4 = y4-get_BV_MS(x4)
-            dsfr4 = y4-get_MS(x4)
+            dsfr4 = y4-get_MS(x4,BTcut=self.cutBT)
             ax1.plot(z4,dsfr4,'kx',c=darkblue,markersize=10)
 
 
@@ -2164,7 +2214,7 @@ class comp_lcs_gsw():
             y4 = self.lcs.cat['logSFR'][flag4]
             z4 = self.lcs.sizeratio[flag4]        
             #dsfr4 = y4-get_BV_MS(x4)
-            dsfr4 = y4-get_MS(x4)        
+            dsfr4 = y4-get_MS(x4,BTcut=self.cutBT)        
             ax1.plot(z4,dsfr4,'kx',markersize=10,c=lightblue)
         
         if outfile1 is not None:
@@ -2213,7 +2263,7 @@ class comp_lcs_gsw():
         y2 = self.lcs.cat['logSFR'][flag2]
         z2 = self.lcs.cat['HIDef'][flag2]        
         #dsfr2 = y2-get_BV_MS(x2)
-        dsfr2 = y2-get_MS(x2)
+        dsfr2 = y2-get_MS(x2,BTcut=self.cutBT)
         
         #LCS infall
         lcsflag = self.lcs.sampleflag & self.lcs.cat['HIflag'] & ~self.lcs.cat['membflag'] & (self.lcs.cat['DELTA_V'] < 3.)
@@ -2222,7 +2272,7 @@ class comp_lcs_gsw():
         y3 = self.lcs.cat['logSFR'][flag3]
         z3 = self.lcs.cat['HIDef'][flag3]
         #dsfr3 = y3-get_BV_MS(x3)
-        dsfr3 = y3-get_MS(x3)
+        dsfr3 = y3-get_MS(x3,BTcut=self.cutBT)
 
         # make figure
         #plt.figure(figsize=(8,6))
@@ -2464,7 +2514,7 @@ class comp_lcs_gsw():
                     x1 = catalogs[i]['logMstar']
                     y1 = catalogs[i]['logSFR']
                     #xvar = y1-get_BV_MS(x1)
-                    xvar = y1-get_MS(x1)
+                    xvar = y1-get_MS(x1,BTcut=self.cutBT)
 
                     
                 # plot on top row normal SF galaxies
@@ -2669,7 +2719,7 @@ class comp_lcs_gsw():
 
             
                 plt.xlabel(xlabels[k],fontsize=22)
-                plt.yticks([],[])
+                #plt.yticks([],[])
                 if k == 0:
                     if (j == 0):
                         plt.title("Normal SFR")
@@ -2747,7 +2797,7 @@ class comp_lcs_gsw():
                     x1 = catalogs[i]['logMstar']
                     y1 = catalogs[i]['logSFR']
                     #xvar = y1-get_BV_MS(x1)
-                    xvar = y1-get_MS(x1)
+                    xvar = y1-get_MS(x1,BTcut=self.cutBT)
 
                     
                 # plot on top row normal SF galaxies
@@ -2868,7 +2918,7 @@ class comp_lcs_gsw():
                     x1 = catalogs[i]['logMstar']
                     y1 = catalogs[i]['logSFR']
                     #xvar = y1-get_BV_MS(x1)
-                    xvar = y1-get_MS(x1)
+                    xvar = y1-get_MS(x1,BTcut=self.cutBT)
 
                     
                 # plot on top row normal SF galaxies
@@ -3007,7 +3057,7 @@ class comp_lcs_gsw():
                 plt.xticks([],[])
             plt.yticks([],[])
         
-    def compare_BT_lowsfr_lcs_field_mmatch(self,nbins=12,coreonly=False,infallonly=False,BTmax=1,nrandom=100,nmatch=30):
+    def compare_BT_lowsfr_lcs_field_mmatch(self,nbins=12,coreonly=False,infallonly=False,BTmax=1,nrandom=100,nmatch=30,plotsingle=False):
         ''' compare the B/T distribution of LCS low SFR galaxies with mass-matched sample drawn from low SFR field galaxies '''
 
         if coreonly:
@@ -3293,14 +3343,14 @@ class comp_lcs_gsw():
         x1 = self.lcs.cat['logMstar'][flag1]
         y1 = self.lcs.cat['logSFR'][flag1]
         #core_dsfr = y1-get_BV_MS(x1)
-        core_dsfr = y1-get_MS(x1)
+        core_dsfr = y1-get_MS(x1,BTcut=self.cutBT)
         
         flag2 = self.lcs.infallflag & self.lcs_mass_sfr_flag
         infallBT = self.lcs.cat[BTkey][flag2]
         x2 = self.lcs.cat['logMstar'][flag2]
         y2 = self.lcs.cat['logSFR'][flag2]
         #infall_dsfr = y2-get_BV_MS(x2)
-        infall_dsfr = y2-get_MS(x2)        
+        infall_dsfr = y2-get_MS(x2,BTcut=self.cutBT)        
 
         nflag = (self.gsw.cat['ng'] < nsersic_cut)
 
@@ -3322,7 +3372,7 @@ class comp_lcs_gsw():
             y3 = self.gsw.cat['logSFR'][flag3]
             
         #field_dsfr = y3-get_BV_MS(x3)
-        field_dsfr = y3-get_MS(x3)
+        field_dsfr = y3-get_MS(x3,BTcut=self.cutBT)
 
 
         
@@ -3384,6 +3434,107 @@ class comp_lcs_gsw():
             outtab = Table([self.lcs.cat['NSAID'][flag2][flag],self.lcs.cat['RA_1'][flag2][flag],self.lcs.cat['DEC_1'][flag2][flag]],names=['NSAID','RA','DEC'])
             outtab.write('infall-btgt03-dsfrlt045.fits',overwrite=True)
         return xvars,yvars
+    def plot_dsfr_nsersic(self,nbins=15,xmax=6,writefiles=False,nsersic_cut=10,ecut=1,BTline=None,mmatch=False):
+        #nflag = (self.lcs.cat['ng_2'] < nsersic_cut)
+        #sflag = (self.lcs.cat['p_el'] < ecut)
+        flag1 =  self.lcs.membflag &  self.lcs_mass_sfr_flag
+
+        # use sersic index from simard+2011 single component fits
+        
+        coreBT = self.lcs.cat['ng_1'][flag1]
+        x1 = self.lcs.cat['logMstar'][flag1]
+        y1 = self.lcs.cat['logSFR'][flag1]
+        #core_dsfr = y1-get_BV_MS(x1)
+        core_dsfr = y1-get_MS(x1,BTcut=self.cutBT)
+        
+        flag2 = self.lcs.infallflag & self.lcs_mass_sfr_flag
+        infallBT = self.lcs.cat['ng_1'][flag2]
+        x2 = self.lcs.cat['logMstar'][flag2]
+        y2 = self.lcs.cat['logSFR'][flag2]
+        #infall_dsfr = y2-get_BV_MS(x2)
+        infall_dsfr = y2-get_MS(x2,BTcut=self.cutBT)        
+
+
+        if mmatch:
+            ### MASS MATCHING OF FIELD SAMPLE
+            # get mass-matched sample of field galaxies
+            lcsflag = (self.lcs.membflag | self.lcs.infallflag) & self.lcs_mass_sfr_flag
+            fieldflag = self.gsw_mass_sfr_flag 
+
+            keep_indices = mass_match(self.lcs.cat['logMstar'][lcsflag],self.gsw.cat['logMstar'][fieldflag],34278,nmatch=NMASSMATCH)
+
+            fieldBT = self.gsw.cat['ng'][fieldflag][keep_indices]
+            x3 = self.gsw.cat['logMstar'][fieldflag][keep_indices]
+            y3 = self.gsw.cat['logSFR'][fieldflag][keep_indices]
+        else:
+            flag3 = self.gsw_mass_sfr_flag   #& self.gsw.field1
+            fieldBT = self.gsw.cat['ng'][flag3]
+            x3 = self.gsw.cat['logMstar'][flag3]
+            y3 = self.gsw.cat['logSFR'][flag3]
+            
+        #field_dsfr = y3-get_BV_MS(x3)
+        field_dsfr = y3-get_MS(x3,BTcut=self.cutBT)
+
+
+        
+        plt.figure()
+        plt.subplots_adjust(left=.2)
+        mybins = np.linspace(0,xmax,nbins)        
+        xvars = [fieldBT,coreBT,infallBT]
+        yvars = [field_dsfr,core_dsfr,infall_dsfr]        
+        colors = ['.5',darkblue,lightblue]
+        labels = ['Field','Core','Infall']
+        orders = [1,3,2]
+        lws = [3,4,3]
+        alpha_pts = [.4,.4,.4]
+        alpha_lines = [.6,.6,.6]        
+        markers = ['o','s','o']
+        markersizes = [1,8,8]
+        hatches = ['/','\\','|']
+        allBT=[]
+        alldsfr=[]
+        for i in range(len(xvars)):
+            if i > 0:
+                plt.plot(xvars[i],yvars[i],'k.',color=colors[i],alpha=alpha_pts[i],zorder=orders[i],markersize=markersizes[i],\
+                     marker=markers[i],label=labels[i])
+            t = lcscommon.spearmanr(xvars[i],yvars[i])
+            ybin,xbin,binnumb = binned_statistic(xvars[i],yvars[i],statistic='mean',bins=mybins)
+            yerr,xbin,binnumb = binned_statistic(xvars[i],yvars[i],statistic='std',bins=mybins)
+            nyerr,xbin,binnumb = binned_statistic(xvars[i],yvars[i],statistic='count',bins=mybins)            
+            yerr = yerr/np.sqrt(nyerr)
+            dbin = xbin[1]-xbin[0]
+            if i == 0:
+                plt.plot(xbin[:-1]+0.5*dbin,ybin,color=colors[i],lw=4,label=labels[i],zorder=10)
+            else:
+                plt.plot(xbin[:-1]+0.5*dbin,ybin,color=colors[i],lw=4,zorder=10)
+            plt.fill_between(xbin[:-1]+0.5*dbin,ybin+yerr,ybin-yerr,color=colors[i],alpha=alpha_lines[i],zorder=8)            
+            print('\n'+labels[i])
+            print('r={:.4f}, pvalue={:.3e}'.format(t[0],t[1]))
+            allBT.append(xvars[i].tolist())
+            alldsfr.append(yvars[i].tolist())            
+        plt.xlabel(r'$\rm Sersic \ index$',fontsize=22)
+        plt.ylabel(r'$\rm \Delta \log_{10}SFR$',fontsize=22)
+
+        #plt.axhline(y=MS_OFFSET,ls='--',color='k',label='$1.5\sigma_{MS}$')
+        
+        plt.axhline(y=-1*MS_OFFSET,ls='--',color='w',lw=4)
+        plt.axhline(y=-1*MS_OFFSET,ls='--',color='b',lw=3,label=r'$\rm MS - 1.5\sigma$')
+        plt.legend()
+        if BTline is not None:
+            plt.axvline(x=BTline,ls=':',color='k')
+        print('\n Combined Samples: Spearman Rank')
+        #t = lcscommon.spearmanr(allBT,alldsfr)
+        #print(t)
+
+        if writefiles:
+            coreflag = (core_dsfr < -1*MS_OFFSET) & (coreBT > 0.3)
+            outtab = Table([self.lcs.cat['NSAID'][flag1][coreflag],self.lcs.cat['RA_1'][flag1][coreflag],self.lcs.cat['DEC_1'][flag1][coreflag]],names=['NSAID','RA','DEC'])
+            outtab.write('core-btgt03-dsfrlt045.fits',overwrite=True)
+            # write out infall
+            flag = (infall_dsfr < -1*MS_OFFSET) & (infallBT > 0.3)
+            outtab = Table([self.lcs.cat['NSAID'][flag2][flag],self.lcs.cat['RA_1'][flag2][flag],self.lcs.cat['DEC_1'][flag2][flag]],names=['NSAID','RA','DEC'])
+            outtab.write('infall-btgt03-dsfrlt045.fits',overwrite=True)
+        return xvars,yvars
     def plot_HIdef_BT(self,nbins=15,xmax=1,writefiles=False,nsersic_cut=10,ecut=1,BTline=None,mmatch=False):
         ''' plot HIdef vs BT for core, infall and field '''
         lcsFlag = self.lcs.cat['HIdef_flag'] & self.lcs_mass_sfr_flag & (self.lcs.membflag | self.lcs.infallflag)
@@ -3414,13 +3565,13 @@ class comp_lcs_gsw():
         x1 = self.lcs.cat['logMstar'][lcsCoreFlag]
         y1 = self.lcs.cat['logSFR'][lcsCoreFlag]
         #core_dsfr = y1-get_BV_MS(x1)
-        core_dsfr = y1-get_MS(x1)
+        core_dsfr = y1-get_MS(x1,BTcut=self.cutBT)
         
         infallBT = self.lcs.cat[BTkey][lcsInfallFlag]
         x2 = self.lcs.cat['logMstar'][lcsInfallFlag]
         y2 = self.lcs.cat['logSFR'][lcsInfallFlag]
         #infall_dsfr = y2-get_BV_MS(x2)
-        infall_dsfr = y2-get_MS(x2)        
+        infall_dsfr = y2-get_MS(x2,BTcut=self.cutBT)        
 
         nflag = (self.gsw.cat['ng'] < nsersic_cut)
 
@@ -3430,7 +3581,7 @@ class comp_lcs_gsw():
         y3 = self.gsw.cat['logSFR'][fieldFlag][keep_indices]
             
         #field_dsfr = y3-get_BV_MS(x3)
-        field_dsfr = y3-get_MS(x3)
+        field_dsfr = y3-get_MS(x3,BTcut=self.cutBT)
 
 
         
@@ -3492,14 +3643,14 @@ class comp_lcs_gsw():
         x1 = self.lcs.cat['logMstar'][flag1]
         y1 = self.lcs.cat['logSFR'][flag1]
         #core_dsfr = y1-get_BV_MS(x1)
-        core_dsfr = y1-get_MS(x1)
+        core_dsfr = y1-get_MS(x1,BTcut=self.cutBT)
         
         flag2 = sflag & nflag & self.lcs.infallflag &  (self.lcs.cat['logMstar']> self.masscut)  & (self.lcs.ssfr > self.ssfrcut)
         infallBT = self.lcs.cat[BTkey][flag2]
         x2 = self.lcs.cat['logMstar'][flag2]
         y2 = self.lcs.cat['logSFR'][flag2]
         #infall_dsfr = y2-get_BV_MS(x2)
-        infall_dsfr = y2-get_MS(x2)        
+        infall_dsfr = y2-get_MS(x2,BTcut=self.cutBT)        
 
         nflag = (self.gsw.cat['ng'] < nsersic_cut)
         flag3 = nflag & (self.gsw.cat['logMstar'] > self.masscut) & (self.gsw.ssfr > self.ssfrcut)   #& self.gsw.field1
@@ -3507,7 +3658,7 @@ class comp_lcs_gsw():
         x3 = self.gsw.cat['logMstar'][flag3]
         y3 = self.gsw.cat['logSFR'][flag3]
         #field_dsfr = y3-get_BV_MS(x3)
-        field_dsfr = y3-get_MS(x3)
+        field_dsfr = y3-get_MS(x3,BTcut=self.cutBT)
         
         plt.figure()
         mybins = np.linspace(9.7,11.25,nbins)        
@@ -3993,9 +4144,9 @@ class comp_lcs_gsw():
         x1 = self.lcs.cat['logMstar'][flag1]
         y1 = self.lcs.cat['logSFR'][flag1]
         if BTcut is not None:
-            core_dsfr = y1-get_MS_BTcut(x1)
+            core_dsfr = y1-get_MS_BTcut(x1,BTcut=self.cutBT)
         else:
-            core_dsfr = y1-get_MS(x1)
+            core_dsfr = y1-get_MS(x1,BTcut=self.cutBT)
         core_fsup = sum(core_dsfr < slimit)/len(core_dsfr)
         core_err = binom_conf_interval(sum(core_dsfr < slimit),len(core_dsfr))#lower, upper
 
@@ -4013,9 +4164,9 @@ class comp_lcs_gsw():
         y2 = self.lcs.cat['logSFR'][flag2]
         #infall_dsfr = y2-get_BV_MS(x2)
         if BTcut is not None:
-            infall_dsfr = y2-get_MS_BTcut(x2)
+            infall_dsfr = y2-get_MS_BTcut(x2,BTcut=self.cutBT)
         else:
-            infall_dsfr = y2-get_MS(x2)
+            infall_dsfr = y2-get_MS(x2,BTcut=self.cutBT)
         infall_fsup = sum(infall_dsfr < slimit)/len(infall_dsfr)
         infall_err = binom_conf_interval(sum(infall_dsfr < slimit),len(infall_dsfr))#lower, upper
         print('INFALL')        
@@ -4044,9 +4195,9 @@ class comp_lcs_gsw():
             fieldBT = self.gsw.cat[BTkey][flag3]
         #field_dsfr = y3-get_BV_MS(x3)
         if BTcut is not None:
-            field_dsfr = y3-get_MS_BTcut(x3)
+            field_dsfr = y3-get_MS_BTcut(x3,BTcut=self.cutBT)
         else:
-            field_dsfr = y3-get_MS(x3)
+            field_dsfr = y3-get_MS(x3,BTcut=self.cutBT)
         field_fsup = sum(field_dsfr < slimit)/len(field_dsfr)
         field_err = binom_conf_interval(sum(field_dsfr < slimit),len(field_dsfr))#lower, upper
         print('FIELD')
@@ -4127,11 +4278,14 @@ class comp_lcs_gsw():
     def ks_stats(self,massmatch=False):
         '''
         GOAL:
-        * compute KS statistics for table in paper comparing 
+        * write out tables to use for computing KS statistics for table in paper comparing 
           - LCS core/field vs GSWLC
           - LCS core vs field
           - B/T cut is set when calling program
           - with and without mass matching
+
+        2022-06-24
+        * adding sersic index so I can try cutting on that instead of 
         '''
         #flag3 = lcsflag &  (self.lcs.cat['logMstar']> self.masscut)  & (self.lcs.ssfr > self.ssfrcut)
 
@@ -4143,14 +4297,14 @@ class comp_lcs_gsw():
         mc = self.lcs.cat['logMstar'][lcsmemb]
         sfrc = self.lcs.cat['logSFR'][lcsmemb]
         #dsfrc = sfrc - get_BV_MS(mc)
-        dsfrc = sfrc - get_MS(mc)
+        dsfrc = sfrc - get_MS(mc,BTcut=self.cutBT)
         zc = self.lcs.cat['Z_1'][lcsmemb]
         BTc = self.lcs.cat[BTkey][lcsmemb]
         
         mi = self.lcs.cat['logMstar'][lcsinfall]        
         sfri = self.lcs.cat['logSFR'][lcsinfall]
         #dsfri = sfri - get_BV_MS(mi)
-        dsfri = sfri - get_MS(mi)
+        dsfri = sfri - get_MS(mi,BTcut=self.cutBT)
         zi = self.lcs.cat['Z_1'][lcsinfall]
         BTi = self.lcs.cat[BTkey][lcsinfall]
         
@@ -4158,7 +4312,7 @@ class comp_lcs_gsw():
         mf = self.gsw.cat['logMstar'][field]
         sfrf = self.gsw.cat['logSFR'][field]
         #dsfrf = sfrf - get_BV_MS(mf)
-        dsfrf = sfrf - get_MS(mf)
+        dsfrf = sfrf - get_MS(mf,BTcut=self.cutBT)
         zf = self.gsw.cat['Z_1'][field]
         BTf = self.gsw.cat[BTkey][field]        
 
@@ -4522,7 +4676,9 @@ if __name__ == '__main__':
     parser.add_argument('--minmass', dest = 'minmass', default = 9.7, help = 'minimum stellar mass for sample.  default is log10(M*) > 9.7')
     parser.add_argument('--minssfr', dest = 'minssfr', default = -11.5, help = 'minimum sSFR for the sample.  default is sSFR > -11.5')    
     parser.add_argument('--cutBT', dest = 'cutBT', default = False, action='store_true', help = 'Set this to cut the sample by B/T < 0.3.')
-    parser.add_argument('--BT', dest = 'BT', default = 0.4, help = 'B/T cut to use. Default is 0.4.')
+    parser.add_argument('--BT', dest = 'BT', default = 0.3, help = 'B/T cut to use. Default is 0.3.')
+    parser.add_argument('--cutN', dest = 'cutN', default = False, action='store_true', help = 'Set this to cut the sample by sersic n < 2.')
+    parser.add_argument('--nsersic', dest = 'nsersic', default = 2.5, help = 'Sersic n cut to use. Default is 2.')
     parser.add_argument('--HIdef', dest = 'HIdef', default=False,action='store_true', help = 'Include HIdef information for GSWLC')    
     parser.add_argument('--ellip', dest = 'ellip', default = .75, help = 'ellipt cut to use.  Default is 1.1 (= no cut)')    
     #parser.add_argument('--cutBT', dest = 'diskonly', default = 1, help = 'True/False (enter 1 or 0). normalize by Simard+11 disk size rather than Re for single-component sersic fit.  Default is true.  ')    
@@ -4563,7 +4719,7 @@ if __name__ == '__main__':
         HIdef_file = homedir+'/research/GSWLC/GSWLC-X2-NO-DR10-AGN-Simard2011-tab1-tab3-Tempel-13-2021Jan07-HIdef-2021Aug28-trimmed.fits'
     else:
         HIdef_file = None
-    g = gswlc(infile,HIdef_file=HIdef_file)
+    g = gswlc(infile,HIdef_file=HIdef_file,args=args)
 
     #g.plot_ms()
     #g.plot_field1()
@@ -4580,7 +4736,7 @@ if __name__ == '__main__':
     # HIdef_flag - this means it has HI, not that it is deficient!
     lcsfile = homedir+'/research/LCS/tables/LCS-GSWLC-X2-NO-DR10-AGN-Simard2011-tab1-vizier-10arcsec-Tempel-Simard-tab3-2021Apr21-HIdef-2021Aug28.fits'
     lcsfile = homedir+'/research/LCS/tables/LCS-GSWLC-NODR10AGN-Simard-tab1-tab3-A100-LCSsizes-fixednames-Tempel.fits'    
-    lcs = lcsgsw(lcsfile,cutBT=args.cutBT)
+    lcs = lcsgsw(lcsfile,cutBT=args.cutBT,args=args)
     #lcs = lcsgsw('/home/rfinn/research/LCS/tables/LCS_all_size_KE_SFR_GSWLC2_X2.fits',cutBT=args.cutBT)    
     #lcs.compare_sfrs()
 
