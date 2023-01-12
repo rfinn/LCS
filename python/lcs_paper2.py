@@ -1060,6 +1060,34 @@ class lcsgsw(gswlc_base):
         newtable = Table(data=tabcols,names=tabnames)
         newtable = newtable[self.sampleflag]
         newtable.write(homedir+'/research/LCS/tables/LCS-simulation-data.fits',format='fits',overwrite=True)
+    def write_file_for_JWST(self):
+        
+        self.get_DA()
+        #self.calculate_sizeratio()
+        # write a file that contains the
+        # sizeratio, error, SFR, sersic index, membflag
+        # we are using GSWLC SFR
+        c1 = Column(self.sizeratio,name='sizeratio')
+        c2 = Column(self.sizeratioERR,name='sizeratio_err')
+        c3 = Column(self.sampleflag,name='sampleflag')
+        c4 = Column(self.membflag,name='membflag')        
+        # using all simard values of sersic fit
+        tabcols = [self.cat['RA_1'],self.cat['DEC_1'],c1,c2,\
+                       self.sampleflag, self.membflag, \
+                       self.cat[BTkey],self.cat['ng_1'],\
+                       self.cat['logSFR'],self.cat['logMstar'],\
+                       self.cat['fcre1'],self.cat['fcnsersic1'],self.cat['fcmag1'],\
+                       self.cat['Rd_1'],self.cat['SERSIC_TH50'],self.cat['SERSIC_N'],\
+                       self.cat['DELTA_V'],self.cat['DR_R200'],]
+        tabnames = ['RA','DEC','sizeratio','sizeratio_err',\
+                        'sampleflag','membflag',\
+                        'B_T_r','ng','logSFR','logMstar',\
+                        'fcre1','fcnsersic1','mag24_AB',\
+                        'Rd','SERSIC_TH50','SERSIC_N','DELTA_V','DR_R200']
+
+        newtable = Table(data=tabcols,names=tabnames)
+        newtable = newtable[self.sampleflag]
+        newtable.write(homedir+'/research/LCS/tables/LCS-JWST-table.fits',format='fits',overwrite=True)
 
     def cut_BT(self,BT=None):
         print('inside cut_BT, BT = ',BT)
