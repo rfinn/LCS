@@ -182,6 +182,7 @@ def get_SFR_cut(logMstar,BTcut=False):
         return get_MS(logMstar,BTcut=BTcut) - 0.845
     elif args.cutBT or args.cutN:
         #return get_MS(logMstar) - 0.947
+        #print("\nusing MS fit for BT<0.3 galaxies \n")
         return get_MS(logMstar,BTcut=BTcut) - 0.947
 def get_MS(logMstar,BTcut=False):
     # not BT cut
@@ -303,7 +304,8 @@ def plot_sfr_mstar_lines(ax=None,apexflag=False,BTcut=False):
 def colormass(x1,y1,x2,y2,name1,name2, figname, hexbinflag=False,contourflag=False, \
              xmin=7.9, xmax=11.6, ymin=-1.2, ymax=1.2, contour_bins = 40, ncontour_levels=5,\
               xlabel=r'$\rm \log_{10}(M_\star/M_\odot) $', ylabel='$(g-i)_{corrected} $', color1=colorblind3,color2=colorblind2,\
-              nhistbin=50, alpha1=.1,alphagray=.1,lcsflag=False,ssfrlimit=None,cumulativeFlag=False,marker2='o'):
+              nhistbin=50, alpha1=.1,alphagray=.1,lcsflag=False,ssfrlimit=None,cumulativeFlag=False,marker2='o',\
+              plot_top_histogram=True):
 
     '''
     PARAMS:
@@ -325,10 +327,19 @@ def colormass(x1,y1,x2,y2,name1,name2, figname, hexbinflag=False,contourflag=Fal
     
 
     '''
-    fig = plt.figure(figsize=(8,8))
+    if plot_top_histogram:
+        fig = plt.figure(figsize=(8,8))
+    else:
+        fig = plt.figure(figsize=(8,5))
+    
+    
     plt.subplots_adjust(left=.15,bottom=.15)
-    nrow = 4
-    ncol = 4
+    if plot_top_histogram:
+        nrow = 4
+        ncol = 4
+    else:
+        nrow = 3
+        ncol = 4
     
     # for purposes of this plot, only keep data within the 
     # window specified by [xmin:xmax, ymin:ymax]
@@ -343,8 +354,10 @@ def colormass(x1,y1,x2,y2,name1,name2, figname, hexbinflag=False,contourflag=Fal
     y2 = y2[keepflag2]
     n1 = sum(keepflag1)
     n2 = sum(keepflag2)
-
-    ax1 = plt.subplot2grid((nrow,ncol),(1,0),rowspan=nrow-1,colspan=ncol-1, fig=fig)
+    if plot_top_histogram:
+        ax1 = plt.subplot2grid((nrow,ncol),(1,0),rowspan=nrow-1,colspan=ncol-1, fig=fig)
+    else:
+        ax1 = plt.subplot2grid((nrow,ncol),(0,0),rowspan=nrow,colspan=ncol-1, fig=fig)        
     if hexbinflag:
         #t1 = plt.hist2d(x1,y1,bins=100,cmap='gray_r')
         #H, xbins,ybins = np.histogram2d(x1,y1,bins=20)
@@ -391,28 +404,38 @@ def colormass(x1,y1,x2,y2,name1,name2, figname, hexbinflag=False,contourflag=Fal
     plt.ylabel(ylabel,fontsize=26)
     plt.gca().tick_params(axis='both', labelsize=16)
     #plt.axis([7.9,11.6,-.05,2])
-    ax2 = plt.subplot2grid((nrow,ncol),(0,0),rowspan=1,colspan=ncol-1, fig=fig, sharex = ax1, yticks=[])
-    print('just checking ...',len(x1),len(x2))
-    print(min(x1))
-    print(min(x2))
-    minx = min([min(x1),min(x2)])
-    maxx = max([max(x1),max(x2)])    
-    mybins = np.linspace(minx,maxx,nhistbin)
-    if cumulativeFlag:
-        t = plt.hist(x1, density=True, cumulative=True,bins=len(x1),color=color1,histtype='step',lw=1.5, label=name1+' (%i)'%(n1))
-        t = plt.hist(x2, density=True, cumulative=True,bins=len(x2),color=color2,histtype='step',lw=1.5, label=name2+' (%i)'%(n2))
-    else:
-        t = plt.hist(x1, density=True, bins=mybins,color=color1,histtype='step',lw=1.5, label=name1+' (%i)'%(n1))
-        t = plt.hist(x2, density=True, bins=mybins,color=color2,histtype='step',lw=1.5, label=name2+' (%i)'%(n2))
 
-    if hexbinflag:
-        plt.legend()
-    #leg = ax2.legend(fontsize=12,loc='lower left')
-    #for l in leg.legendHandles:
-    #    l.set_alpha(1)
-    #    l._legmarker.set_alpha(1)
-    ax2.xaxis.tick_top()
-    ax3 = plt.subplot2grid((nrow,ncol),(1,ncol-1),rowspan=nrow-1,colspan=1, fig=fig, sharey = ax1, xticks=[])
+    # add the top histogram
+    if plot_top_histogram:
+        ax2 = plt.subplot2grid((nrow,ncol),(0,0),rowspan=1,colspan=ncol-1, fig=fig, sharex = ax1, yticks=[])
+        print('just checking ...',len(x1),len(x2))
+        print(min(x1))
+        print(min(x2))
+        minx = min([min(x1),min(x2)])
+        maxx = max([max(x1),max(x2)])    
+        mybins = np.linspace(minx,maxx,nhistbin)
+        if cumulativeFlag:
+            t = plt.hist(x1, density=True, cumulative=True,bins=len(x1),color=color1,histtype='step',lw=1.5, label=name1+' (%i)'%(n1))
+            t = plt.hist(x2, density=True, cumulative=True,bins=len(x2),color=color2,histtype='step',lw=1.5, label=name2+' (%i)'%(n2))
+        else:
+            t = plt.hist(x1, density=True, bins=mybins,color=color1,histtype='step',lw=1.5, label=name1+' (%i)'%(n1))
+            t = plt.hist(x2, density=True, bins=mybins,color=color2,histtype='step',lw=1.5, label=name2+' (%i)'%(n2))
+
+        if hexbinflag:
+            plt.legend()
+        #leg = ax2.legend(fontsize=12,loc='lower left')
+        #for l in leg.legendHandles:
+        #    l.set_alpha(1)
+        #    l._legmarker.set_alpha(1)
+        ax2.xaxis.tick_top()
+        ax2.tick_params(axis='both', labelsize=16)
+
+
+    # add the side histogram
+    if plot_top_histogram:
+        ax3 = plt.subplot2grid((nrow,ncol),(1,ncol-1),rowspan=nrow-1,colspan=1, fig=fig, sharey = ax1)#, xticks=[])
+    else:
+        ax3 = plt.subplot2grid((nrow,ncol),(0,ncol-1),rowspan=nrow,colspan=1, fig=fig, sharey = ax1)#, xticks=[])        
     miny = min([min(y1),min(y2)])
     maxy = max([max(y1),max(y2)])    
     mybins = np.linspace(miny,maxy,nhistbin)
@@ -427,7 +450,8 @@ def colormass(x1,y1,x2,y2,name1,name2, figname, hexbinflag=False,contourflag=Fal
     plt.yticks(rotation='horizontal')
     ax3.yaxis.tick_right()
     ax3.tick_params(axis='both', labelsize=16)
-    ax2.tick_params(axis='both', labelsize=16)
+    
+
     #ax3.set_title('$log_{10}(SFR)$',fontsize=20)
     #plt.savefig(figname)
 
@@ -443,7 +467,10 @@ def colormass(x1,y1,x2,y2,name1,name2, figname, hexbinflag=False,contourflag=Fal
     t = lcscommon.ks(y1,y2,run_anderson=False)
     t = anderson_ksamp([y1,y2])
     print('Anderson-Darling: ',t)
-    return ax1,ax2,ax3
+    if plot_top_histogram:
+        return ax1,ax2,ax3
+    else:
+        return ax1,ax3
 
 def scatter_hist(x, y, ax, ax_histx, ax_histy):
     ''' https://matplotlib.org/stable/gallery/lines_bars_and_markers/scatter_hist.html#sphx-glr-gallery-lines-bars-and-markers-scatter-hist-py  ''' 
@@ -844,7 +871,7 @@ class gswlc_full():
             self.cut_BT(BT=float(args.BT))
         self.cut_ellip()
         if args.cutN:
-
+            print("\ncutting based on sersic index\n")
             self.cut_nsersic()
         self.save_trimmed_cat()
         #self.get_dsfr
@@ -1468,10 +1495,11 @@ class comp_lcs_gsw():
     - used to compare LCS with field sample constructed from SDSS with GSWLC SFR and Mstar values
 
     '''
-    def __init__(self,lcs,gsw,minmstar = 10, minssfr = -11.5,cutBT=False):
+    def __init__(self,lcs,gsw, minmstar = 10, maxmstar = 12, minssfr = -11.5,cutBT=False):
         self.lcs = lcs
         self.gsw = gsw
         self.masscut = minmstar
+        self.maxmasscut = maxmstar        
         self.ssfrcut = minssfr
 
         #self.lowssfr_flag = (self.lcs.cat['logMstar']> self.masscut)  & (self.lcs.ssfr > self.ssfrcut) & (self.lcs.lowsfr_flag)        
@@ -1479,9 +1507,9 @@ class comp_lcs_gsw():
         
         #self.lcs_mass_sfr_flag = (self.lcs.cat['logMstar']> self.masscut)  & (self.lcs.ssfr > self.ssfrcut)
         #self.gsw_mass_sfr_flag = (self.gsw.cat['logMstar']> self.masscut)  & (self.gsw.ssfr > self.ssfrcut)        
-        self.lcs_mass_sfr_flag = (self.lcs.cat['logMstar']> self.masscut)  & (self.lcs.cat['logSFR'] > get_SFR_cut(self.lcs.cat['logMstar'],BTcut=cutBT)) & (self.lcs.ssfr > self.ssfrcut)
+        self.lcs_mass_sfr_flag = (self.lcs.cat['logMstar']> self.masscut)  & (self.lcs.cat['logMstar']< self.maxmasscut)  & (self.lcs.cat['logSFR'] > get_SFR_cut(self.lcs.cat['logMstar'],BTcut=cutBT)) & (self.lcs.ssfr > self.ssfrcut)
 
-        self.gsw_mass_sfr_flag = (self.gsw.cat['logMstar']> self.masscut)  & (self.gsw.cat['logSFR'] >  get_SFR_cut(self.gsw.cat['logMstar'],BTcut=cutBT))& (self.gsw.ssfr > self.ssfrcut)        
+        self.gsw_mass_sfr_flag = (self.gsw.cat['logMstar']> self.masscut)  &(self.gsw.cat['logMstar']< self.maxmasscut)  &  (self.gsw.cat['logSFR'] >  get_SFR_cut(self.gsw.cat['logMstar'],BTcut=cutBT))& (self.gsw.ssfr > self.ssfrcut)        
 
         self.gsw_uvir_flag = (self.gsw.cat['flag_uv']> 0)  & (self.gsw.cat['flag_midir'] > 0)
         self.lcs_uvir_flag = (self.lcs.cat['flag_uv']> 0)  & (self.lcs.cat['flag_midir'] > 0)
@@ -1763,7 +1791,10 @@ class comp_lcs_gsw():
             color2=darkblue
         else:
             color2=lightblue
-        ax1,ax2,ax3 = colormass(x1,y1,x2,y2,'GSWLC',label,'sfr-mstar-gswlc-field.pdf',ymin=-1.5,ymax=1.6,xmin=9.5,xmax=11.5,nhistbin=10,ylabel=r'$\rm \log_{10}(SFR)$',contourflag=False,alphagray=.1,hexbinflag=hexbinflag,color2=color2,color1='0.2',alpha1=1,ssfrlimit=-11.5,marker2=marker2)
+        if massmatch:
+            ax1,ax3 = colormass(x1,y1,x2,y2,'GSWLC',label,'sfr-mstar-gswlc-field.pdf',ymin=-1.5,ymax=1.6,xmin=9.5,xmax=11.5,nhistbin=10,ylabel=r'$\rm \log_{10}(SFR)$',contourflag=False,alphagray=.1,hexbinflag=hexbinflag,color2=color2,color1='0.2',alpha1=1,ssfrlimit=-11.5,marker2=marker2,plot_top_histogram=not(massmatch))
+        else:
+            ax1,ax2,ax3 = colormass(x1,y1,x2,y2,'GSWLC',label,'sfr-mstar-gswlc-field.pdf',ymin=-1.5,ymax=1.6,xmin=9.5,xmax=11.5,nhistbin=10,ylabel=r'$\rm \log_{10}(SFR)$',contourflag=False,alphagray=.1,hexbinflag=hexbinflag,color2=color2,color1='0.2',alpha1=1,ssfrlimit=-11.5,marker2=marker2,plot_top_histogram=not(massmatch))
         # add marker to figure to show galaxies with size measurements
 
         #self.plot_lcs_size_sample(ax1,memb=lcsmemb,infall=lcsinfall,ssfrflag=False)
@@ -2022,7 +2053,7 @@ class comp_lcs_gsw():
         y3 = self.lcs.cat['logSFR'][flag3]
         #dsfr3 = y3-get_BV_MS(x3)
         dsfr3 = y3-get_MS(x3,BTcut=self.cutBT)
-        plt.figure(figsize=(8,6))
+        plt.figure(figsize=(8,4))
 
         mybins = np.linspace(-1.6,1.6,nbins)
         delta_bin = mybins[1]-mybins[0]
@@ -2988,7 +3019,7 @@ class comp_lcs_gsw():
         # does low SFR sample have higher B/T than normal field galaxies
         if plotsingle:
             plt.figure(figsize=(12,3))
-            plt.subplots_adjust(wspace=.01,bottom=.2)
+            plt.subplots_adjust(wspace=.1,bottom=.2)
         colors = ['0.5',darkblue,'k'] # color for field and LCS
 
         alphas = [.8,.5,1.]
@@ -3055,7 +3086,7 @@ class comp_lcs_gsw():
                         plt.text(-.3,1,r'$\rm Normalized \ Distribution$',fontsize=20,transform=ax.transAxes,rotation=90,verticalalignment='center')
             else:
                 plt.xticks([],[])
-            plt.yticks([],[])
+            #plt.yticks([],[])
         
     def compare_BT_lowsfr_lcs_field_mmatch(self,nbins=12,coreonly=False,infallonly=False,BTmax=1,nrandom=100,nmatch=30,plotsingle=False):
         ''' compare the B/T distribution of LCS low SFR galaxies with mass-matched sample drawn from low SFR field galaxies '''
@@ -4674,6 +4705,7 @@ if __name__ == '__main__':
 
     parser = argparse.ArgumentParser(description ='Program to run analysis for LCS paper 2')
     parser.add_argument('--minmass', dest = 'minmass', default = 9.7, help = 'minimum stellar mass for sample.  default is log10(M*) > 9.7')
+    parser.add_argument('--maxmass', dest = 'maxmass', default = 12, help = 'maximum stellar mass for sample.  default is log10(M*) < 12')    
     parser.add_argument('--minssfr', dest = 'minssfr', default = -11.5, help = 'minimum sSFR for the sample.  default is sSFR > -11.5')    
     parser.add_argument('--cutBT', dest = 'cutBT', default = False, action='store_true', help = 'Set this to cut the sample by B/T < 0.3.')
     parser.add_argument('--BT', dest = 'BT', default = 0.3, help = 'B/T cut to use. Default is 0.3.')
@@ -4735,9 +4767,15 @@ if __name__ == '__main__':
     # HIdef_Toribio, HIdef_Boselli, HIdef_Jones
     # HIdef_flag - this means it has HI, not that it is deficient!
     lcsfile = homedir+'/research/LCS/tables/LCS-GSWLC-X2-NO-DR10-AGN-Simard2011-tab1-vizier-10arcsec-Tempel-Simard-tab3-2021Apr21-HIdef-2021Aug28.fits'
-    lcsfile = homedir+'/research/LCS/tables/LCS-GSWLC-NODR10AGN-Simard-tab1-tab3-A100-LCSsizes-fixednames-Tempel.fits'    
+    # the following table was buit on 10/17/2021.  I'm not sure what the difference is between this and the prior version.
+    # going to test using prior version to see if my contamination estimates go back to what we had previously.
+    # this version has 2955 lines vs 1334 - so maybe this is where we expanded to use all GSWLC catalog,
+    # as opposed to only those galaxies that fall on the mips scan.
+
+    lcsfile = homedir+'/research/LCS/tables/LCS-GSWLC-NODR10AGN-Simard-tab1-tab3-A100-LCSsizes-fixednames-Tempel.fits'
+    
     lcs = lcsgsw(lcsfile,cutBT=args.cutBT,args=args)
     #lcs = lcsgsw('/home/rfinn/research/LCS/tables/LCS_all_size_KE_SFR_GSWLC2_X2.fits',cutBT=args.cutBT)    
     #lcs.compare_sfrs()
 
-    b = comp_lcs_gsw(lcs,g,minmstar=float(args.minmass),minssfr=float(args.minssfr),cutBT=args.cutBT)
+    b = comp_lcs_gsw(lcs,g,minmstar=float(args.minmass),maxmstar=float(args.maxmass),minssfr=float(args.minssfr),cutBT=args.cutBT)
